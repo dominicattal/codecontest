@@ -6,7 +6,7 @@ int main()
 {
     Socket* client_socket;
     Packet* test_packet;
-    const char* test = "this is a test";
+    const char* test = "team1";
 
     networking_init();
     
@@ -16,7 +16,7 @@ int main()
         goto cleanup;
     }
 
-    test_packet = packet_create(37, strlen(test)+1, test);
+    test_packet = packet_create(1, strlen(test)+1, test);
 
     if (socket_send(client_socket, test_packet))
         puts("unsuccessful");
