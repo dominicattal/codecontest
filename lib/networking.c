@@ -1,6 +1,7 @@
 #include "networking.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #ifdef __WIN32
 
@@ -13,8 +14,9 @@ typedef struct {
 } NetworkingContext;
 
 typedef struct Socket {
-    SOCKET* sock;
     struct addrinfo* info;
+    SOCKET* sock;
+    bool connected;
 } Socket;
 
 static NetworkingContext ctx;
@@ -38,18 +40,21 @@ char* networking_hostname(void)
     return inet_ntoa(*(struct in_addr *)*local_host->h_addr_list);
 }
 
-Socket* socket_create(const char* ip, const char* port, bool tcp)
+Socket* socket_create(const char* ip, const char* port, int flags)
 {
     struct addrinfo* result = NULL;
     struct addrinfo hints;
     SOCKET* new_socket;
     Socket* res_socket;
 
+    int tcp = flags & 1;
+    int will_bind = (flags>>1) & 1;
+
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = (tcp) ? SOCK_STREAM : SOCK_DGRAM;
     hints.ai_protocol = (tcp) ? IPPROTO_TCP : IPPROTO_UDP;
-    hints.ai_flags = AI_PASSIVE;
+    hints.ai_flags = (will_bind) ? AI_PASSIVE : 0;
     if (getaddrinfo(ip, port, &hints, &result))
         goto fail;
 
@@ -65,6 +70,7 @@ Socket* socket_create(const char* ip, const char* port, bool tcp)
 
     res_socket->sock = new_socket;
     res_socket->info = result;
+    res_socket->connected = true;
 
     return res_socket;
 
@@ -134,7 +140,7 @@ Packet* packet_create(int id, int length, const char* buffer)
     Packet* packet = malloc(sizeof(Packet));
     packet->id = id;
     packet->length = length+2;
-    packet->buffer = malloc(length*sizeof(char) + sizeof(int));
+    packet->buffer = malloc(packet->length * sizeof(char));
     packet->buffer[0] = (id>>8) & 0xFF;
     packet->buffer[1] = id & 0xFF;
     memcpy(packet->buffer+2, buffer, length);
@@ -148,13 +154,33 @@ int socket_send(Socket* sock, Packet* packet)
     return 0;
 }
 
-Packet* socket_recv(Socket* sock)
+Packet* socket_recv(Socket* sock, int max_length)
 {
     Packet* packet;
+    int length;
+    char* buffer;
+    buffer = malloc(max_length * sizeof(char));
+    length = recv(*sock->sock, buffer, max_length, 0);
+    if (length == SOCKET_ERROR) {
+        sock->connected = false;
+        free(buffer);
+        goto fail_free_buffer;
+    }
     packet = malloc(sizeof(Packet));
-    packet->buffer = malloc(1000 * sizeof(char));
-    packet->length = recv(*sock->sock, packet->buffer, 1000, 0);
+    packet->id = (buffer[0]<<8) + buffer[1];
+    packet->length = length-2;
+    packet->buffer = malloc(packet->length * sizeof(char));
+    memcpy(packet->buffer, buffer+2, length);
+    free(buffer);
     return packet;
+fail_free_buffer:
+    free(buffer);
+    return NULL;
+}
+
+int socket_connected(Socket* sock)
+{
+    return sock->connected;
 }
 
 void packet_destroy(Packet* packet)

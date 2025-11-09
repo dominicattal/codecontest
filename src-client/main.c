@@ -10,7 +10,7 @@ int main()
 
     networking_init();
     
-    client_socket = socket_create("127.0.0.1", "27105", true);
+    client_socket = socket_create("127.0.0.1", "27105", BIT_TCP);
     if (socket_connect(client_socket)) {
         puts("Could not connect");
         goto cleanup;
@@ -21,6 +21,7 @@ int main()
     socket_send(client_socket, test_packet);
 
     puts("successful");
+    socket_recv(client_socket, 1000);
 
 cleanup:
     networking_cleanup();

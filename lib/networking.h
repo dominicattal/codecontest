@@ -1,7 +1,8 @@
 #ifndef NETWORKING_H
 #define NETWORKING_H
 
-#include <stdbool.h>
+#define BIT_TCP  0x1
+#define BIT_BIND 0x2
 
 typedef struct {
     int id;
@@ -20,7 +21,7 @@ char*   networking_hostname(void);
 // ip   -> ip to create socket for. NULL to create on host
 // port -> number from 0-65535 in string format. Undefined if NULL.
 // tcp  -> whether the socket support tcp or udp
-Socket* socket_create(const char* ip, const char* port, bool tcp);
+Socket* socket_create(const char* ip, const char* port, int flags);
 
 // Bind a socket so clients can access
 int     socket_bind(Socket* socket);
@@ -40,8 +41,11 @@ void    socket_destroy(Socket* socket);
 // Send a packet over a socket
 int     socket_send(Socket* socket, Packet* packet);
 
+// Check if socket still connected. Returns 1 if connected, 0 otherwise
+int     socket_connected(Socket* socket);
+
 // Receive a packet from a socket
-Packet* socket_recv(Socket* socket);
+Packet* socket_recv(Socket* socket, int max_length);
 
 Packet* packet_create(int id, int length, const char* buffer);
 void    packet_destroy(Packet* packet);

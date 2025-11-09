@@ -5,15 +5,18 @@
 void* client_daemon(void* vargp)
 {
     Packet* packet;
-    Socket* socket;
-
-    puts("Received client");
-
-    socket = vargp;
+    Socket* client_socket;
+    client_socket = vargp;
     while (1) {
-        packet = socket_recv(socket);
-        if (packet->length > 0)
-            printf("%d\n", packet->length);
+        packet = socket_recv(client_socket, 1000);
+        if (!socket_connected(client_socket)) {
+            puts("Lost connection to client");
+            socket_destroy(client_socket);
+            return NULL;
+        }
+        printf("%d\n", packet->id);
+        printf("%d\n", packet->length);
+        puts(packet->buffer);
     }
     return NULL;
 }
@@ -22,11 +25,11 @@ int main()
 {
     Socket* client_socket;
     Socket* listen_socket;
-    //pthread_t thread_id;
+    pthread_t thread_id;
 
     networking_init();
 
-    listen_socket = socket_create(NULL, "27105", true);
+    listen_socket = socket_create(NULL, "27105", BIT_TCP|BIT_BIND);
     if (listen_socket == NULL) {
         puts("Could not create socket");
         return 1;
@@ -44,18 +47,9 @@ int main()
 
     puts("Listening on local host");
 
-    Packet* packet;
-    int length;
     while (1) {
         client_socket = socket_accept(listen_socket);
-        //pthread_create(&thread_id, NULL, client_daemon, client_socket);
-        length = -1;
-        while (length < 0) {
-            packet = socket_recv(client_socket);
-            length = packet->length;
-        }
-        printf("%d\n", length);
-        puts(packet->buffer+2);
+        pthread_create(&thread_id, NULL, client_daemon, client_socket);
     }
 
     socket_destroy(client_socket);
