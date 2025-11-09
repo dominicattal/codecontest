@@ -1,0 +1,29 @@
+#include <stdio.h>
+#include <string.h>
+#include <networking.h>
+
+int main()
+{
+    Socket* client_socket;
+    Packet* test_packet;
+    const char* test = "this is a test";
+
+    networking_init();
+    
+    client_socket = socket_create("127.0.0.1", "27105", true);
+    if (socket_connect(client_socket)) {
+        puts("Could not connect");
+        goto cleanup;
+    }
+
+    test_packet = packet_create(37, strlen(test)+1, test);
+
+    socket_send(client_socket, test_packet);
+
+    puts("successful");
+
+cleanup:
+    networking_cleanup();
+
+    return 0;
+}
