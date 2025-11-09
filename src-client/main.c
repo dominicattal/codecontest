@@ -1,32 +1,67 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <networking.h>
 
 int main()
 {
-    Socket* client_socket;
-    Packet* test_packet;
-    const char* test = "team1";
+    Socket* server_socket;
+    Packet* packet;
+    int max_file_size;
+    const char* teamname;
+    bool contest_running;
 
     networking_init();
     
-    client_socket = socket_create("127.0.0.1", "27105", BIT_TCP);
-    if (socket_connect(client_socket)) {
+    server_socket = socket_create("127.0.0.1", "27105", BIT_TCP);
+    if (socket_connect(server_socket)) {
         puts("Could not connect");
-        goto cleanup;
+        goto fail_destroy_socket;
     }
 
-    test_packet = packet_create(1, strlen(test)+1, test);
-
-    if (socket_send(client_socket, test_packet))
-        puts("unsuccessful");
+    packet = socket_recv(server_socket, 100);
+    contest_running = packet->id == PACKET_CONTEST;
+    if (packet->id == PACKET_CONTEST)
+        puts("contest is running");
     else
-        puts("successful");
-    //socket_recv(client_socket, 1000);
+        puts("contest is not running");
+    max_file_size = atoi(packet->buffer);
+    if (max_file_size <= 0) {
+        puts("something went wrong");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
 
-    socket_destroy(client_socket);
+    if (contest_running) {
+        teamname = "team1";
+        packet = packet_create(PACKET_TEAM, strlen(teamname)+1, teamname);
+        if (socket_send(server_socket, packet)) {
+            puts("unsuccessful");
+            goto fail_destroy_packet;
+        }
+        packet_destroy(packet);
+        packet = socket_recv(server_socket, 100);
+        if (packet->id != PACKET_VALIDATION_SUCCESS) {
+            puts("validation failed");
+            goto fail_destroy_packet;
+        }
+        puts("validation successful");
+        packet_destroy(packet);
+    }
 
-cleanup:
+    const char* code = "for i in range(10): print(i)";
+    packet = packet_create(PACKET_CODE_SEND, strlen(code)+1, code);
+    if (socket_send(server_socket, packet)) {
+        puts("unsuccessful");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
+
+fail_destroy_packet:
+    packet_destroy(packet);
+fail_destroy_socket:
+    socket_destroy(server_socket);
     networking_cleanup();
 
     return 0;

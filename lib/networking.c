@@ -171,7 +171,7 @@ Packet* socket_recv(Socket* sock, int max_length)
     packet->id = (buffer[0]<<8) + buffer[1];
     packet->length = length-2;
     packet->buffer = malloc(packet->length * sizeof(char));
-    memcpy(packet->buffer, buffer+2, packet->length);
+    memcpy(packet->buffer, buffer+2, packet->length * sizeof(char));
     free(buffer);
     return packet;
 }
