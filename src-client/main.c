@@ -18,10 +18,13 @@ int main()
 
     test_packet = packet_create(37, strlen(test)+1, test);
 
-    socket_send(client_socket, test_packet);
+    if (socket_send(client_socket, test_packet))
+        puts("unsuccessful");
+    else
+        puts("successful");
+    //socket_recv(client_socket, 1000);
 
-    puts("successful");
-    socket_recv(client_socket, 1000);
+    socket_destroy(client_socket);
 
 cleanup:
     networking_cleanup();

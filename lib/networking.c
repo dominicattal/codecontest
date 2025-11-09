@@ -111,6 +111,7 @@ Socket* socket_accept(Socket* sock)
         return NULL;
     }
     client_socket->sock = new_socket;
+    client_socket->info = NULL;
     return client_socket;
 }
 
@@ -129,9 +130,9 @@ int socket_connect(Socket* sock)
 
 void socket_destroy(Socket* sock)
 {
+    freeaddrinfo(sock->info);
     closesocket(*sock->sock);
     free(sock->sock);
-    freeaddrinfo(sock->info);
     free(sock);
 }
 
@@ -161,21 +162,19 @@ Packet* socket_recv(Socket* sock, int max_length)
     char* buffer;
     buffer = malloc(max_length * sizeof(char));
     length = recv(*sock->sock, buffer, max_length, 0);
-    if (length == SOCKET_ERROR) {
+    if (length == SOCKET_ERROR || length == 0) {
         sock->connected = false;
         free(buffer);
-        goto fail_free_buffer;
+        return NULL;
     }
     packet = malloc(sizeof(Packet));
     packet->id = (buffer[0]<<8) + buffer[1];
     packet->length = length-2;
     packet->buffer = malloc(packet->length * sizeof(char));
-    memcpy(packet->buffer, buffer+2, length);
+    printf("%p %p %d\n", packet->buffer, buffer, packet->length);
+    memcpy(packet->buffer, buffer+2, packet->length);
     free(buffer);
     return packet;
-fail_free_buffer:
-    free(buffer);
-    return NULL;
 }
 
 int socket_connected(Socket* sock)
@@ -185,6 +184,8 @@ int socket_connected(Socket* sock)
 
 void packet_destroy(Packet* packet)
 {
+    free(packet->buffer);
+    free(packet);
 }
 
 #endif
