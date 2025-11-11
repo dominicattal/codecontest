@@ -1,5 +1,14 @@
 {
     "ip": null,
     "port": "27105",
-    "teams": ["team1", "team2"]
+    "teams": [
+        {
+            "username": "team1",
+            "password": "shape-untrue"
+        },
+        {
+            "username": "team2",
+            "password": "ugly-bacon"
+        }
+    ]
 }

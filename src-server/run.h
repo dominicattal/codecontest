@@ -19,18 +19,24 @@ typedef struct Run {
     char* response;
     int response_length;
     int problem_id;
+    sem_t signal;
     RunEnum status;
     Run* next;
 } Run;
 
-typedef struct {
-    Run* head;
-    Run* tail;
-} RunQueue;
+// create new run
+Run*    run_create(const char* language, const char* code);
 
-Run* run_create(const char* language, const char* code);
-void run_enqueue(Run* run);
-void run_wait(Run* run);
-void run_destroy(Run* run);
+// add run to the queue
+void    run_enqueue(Run* run);
+
+// block execution until the run finishes
+void    run_wait(Run* run);
+
+// free run memory
+void    run_destroy(Run* run);
+
+// thread that handles runs. can have several threads active at once
+void*   run_daemon(void* vargp);
 
 #endif

@@ -12,8 +12,13 @@
 #define MAX_FILE_SIZE 1000000
 
 typedef struct {
+    char* username;
+    char* password;
+} Team;
+
+typedef struct {
     int num_teams, num_languages;
-    char** teams;
+    Team* teams;
     char** languages;
 } GlobalContext;
 
@@ -24,10 +29,18 @@ static bool contest_is_running(void)
     return ctx.num_teams != 0;
 }
 
-static bool validate_team(const char* str)
+static bool validate_team_username(const char* username)
 {
     for (int i = 0; i < ctx.num_teams; i++)
-        if (strcmp(str, ctx.teams[i]) == 0)
+        if (strcmp(username, ctx.teams[i].username) == 0)
+            return true;
+    return false;
+}
+
+static bool validate_team_password(const char* password)
+{
+    for (int i = 0; i < ctx.num_teams; i++)
+        if (strcmp(password, ctx.teams[i].password) == 0)
             return true;
     return false;
 }
@@ -66,10 +79,26 @@ static void* handle_client(void* vargp)
         packet = socket_recv(client_socket, 1000);
         if (packet == NULL)
             goto fail;
-        if (packet->id != PACKET_TEAM_VALIDATE)
+        if (packet->id != PACKET_TEAM_VALIDATE_USERNAME)
             goto fail_packet;
-        if (!validate_team(packet->buffer)) {
-            puts(packet->buffer);
+        if (!validate_team_username(packet->buffer)) {
+            packet_destroy(packet);
+            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 1, &dummy);
+            socket_send(client_socket, packet);
+            goto fail_packet;
+        }
+        packet_destroy(packet);
+        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 1, &dummy);
+        if (packet == NULL)
+            goto fail;
+        socket_send(client_socket, packet);
+        packet_destroy(packet);
+        packet = socket_recv(client_socket, 1000);
+        if (packet == NULL)
+            goto fail;
+        if (packet->id != PACKET_TEAM_VALIDATE_PASSWORD)
+            goto fail_packet;
+        if (!validate_team_password(packet->buffer)) {
             packet_destroy(packet);
             packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 1, &dummy);
             socket_send(client_socket, packet);
@@ -184,6 +213,7 @@ static Socket* create_listen_socket(JsonObject* config)
 
 void read_teams(JsonObject* config)
 {
+    JsonObject* object;
     JsonValue* value;
     JsonArray* array;
     const char* string;
@@ -198,17 +228,44 @@ void read_teams(JsonObject* config)
     ctx.num_teams = json_array_length(array);
     if (ctx.num_teams == 0)
         return;
-    ctx.teams = malloc(ctx.num_teams * sizeof(char*));
+    ctx.teams = malloc(ctx.num_teams * sizeof(Team));
     for (i = 0; i < ctx.num_teams; i++) {
         value = json_array_get(array, i);
-        if (json_get_type(value) != JTYPE_STRING) {
+        if (json_get_type(value) != JTYPE_OBJECT) {
             puts("invalid teamname");
+            exit(1);
+        }
+        object = json_get_object(value);
+        if (object == NULL) {
+            puts("could not get object in team");
+            exit(1);
+        }
+        value = json_get_value(object, "username");
+        if (value == NULL) {
+            puts("Missing team username");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid teamname");
             exit(1);
         }
         string = json_get_string(value);
         n = strlen(string);
-        ctx.teams[i] = malloc((n+1) * sizeof(char));
-        memcpy(ctx.teams[i], string, n+1);
+        ctx.teams[i].username = malloc((n+1) * sizeof(char));
+        memcpy(ctx.teams[i].username, string, n+1);
+        value = json_get_value(object, "password");
+        if (value == NULL) {
+            puts("Missing team password");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid teamname");
+            exit(1);
+        }
+        string = json_get_string(value);
+        n = strlen(string);
+        ctx.teams[i].password = malloc((n+1) * sizeof(char));
+        memcpy(ctx.teams[i].password, string, n+1);
     }
 }
 
@@ -238,8 +295,10 @@ bool context_init(JsonObject* config)
 void context_cleanup(void)
 {
     int i;
-    for (i = 0; i < ctx.num_teams; i++)
-        free(ctx.teams[i]);
+    for (i = 0; i < ctx.num_teams; i++) {
+        free(ctx.teams[i].username);
+        free(ctx.teams[i].password);
+    }
     free(ctx.teams);
     for (i = 0; i < ctx.num_languages; i++)
         free(ctx.languages[i]);
@@ -251,6 +310,7 @@ int main(int argc, char** argv)
     Socket* client_socket;
     Socket* listen_socket;
     pthread_t thread_id;
+    pthread_t run_thread_id;
     JsonObject* config;
 
     if (argc == 1) {
@@ -268,6 +328,8 @@ int main(int argc, char** argv)
         goto fail_config;
 
     networking_init();
+    pthread_create(&run_thread_id, NULL, run_daemon, NULL);
+    pthread_create(&run_thread_id, NULL, run_daemon, NULL);
 
     while (1) {
         listen_socket = create_listen_socket(config);
@@ -277,6 +339,8 @@ int main(int argc, char** argv)
         socket_destroy(listen_socket);
         pthread_create(&thread_id, NULL, handle_client, client_socket);
     }
+
+    pthread_kill(run_thread_id, 1);
 
 fail_cleanup:
     networking_cleanup();
