@@ -1,22 +1,23 @@
 #ifndef NETWORKING_H
 #define NETWORKING_H
 
+#include <stdbool.h>
+
 #define BIT_TCP  0x1
 #define BIT_BIND 0x2
 
 typedef enum {
-    PACKET_TEAM,
     PACKET_NO_CONTEST,
     PACKET_CONTEST,
-    PACKET_VALIDATION_SUCCESS,
-    PACKET_VALIDATION_FAILED,
+    PACKET_TEAM_VALIDATE,
+    PACKET_TEAM_VALIDATION_SUCCESS,
+    PACKET_TEAM_VALIDATION_FAILED,
+    PACKET_LANGUAGE_VALIDATE,
+    PACKET_LANGUAGE_VALIDATION_SUCCESS,
+    PACKET_LANGUAGE_VALIDATION_FAILED,
     PACKET_CODE_SEND,
-    PACKET_CODE_FILE_NAME_ERROR,
-    PACKET_CODE_COMPILE_ERROR,
-    PACKET_CODE_RUNTIME_ERROR,
-    PACKET_CODE_WRONG_ANSWER,
-    PACKET_CODE_TIME_LIMIT_EXCEEDED,
-    PACKET_CODE_PRESENTATION_ERROR,  // idk what this is
+    PACKET_CODE_ACCEPTED,
+    PACKET_CODE_FAILED
 } PacketEnum;
 
 typedef struct {
@@ -27,8 +28,8 @@ typedef struct {
 
 typedef struct Socket Socket;
 
-// returns non-zero if failed
-int     networking_init(void);
+// returns true if successful
+bool    networking_init(void);
 void    networking_cleanup(void);
 char*   networking_hostname(void);
 
@@ -38,29 +39,32 @@ char*   networking_hostname(void);
 // tcp  -> whether the socket support tcp or udp
 Socket* socket_create(const char* ip, const char* port, int flags);
 
-// Bind a socket so clients can access
-int     socket_bind(Socket* socket);
+// Bind a socket so clients can access. Returns true if successful
+bool    socket_bind(Socket* socket);
 
-// Listen for incoming connection requests
-int     socket_listen(Socket* socket);
+// Listen for incoming connection requests. Returns true if successful
+bool    socket_listen(Socket* socket);
 
-// Accept a connection request
+// Accept a connection request. Returns the socket if successful, NULL otherwise
 Socket* socket_accept(Socket* socket);
 
-// Connect to a socket
-int     socket_connect(Socket* socket);
+// Connect to a socket. Returns true if successful
+bool    socket_connect(Socket* socket);
 
 // Destroy socket and all related information
 void    socket_destroy(Socket* socket);
 
-// Send a packet over a socket
-int     socket_send(Socket* socket, Packet* packet);
+// Send a packet over a socket. Returns true if successful
+bool    socket_send(Socket* socket, Packet* packet);
 
-// Check if socket still connected. Returns 1 if connected, 0 otherwise
-int     socket_connected(Socket* socket);
+// Check if socket still connected. Returns true if successful
+bool    socket_connected(Socket* socket);
 
 // Receive a packet from a socket
 Packet* socket_recv(Socket* socket, int max_length);
+
+// Return error code of last networking function, will differ based on OS
+int     socket_get_last_error(void);
 
 Packet* packet_create(int id, int length, const char* buffer);
 void    packet_destroy(Packet* packet);

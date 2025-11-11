@@ -1,7 +1,6 @@
 #include "networking.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #ifdef __WIN32
 
@@ -21,11 +20,11 @@ typedef struct Socket {
 
 static NetworkingContext ctx;
 
-int networking_init(void)
+bool networking_init(void)
 {
     if (WSAStartup(MAKEWORD(2,2), &ctx.wsa_data))
-        return WSAGetLastError();
-    return 0;
+        return false;
+    return true;
 }
 
 void networking_cleanup(void)
@@ -83,18 +82,18 @@ fail:
     return NULL;
 }
 
-int socket_bind(Socket* sock)
+bool socket_bind(Socket* sock)
 {
-    if (bind(*sock->sock, sock->info->ai_addr, (int)sock->info->ai_addrlen))
-        return WSAGetLastError(); 
-    return 0;
+    if (bind(*sock->sock, sock->info->ai_addr, (int)sock->info->ai_addrlen) == SOCKET_ERROR)
+        return false; 
+    return true;
 }
 
-int socket_listen(Socket* sock)
+bool socket_listen(Socket* sock)
 {
-    if (listen(*sock->sock, SOMAXCONN))
-        return WSAGetLastError();
-    return 0;
+    if (listen(*sock->sock, SOMAXCONN) == SOCKET_ERROR)
+        return false;
+    return true;
 }
 
 Socket* socket_accept(Socket* sock)
@@ -115,17 +114,17 @@ Socket* socket_accept(Socket* sock)
     return client_socket;
 }
 
-int socket_connect(Socket* sock)
+bool socket_connect(Socket* sock)
 {
     struct addrinfo* ptr;
     for (ptr = sock->info; ptr != NULL; ptr = ptr->ai_next) {
         *sock->sock = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
         if (*sock->sock == INVALID_SOCKET)
-            return WSAGetLastError();
+            return false;
         if (connect(*sock->sock, ptr->ai_addr, (int)ptr->ai_addrlen) != SOCKET_ERROR)
-            return 0;
+            return true;
     }
-    return 1;
+    return false;
 }
 
 void socket_destroy(Socket* sock)
@@ -148,11 +147,11 @@ Packet* packet_create(int id, int length, const char* buffer)
     return packet;
 }
 
-int socket_send(Socket* sock, Packet* packet)
+bool socket_send(Socket* sock, Packet* packet)
 {
     if (send(*sock->sock, packet->buffer, packet->length, 0) == SOCKET_ERROR)
-        return WSAGetLastError();
-    return 0;
+        return false;
+    return true;
 }
 
 Packet* socket_recv(Socket* sock, int max_length)
@@ -176,9 +175,14 @@ Packet* socket_recv(Socket* sock, int max_length)
     return packet;
 }
 
-int socket_connected(Socket* sock)
+bool socket_connected(Socket* sock)
 {
     return sock->connected;
+}
+
+int socket_get_last_error(void)
+{
+    return WSAGetLastError();
 }
 
 void packet_destroy(Packet* packet)

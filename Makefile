@@ -78,5 +78,5 @@ $(DIR_OBJ)/release/%.o: %.c
 clean-data:
 	rm -f data/*
 clean:
-	rm -r $(DIR_OBJ) $(DIR_DEP) $(DIR_BIN)
+	rm -r build bin
 .PHONY: clean clean-data
