@@ -59,6 +59,7 @@ static void* handle_client(void* vargp)
     Packet* language_packet;
     Packet* code_packet;
     Socket* client_socket;
+    Run* run;
     PacketEnum result;
     char buf[BUFFER_LENGTH];
     char dummy = '\0';
@@ -140,7 +141,7 @@ static void* handle_client(void* vargp)
         goto fail;
     }
 
-    Run* run = run_create(language_packet->buffer, code_packet->buffer);
+    run = run_create(language_packet->buffer, code_packet->buffer, code_packet->length-1);
     run_enqueue(run);
     run_wait(run);
     result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;

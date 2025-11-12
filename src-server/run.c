@@ -1,8 +1,12 @@
 #include "run.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <pthread.h>
+#include <process.h>
 
 typedef struct {
     Run* head;
@@ -16,14 +20,18 @@ static RunQueue run_queue = {
     .mutex = PTHREAD_MUTEX_INITIALIZER
 };
 
-Run* run_create(const char* language, const char* code)
+static int num_runs;
+
+Run* run_create(const char* language, const char* code, int code_length)
 {
     Run* run = malloc(sizeof(Run));
     run->language = language;
     run->code = code;
+    run->code_length = code_length;
     run->response = NULL;
     run->response_length = 0;
     run->problem_id = 0;
+    run->run_id = num_runs++;
     run->status = RUN_IDLE;
     run->next = NULL;
     sem_init(&run->signal, 0, 1);
@@ -71,17 +79,103 @@ void run_destroy(Run* run)
     free(run);
 }
 
-#include <windows.h>
-static void handle_run(Run* run)
+static bool create_dir(const char* path, mode_t mode)
 {
-    puts("Running");
-    Sleep(5000);
-    static char* response = "you failed lol";
-    int n = strlen(response);
-    run->status = RUN_FAILED;
+    int result;
+#ifdef __WIN32
+    result = mkdir(path);
+#elif __linux__
+    result = mkdir(path, 0777);
+#else
+    result = 2;
+#endif
+    if (result == 0 || errno == EEXIST)
+        return true;
+    return false;
+}
+
+static FILE* create_file(const char* path, const char* code, int code_length)
+{
+    FILE* file;
+    size_t ret;
+    file = fopen(path, "w");
+    if (file == NULL)
+        return NULL;
+    ret = fwrite(code, sizeof(char), code_length, file);
+    if (ret < (size_t)code_length) {
+        fclose(file);
+        return NULL;
+    }
+    return file;
+}
+
+static bool compile(const char* path, Run* run)
+{
+    char command[256];
+    char outfile[256];
+    char* response;
+    int n;
+    bool success;
+    ProcessID* pid;
+
+    sprintf(command, "python3 -m py_compile problem1/accepted.py");
+    sprintf(outfile, "problem1/runs/%d.compile", run->run_id);
+    pid = process_create(command, "out.txt");
+    process_wait(pid);
+    success = process_success(pid);
+    process_destroy(pid);
+
+    if (success)
+        return true;
+
+    response = "Compilation failed";
+    n = strlen(response);
+    run->response_length = n;
     run->response = malloc((n+1) * sizeof(char));
     memcpy(run->response, response, n+1);
+
+    return false;
+}
+
+static void handle_run(Run* run)
+{
+    char path[128];
+    char* response;
+    int n;
+    FILE* file;
+    run->status = RUN_RUNNING;
+    puts("Compiling");
+    if (!create_dir("problem1/runs", 0777))
+        goto server_error;
+    sprintf(path, "problem1/runs/%d.py", run->run_id);
+    file = create_file(path, run->code, run->code_length);
+    if (file == NULL)
+        goto server_error;
+    if (!compile(path, run))
+        goto fail;
+
+    run->status = RUN_SUCCESS;
+    run->response_length = 0;
+    run->response = malloc(sizeof(char));
+    run->response[0] = '\0';
+    fclose(file);
+    sem_post(&run->signal);
+    return;
+
+fail:
+    run->status = RUN_FAILED;
+    fclose(file);
+    sem_post(&run->signal);
+    return;
+
+server_error:
+    response = "server error";
+    n = strlen(response);
+    puts(response);
+    run->status = RUN_SERVER_ERROR;
     run->response_length = n;
+    run->response = malloc((n+1) * sizeof(char));
+    memcpy(run->response, response, n+1);
     sem_post(&run->signal);
 }
 

@@ -24,6 +24,7 @@ int main(int argc, char** argv)
 {
     //int status = system("python3 a.py 2&1> out.txt");
     //printf("%d\n", status);
+    //return 0;
     JsonObject* config;
     Socket* server_socket;
     Packet* packet;
@@ -128,7 +129,7 @@ int main(int argc, char** argv)
         goto fail_destroy_socket;
     packet_destroy(packet);
 
-    const char* code = "for i in range(10): print(i)";
+    const char* code = "for i in range(10):\nprint(i)";
     packet = packet_create(PACKET_CODE_SEND, strlen(code)+1, code);
     if (!socket_send(server_socket, packet)) {
         puts("unsuccessful");
