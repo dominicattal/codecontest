@@ -20,11 +20,41 @@ const char* get_json_string(JsonObject* config, const char* key)
     return json_get_string(value);
 }
 
+char* read_code_file(const char* path)
+{
+    FILE* file;
+    char* code;
+    int end;
+    file = fopen(path, "r");
+    if (file == NULL)
+        goto fail;
+    if (fseek(file, 0, SEEK_END) != 0)
+        goto fail_close_file;
+    end = ftell(file);
+    if (end == -1L)
+        goto fail_close_file;
+    code = malloc((end+1)*sizeof(char));
+    if (code == NULL)
+        goto fail_close_file;
+    if (fseek(file, 0, SEEK_SET) != 0)
+        goto fail_free_buffer;
+    fread(code, sizeof(char), end, file);
+    if (ferror(file) != 0)
+        goto fail_free_buffer;
+    fclose(file);
+    code[end] = '\0';
+    return code;
+
+fail_free_buffer:
+    free(code);
+fail_close_file:
+    fclose(file);
+fail:
+    return NULL;
+}
+
 int main(int argc, char** argv)
 {
-    //int status = system("python3 a.py 2&1> out.txt");
-    //printf("%d\n", status);
-    //return 0;
     JsonObject* config;
     Socket* server_socket;
     Packet* packet;
@@ -33,10 +63,12 @@ int main(int argc, char** argv)
     const char* port_str;
     const char* username;
     const char* password;
+    const char* language;
+    char* code;
     bool contest_running;
 
-    if (argc == 1) {
-        puts("Must supply config file");
+    if (argc != 4) {
+        puts("usage: ./client [config] [language] [code_file_path]");
         return 1;
     }
 
@@ -61,6 +93,14 @@ int main(int argc, char** argv)
     password = get_json_string(config, "password");
     if (ip_str == NULL)
         goto fail_config;
+
+    language = argv[2];
+
+    code = read_code_file(argv[3]);
+    if (code == NULL) {
+        printf("Could not read code file: %s\n", argv[3]);
+        goto fail_config;
+    }
 
     networking_init();
     
@@ -114,7 +154,6 @@ int main(int argc, char** argv)
         packet_destroy(packet);
     }
 
-    const char* language = "python3";
     packet = packet_create(PACKET_LANGUAGE_VALIDATE, strlen(language)+1, language);
     if (packet == NULL)
         goto fail_destroy_socket;
@@ -127,9 +166,12 @@ int main(int argc, char** argv)
     packet = socket_recv(server_socket, 10000);
     if (packet == NULL)
         goto fail_destroy_socket;
+    if (packet->id != PACKET_LANGUAGE_VALIDATION_SUCCESS) {
+        puts("Language validation failed");
+        goto fail_destroy_packet;
+    }
     packet_destroy(packet);
 
-    const char* code = "for i in range(10):\nprint(i)";
     packet = packet_create(PACKET_CODE_SEND, strlen(code)+1, code);
     if (!socket_send(server_socket, packet)) {
         puts("unsuccessful");
@@ -149,6 +191,7 @@ int main(int argc, char** argv)
     packet_destroy(packet);
     socket_destroy(server_socket);
     networking_cleanup();
+    free(code);
     json_object_destroy(config);
     return 0;
 
@@ -157,6 +200,7 @@ fail_destroy_packet:
 fail_destroy_socket:
     socket_destroy(server_socket);
     networking_cleanup();
+    free(code);
 fail_config:
     json_object_destroy(config);
     return 1;

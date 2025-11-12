@@ -31,6 +31,7 @@ ProcessID* process_create(char* command, char* outfile_path)
     si.hStdOutput = h;
     if (!CreateProcess(NULL, command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pid->pi)) {
         puts("Something went very wrong");
+        printf("%lu\n", GetLastError());
         exit(1);
     }
     CloseHandle(h);
@@ -46,6 +47,7 @@ bool process_success(ProcessID* pid)
 {
     DWORD lpExitCode;
     GetExitCodeProcess(pid->pi.hProcess, &lpExitCode);
+    printf("%lu\n", lpExitCode);
     return lpExitCode == 0;
 }
 

@@ -21,7 +21,7 @@ typedef struct Run {
     int code_length;
     int response_length;
     int problem_id;
-    int run_id;
+    int id;
     sem_t signal;
     RunEnum status;
     Run* next;

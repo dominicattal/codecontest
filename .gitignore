@@ -2,3 +2,5 @@ glfw3.dll
 ws2_32.dll
 build
 bin
+problem1/runs
+problem1/bin

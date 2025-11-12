@@ -1,5 +1,6 @@
 #include "log.h"
 #include "thread.h"
+#include <stdlib.h>
 #include <time.h>
 #include <libgen.h>
 #include <sys/stat.h>

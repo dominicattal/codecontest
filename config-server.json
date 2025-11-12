@@ -10,5 +10,12 @@
             "username": "team2",
             "password": "ugly-bacon"
         }
+    ],
+    "languages": [
+        {
+            "language": "python3",
+            "compile": "./compilepython.py %s %s",
+            "execute": "python3 %s"
+        }
     ]
 }

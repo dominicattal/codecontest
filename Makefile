@@ -35,6 +35,7 @@ DEPS_REL_GUI = $(OBJS_REL_GUI:%.o=%.d)
 all: dev
 
 dev: dev-gui dev-server dev-client
+	rm -rf problem1/runs problem1/bin
 
 dev-server: $(OBJS_DEV_SERVER)
 	@mkdir -p $(DIR_BIN)/dev
@@ -78,5 +79,5 @@ $(DIR_OBJ)/release/%.o: %.c
 clean-data:
 	rm -f data/*
 clean:
-	rm -r build bin
+	rm -rf build bin problem1/runs problem1/bin
 .PHONY: clean clean-data
