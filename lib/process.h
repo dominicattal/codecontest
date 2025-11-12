@@ -9,7 +9,7 @@
 
 typedef struct ProcessID ProcessID;
 
-ProcessID*  process_create(char* command, char* outfile_path);
+ProcessID*  process_create(const char* command, const char* outfile_path);
 void        process_wait(ProcessID* pid);
 bool        process_success(ProcessID* pid);
 void        process_destroy(ProcessID* pid);

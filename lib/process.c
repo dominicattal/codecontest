@@ -8,7 +8,7 @@ typedef struct ProcessID {
     PROCESS_INFORMATION pi;
 } ProcessID;
 
-ProcessID* process_create(char* command, char* outfile_path)
+ProcessID* process_create(const char* command, const char* outfile_path)
 {
     STARTUPINFO si;
     ProcessID* pid;
@@ -29,7 +29,7 @@ ProcessID* process_create(char* command, char* outfile_path)
     si.hStdInput = NULL;
     si.hStdError = h;
     si.hStdOutput = h;
-    if (!CreateProcess(NULL, command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pid->pi)) {
+    if (!CreateProcess(NULL, (char*)command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pid->pi)) {
         puts("Something went very wrong");
         printf("%lu\n", GetLastError());
         exit(1);

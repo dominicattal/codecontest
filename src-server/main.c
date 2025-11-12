@@ -12,14 +12,21 @@
 #define MAX_FILE_SIZE 1000000
 
 typedef struct {
-    char* username;
-    char* password;
+    const char* username;
+    const char* password;
 } Team;
+
+typedef struct {
+    const char* name;
+    const char* extension;
+    const char* compile;
+    const char* execute;
+} Language;
 
 typedef struct {
     int num_teams, num_languages;
     Team* teams;
-    char** languages;
+    Language* languages;
 } GlobalContext;
 
 static GlobalContext ctx;
@@ -29,38 +36,35 @@ static bool contest_is_running(void)
     return ctx.num_teams != 0;
 }
 
-static bool validate_team_username(const char* username)
+static Team* validate_team_username(const char* username)
 {
     for (int i = 0; i < ctx.num_teams; i++)
         if (strcmp(username, ctx.teams[i].username) == 0)
-            return true;
-    return false;
+            return &ctx.teams[i];
+    return NULL;
 }
 
-static bool validate_team_password(const char* password)
+static bool validate_team_password(const Team* team, const char* password)
 {
-    for (int i = 0; i < ctx.num_teams; i++)
-        if (strcmp(password, ctx.teams[i].password) == 0)
-            return true;
-    return false;
+    return strcmp(password, team->password) == 0;
 }
 
-static bool validate_language(const char* str)
+static Language* validate_language(const char* str)
 {
     for (int i = 0; i < ctx.num_languages; i++)
-        if (strcmp(str, ctx.languages[i]) == 0)
-            return true;
-    return false;
+        if (strcmp(str, ctx.languages[i].name) == 0)
+            return &ctx.languages[i];
+    return NULL;
 }
 
 static void* handle_client(void* vargp)
 {
     Packet* packet;
-    Packet* language_packet;
-    Packet* code_packet;
     Socket* client_socket;
     Run* run;
     PacketEnum result;
+    const Team* team;
+    const Language* language;
     char buf[BUFFER_LENGTH];
     char dummy = '\0';
 
@@ -76,13 +80,15 @@ static void* handle_client(void* vargp)
     socket_send(client_socket, packet);
     packet_destroy(packet);
 
+    team = NULL;
     if (contest_is_running()) {
         packet = socket_recv(client_socket, 1000);
         if (packet == NULL)
             goto fail;
         if (packet->id != PACKET_TEAM_VALIDATE_USERNAME)
             goto fail_packet;
-        if (!validate_team_username(packet->buffer)) {
+        team = validate_team_username(packet->buffer);
+        if (team == NULL) {
             packet_destroy(packet);
             packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 1, &dummy);
             socket_send(client_socket, packet);
@@ -99,7 +105,7 @@ static void* handle_client(void* vargp)
             goto fail;
         if (packet->id != PACKET_TEAM_VALIDATE_PASSWORD)
             goto fail_packet;
-        if (!validate_team_password(packet->buffer)) {
+        if (!validate_team_password(team, packet->buffer)) {
             packet_destroy(packet);
             packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 1, &dummy);
             socket_send(client_socket, packet);
@@ -113,51 +119,44 @@ static void* handle_client(void* vargp)
         packet_destroy(packet);
     }
 
-    language_packet = socket_recv(client_socket, BUFFER_LENGTH);
-    if (language_packet == NULL)
+    packet = socket_recv(client_socket, BUFFER_LENGTH);
+    if (packet == NULL)
         goto fail;
-    if (language_packet->id != PACKET_LANGUAGE_VALIDATE) {
-        packet_destroy(language_packet);
-        goto fail;
-    }
-    if (!validate_language(language_packet->buffer)) {
-        packet_destroy(language_packet);
+    if (packet->id != PACKET_LANGUAGE_VALIDATE)
+        goto fail_packet;
+    language = validate_language(packet->buffer);
+    if (language == NULL) {
+        packet_destroy(packet);
         packet = packet_create(PACKET_LANGUAGE_VALIDATION_FAILED, 1, &dummy);
         socket_send(client_socket, packet);
         goto fail_packet;
     }
+    packet_destroy(packet);
 
     packet = packet_create(PACKET_LANGUAGE_VALIDATION_SUCCESS, 1, &dummy);
-    if (packet == NULL) {
-        packet_destroy(language_packet);
+    if (packet == NULL)
         goto fail;
-    }
     socket_send(client_socket, packet);
     packet_destroy(packet);
 
-    code_packet = socket_recv(client_socket, MAX_FILE_SIZE);
-    if (code_packet == NULL) {
-        packet_destroy(language_packet);
+    packet = socket_recv(client_socket, MAX_FILE_SIZE);
+    if (packet == NULL)
         goto fail;
-    }
 
-    run = run_create(language_packet->buffer, code_packet->buffer, code_packet->length-1);
+    run = run_create(language->name, language->extension, language->compile, language->execute, packet->buffer, packet->length-1);
     run_enqueue(run);
     run_wait(run);
     result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;
+    packet_destroy(packet);
 
     packet = packet_create(result, run->response_length+1, run->response);
     if (packet == NULL) {
         run_destroy(run);
-        packet_destroy(language_packet);
-        packet_destroy(code_packet);
         goto fail;
     }
     socket_send(client_socket, packet);
 
     run_destroy(run);
-    packet_destroy(language_packet);
-    packet_destroy(code_packet);
     packet_destroy(packet);
     socket_destroy(client_socket);
     return NULL;
@@ -218,7 +217,7 @@ void read_teams(JsonObject* config)
     JsonValue* value;
     JsonArray* array;
     const char* string;
-    int i, n;
+    int i;
 
     value = json_get_value(config, "teams");
     if (value == NULL)
@@ -251,9 +250,7 @@ void read_teams(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        n = strlen(string);
-        ctx.teams[i].username = malloc((n+1) * sizeof(char));
-        memcpy(ctx.teams[i].username, string, n+1);
+        ctx.teams[i].username = string;
         value = json_get_value(object, "password");
         if (value == NULL) {
             puts("Missing team password");
@@ -264,26 +261,88 @@ void read_teams(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        n = strlen(string);
-        ctx.teams[i].password = malloc((n+1) * sizeof(char));
-        memcpy(ctx.teams[i].password, string, n+1);
+        ctx.teams[i].password = string;
+    }
+}
+
+void read_languages(JsonObject* config)
+{
+    JsonObject* object;
+    JsonValue* value;
+    JsonArray* array;
+    const char* string;
+    int i;
+
+    value = json_get_value(config, "languages");
+    if (value == NULL)
+        return;
+    if (json_get_type(value) != JTYPE_ARRAY)
+        return;
+    array = json_get_array(value);
+    ctx.num_languages = json_array_length(array);
+    if (ctx.num_languages == 0)
+        return;
+    ctx.languages = malloc(ctx.num_languages * sizeof(Language));
+    for (i = 0; i < ctx.num_languages; i++) {
+        value = json_array_get(array, i);
+        if (json_get_type(value) != JTYPE_OBJECT) {
+            puts("invalid language");
+            exit(1);
+        }
+        object = json_get_object(value);
+        if (object == NULL) {
+            puts("could not get object in language");
+            exit(1);
+        }
+        value = json_get_value(object, "language");
+        if (value == NULL) {
+            puts("Missing language name");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid language");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.languages[i].name = string;
+        value = json_get_value(object, "extension");
+        if (value == NULL || json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid language extension, defaulting to .txt");
+            string = ".txt";
+        }
+        else {
+            string = json_get_string(value);
+        }
+        ctx.languages[i].extension = string;
+        value = json_get_value(object, "compile");
+        if (value == NULL) {
+            puts("Missing compile instruction");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid compile instruction");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.languages[i].compile = string;
+        value = json_get_value(object, "execute");
+        if (value == NULL) {
+            puts("Missing execution instruction");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid execution instruction");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.languages[i].execute = string;
     }
 }
 
 bool context_init(JsonObject* config)
 {
     read_teams(config);
-    const char* language = "python3";
-    ctx.num_languages = 1;
-    ctx.languages = malloc(sizeof(char*));
-    if  (ctx.languages == NULL)
-        return false;
-    ctx.languages[0] = malloc((strlen(language)+1) * sizeof(char));
-    if (ctx.languages[0] == NULL) {
-        free(ctx.languages);
-        return false;
-    }
-    memcpy(ctx.languages[0], language, strlen(language)+1);
+    read_languages(config);
 
     if (ctx.num_teams == 0)
         puts("Contest is not running");
@@ -295,14 +354,7 @@ bool context_init(JsonObject* config)
 
 void context_cleanup(void)
 {
-    int i;
-    for (i = 0; i < ctx.num_teams; i++) {
-        free(ctx.teams[i].username);
-        free(ctx.teams[i].password);
-    }
     free(ctx.teams);
-    for (i = 0; i < ctx.num_languages; i++)
-        free(ctx.languages[i]);
     free(ctx.languages);
 }
 

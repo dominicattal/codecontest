@@ -22,10 +22,13 @@ static RunQueue run_queue = {
 
 static int num_runs;
 
-Run* run_create(const char* language, const char* code, int code_length)
+Run* run_create(const char* language, const char* ext, const char* compile, const char* execute, const char* code, int code_length)
 {
     Run* run = malloc(sizeof(Run));
     run->language = language;
+    run->ext = ext;
+    run->compile = compile;
+    run->execute = execute;
     run->code = code;
     run->code_length = code_length;
     run->response = NULL;
@@ -109,23 +112,17 @@ static bool create_file(const char* path, const char* code, int code_length)
     return status;
 }
 
-static bool compile(const char* bin_dir, const char* run_dir, const char* path, Run* run)
+static bool compile(const char* code_path, const char* exec_path, const char* compile_path, Run* run)
 {
     char command[256];
-    char outfile[256];
     char* response;
     int n;
     bool success;
     ProcessID* pid;
 
-    sprintf(command, "python3 compilepython.py %s %s/%d.out", path, bin_dir, run->id);
-    sprintf(outfile, "%s/%d.compile", run_dir, run->id);
-    puts(bin_dir);
-    puts(run_dir);
-    puts(path);
+    sprintf(command, run->compile, code_path, exec_path);
     puts(command);
-    puts(outfile);
-    pid = process_create(command, outfile);
+    pid = process_create(command, compile_path);
     process_wait(pid);
     success = process_success(pid);
     process_destroy(pid);
@@ -146,22 +143,32 @@ static void handle_run(Run* run)
 {
     char bin_dir[100];
     char run_dir[100];
-    char path[128];
+    char exec_path[128];
+    char code_path[128];
+    char compile_path[128];
+    char out_path[128];
     char* response;
     int n;
     run->status = RUN_RUNNING;
     puts("Compiling");
     sprintf(bin_dir, "problem1/bin");
+    sprintf(run_dir, "problem1/runs");
+    sprintf(exec_path, "%s/%d.out", bin_dir, run->id);
+    sprintf(compile_path, "%s/%d.compile", run_dir, run->id);
+    sprintf(out_path, "%s/%d.output", run_dir, run->id);
+    sprintf(code_path, "%s/%d%s", run_dir, run->id, run->ext);
     if (!create_dir(bin_dir, 0777))
         goto server_error;
-    sprintf(run_dir, "problem1/runs");
+    puts("Created bin dir");
     if (!create_dir(run_dir, 0777))
         goto server_error;
-    sprintf(path, "%s/%d.py", run_dir, run->id);
-    if (!create_file(path, run->code, run->code_length))
+    puts("Created run dir");
+    if (!create_file(code_path, run->code, run->code_length))
         goto server_error;
-    if (!compile(bin_dir, run_dir, path, run))
+    puts("Created file");
+    if (!compile(code_path, exec_path, compile_path, run))
         goto fail;
+    puts("Compiled");
 
     run->status = RUN_SUCCESS;
     run->response_length = 0;

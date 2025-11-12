@@ -14,8 +14,15 @@
     "languages": [
         {
             "language": "python3",
-            "compile": "./compilepython.py %s %s",
+            "extension": ".py",
+            "compile": "python3 compilepython.py %s %s",
             "execute": "python3 %s"
+        },
+        {
+            "language": "cpp",
+            "extension": ".cpp",
+            "compile": "g+m+ %s -o %s",
+            "execute": "%s"
         }
     ]
 }

@@ -16,6 +16,9 @@ typedef struct Run Run;
 
 typedef struct Run {
     const char* language;
+    const char* compile;
+    const char* execute;
+    const char* ext;
     const char* code;
     char* response;
     int code_length;
@@ -28,7 +31,7 @@ typedef struct Run {
 } Run;
 
 // create new run
-Run*    run_create(const char* language, const char* code, int code_length);
+Run*    run_create(const char* language, const char* ext, const char* compile, const char* execute, const char* code, int code_length);
 
 // add run to the queue
 void    run_enqueue(Run* run);
