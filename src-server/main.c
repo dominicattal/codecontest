@@ -6,30 +6,13 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <json.h>
+#include "state.h"
 #include "run.h"
 
 #define BUFFER_LENGTH   128
 #define MAX_FILE_SIZE 1000000
 
-typedef struct {
-    const char* username;
-    const char* password;
-} Team;
-
-typedef struct {
-    const char* name;
-    const char* extension;
-    const char* compile;
-    const char* execute;
-} Language;
-
-typedef struct {
-    int num_teams, num_languages;
-    Team* teams;
-    Language* languages;
-} GlobalContext;
-
-static GlobalContext ctx;
+GlobalContext ctx;
 
 static bool contest_is_running(void)
 {
@@ -143,7 +126,7 @@ static void* handle_client(void* vargp)
     if (packet == NULL)
         goto fail;
 
-    run = run_create(language->name, language->extension, language->compile, language->execute, packet->buffer, packet->length-1);
+    run = run_create(team->id, language->id, 0, packet->buffer, packet->length-1);
     run_enqueue(run);
     run_wait(run);
     result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;
@@ -230,6 +213,7 @@ void read_teams(JsonObject* config)
         return;
     ctx.teams = malloc(ctx.num_teams * sizeof(Team));
     for (i = 0; i < ctx.num_teams; i++) {
+        ctx.teams[i].id = i;
         value = json_array_get(array, i);
         if (json_get_type(value) != JTYPE_OBJECT) {
             puts("invalid teamname");
@@ -284,6 +268,7 @@ void read_languages(JsonObject* config)
         return;
     ctx.languages = malloc(ctx.num_languages * sizeof(Language));
     for (i = 0; i < ctx.num_languages; i++) {
+        ctx.languages[i].id = i;
         value = json_array_get(array, i);
         if (json_get_type(value) != JTYPE_OBJECT) {
             puts("invalid language");
@@ -339,10 +324,89 @@ void read_languages(JsonObject* config)
     }
 }
 
+void read_problems(JsonObject* config)
+{
+    JsonObject* object;
+    JsonValue* value;
+    JsonArray* array;
+    const char* string;
+    int i;
+
+    value = json_get_value(config, "problems");
+    if (value == NULL)
+        return;
+    if (json_get_type(value) != JTYPE_ARRAY)
+        return;
+    array = json_get_array(value);
+    ctx.num_problems = json_array_length(array);
+    if (ctx.num_problems == 0)
+        return;
+    ctx.problems = malloc(ctx.num_problems * sizeof(Problem));
+    for (i = 0; i < ctx.num_problems; i++) {
+        ctx.problems[i].id = i;
+        value = json_array_get(array, i);
+        if (json_get_type(value) != JTYPE_OBJECT) {
+            puts("invalid problem");
+            exit(1);
+        }
+        object = json_get_object(value);
+        if (object == NULL) {
+            puts("could not get object in problem");
+            exit(1);
+        }
+        value = json_get_value(object, "name");
+        if (value == NULL) {
+            puts("Missing problem name");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid problem name");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.problems[i].name = string;
+        value = json_get_value(object, "dir");
+        if (value == NULL) {
+            puts("Missing dir path");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid dir path");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.problems[i].dir = string;
+        value = json_get_value(object, "validator");
+        if (value == NULL) {
+            puts("Missing validator path");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid validator path");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.problems[i].validator = string;
+        value = json_get_value(object, "testcases");
+        if (value == NULL) {
+            puts("Missing testcases");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_INT) {
+            puts("Invalid number of testcases");
+            exit(1);
+        }
+        ctx.problems[i].num_testcases = json_get_int(value);
+        ctx.problems[i].time_limit = 2.0;
+        ctx.problems[i].mem_limit = 256<<20;
+    }
+}
+
 bool context_init(JsonObject* config)
 {
     read_teams(config);
     read_languages(config);
+    read_problems(config);
 
     if (ctx.num_teams == 0)
         puts("Contest is not running");

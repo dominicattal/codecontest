@@ -8,30 +8,31 @@ typedef enum {
     RUN_ENQUEUED,
     RUN_RUNNING,
     RUN_SUCCESS,
-    RUN_FAILED,
+    RUN_COMPILATION_ERROR,
+    RUN_TIME_LIMIT_EXCEEDED,
+    RUN_MEM_LIMIT_EXCEEDED,
+    RUN_WRONG_ANSWER,
     RUN_SERVER_ERROR
 } RunEnum;
 
 typedef struct Run Run;
 
 typedef struct Run {
-    const char* language;
-    const char* compile;
-    const char* execute;
-    const char* ext;
+    Run* next;
     const char* code;
     char* response;
-    int code_length;
-    int response_length;
-    int problem_id;
-    int id;
     sem_t signal;
     RunEnum status;
-    Run* next;
+    int language_id;
+    int team_id;
+    int problem_id;
+    int code_length;
+    int response_length;
+    int id;
 } Run;
 
 // create new run
-Run*    run_create(const char* language, const char* ext, const char* compile, const char* execute, const char* code, int code_length);
+Run*    run_create(int team_id, int language_id, int problem_id, const char* code, int code_length);
 
 // add run to the queue
 void    run_enqueue(Run* run);

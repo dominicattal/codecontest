@@ -21,8 +21,35 @@
         {
             "language": "cpp",
             "extension": ".cpp",
-            "compile": "g+m+ %s -o %s",
-            "execute": "%s"
+            "compile": "g++ %s -o %s",
+            "execute": "./%s"
+        }
+    ],
+    "problems": [
+        {
+            "name": "A - Super Easy Problem",
+            "dir": "problems/problem1",
+            "validator": "problems/problem1/validator.exe %d %s",
+            "testcases": 3
+        },
+        {
+            "name": "B - Floats",
+            "dir": "problems/problem2",
+            "validator": "problems/problem2/validator.exe %d %s",
+            "testcases": 3
+        },
+        {
+            "name": "C - Square?",
+            "dir": "problems/problem3",
+            "validator": "problems/problem3/validator.exe %d %s",
+            "testcases": 3,
+            "link": "https://codeforces.com/contest/2167/problem/A"
+        },
+        {
+            "name": "D - Cyclic Array",
+            "dir": "problems/problem4",
+            "validator": "problems/problem4/validator.exe %d %s",
+            "testcases": 3
         }
     ]
 }

@@ -35,7 +35,7 @@ DEPS_REL_GUI = $(OBJS_REL_GUI:%.o=%.d)
 all: dev
 
 dev: dev-gui dev-server dev-client
-	rm -rf problem1/runs problem1/bin
+	rm -rf problems/problem1/runs problems/problem1/bin
 
 dev-server: $(OBJS_DEV_SERVER)
 	@mkdir -p $(DIR_BIN)/dev
