@@ -36,7 +36,7 @@ char* read_file(const char* path, int* size)
     fclose(file);
     puts(path);
     puts(buffer);
-    buffer[end] = '\0';
+    buffer[end] = EOF;
     return buffer;
 
 fail_free_buffer:

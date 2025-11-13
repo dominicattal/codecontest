@@ -178,6 +178,12 @@ static bool validate(size_t mem_limit, double time_limit, int testcase, const ch
             goto fail;
         }
     }
+    if (!process_success(pid)) {
+        run->status = RUN_RUNTIME_ERROR;
+        sprintf(response, "Runtime error on testcase %d", testcase);
+        set_run_response(run, response);
+        goto fail;
+    }
     process_destroy(pid);
 
     return true;
