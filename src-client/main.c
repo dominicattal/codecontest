@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <libgen.h>
 #include <networking.h>
 #include <json.h>
 
@@ -43,7 +44,6 @@ char* read_code_file(const char* path)
         goto fail_free_buffer;
     fclose(file);
     code[length] = '\0';
-    puts(code);
     return code;
 
 fail_free_buffer:
@@ -60,12 +60,15 @@ int main(int argc, char** argv)
     Socket* server_socket;
     Packet* packet;
     int max_file_size;
+    char* file_basename;
+    char  file_name[256];
     const char* ip_str;
     const char* port_str;
     const char* username;
     const char* password;
     const char* language;
     char* code;
+    int i;
     bool contest_running;
 
     if (argc != 4) {
@@ -102,6 +105,11 @@ int main(int argc, char** argv)
         printf("Could not read code file: %s\n", argv[3]);
         goto fail_config;
     }
+
+    file_basename = basename(argv[3]);
+    for (i = 0; file_basename[i] != '\0' && file_basename[i] != '.'; i++)
+        file_name[i] = file_basename[i];
+    file_name[i] = '\0';
 
     networking_init();
     
@@ -153,6 +161,14 @@ int main(int argc, char** argv)
         }
         puts("validation successful");
         packet_destroy(packet);
+    }
+
+    packet = packet_create(PACKET_CODE_NAME_SEND, strlen(file_name)+1, file_name);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (!socket_send(server_socket, packet)) {
+        puts("Could not send code name");
+        goto fail_destroy_packet;
     }
 
     packet = packet_create(PACKET_LANGUAGE_VALIDATE, strlen(language)+1, language);

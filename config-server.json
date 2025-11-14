@@ -14,21 +14,23 @@
     "languages": [
         {
             "language": "python3",
-            "extension": ".py",
+            "extension": "py",
             "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
             "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
         },
         {
             "language": "cpp",
-            "extension": ".cpp",
+            "extension": "cpp",
             "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME].exe",
             "execute": "[BIN_DIR]/[BASENAME].exe"
         },
         {
+            "CODE_DIR": "[RUN_DIR]/[BASENAME]",
+            "CODE_PATH": "[RUN_DIR]/[BASENAME]/[CODE_FILENAME].java",
             "language": "java",
-            "extension": ".java",
+            "extension": "java",
             "compile": "javac [CODE_PATH]",
-            "execute": "java -cp %s"
+            "execute": "java -cp [CODE_DIR] [CODE_FILENAME]"
         }
     ],
     "problems": [

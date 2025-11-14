@@ -20,6 +20,7 @@ typedef struct Run Run;
 
 typedef struct Run {
     Run* next;
+    const char* filename;
     const char* code;
     char* response;
     sem_t signal;
@@ -33,7 +34,7 @@ typedef struct Run {
 } Run;
 
 // create new run
-Run*    run_create(int team_id, int language_id, int problem_id, const char* code, int code_length);
+Run*    run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length);
 
 // add run to the queue
 void    run_enqueue(Run* run);

@@ -34,12 +34,15 @@ If any of the following tokens appear in the command, they will be expanded: \
 - [RUN_PID]             -> id of the run local to problem
 - [MINUTE]              -> minute of the contest the run was submitted on
 - [LANGUAGE_EXT]        -> extension of the language used.
-- [CODE_FILENAME]       -> filename as it appears on client's machine.
-- [RUN_BASENAME]        -> basename of the run. equivalent to [TEAM_NAME]-[RUN_ID]
-- [CODE_PATH]           -> path to the code file generated. This is equivelent to [RUN_DIR]/[RUN_BASENAME].[LANGUAGE_EXT]
-- [COMPILE_PATH]        -> path to the compile output file generated. This is equivalent to [COMPILE_DIR]/[RUN_BASENAME].compile
-- [OUTPUT_PATH]         -> path to the textfile generated after executing. This is equivalent to [RUN_DIR]/[RUN_BASENAME]/[TESTCASE].output.
+- [CODE_FILENAME]       -> filename as it appears on client's machine, extension not included
+- [BASENAME]            -> basename of the run. equivalent to [TEAM_NAME]-[RUN_ID]
+- [CODE_DIR]            -> directory of the code file generated. default is runs
+- [CODE_PATH]           -> path to the code file generated. The default is [CODE_DIR]/[BASENAME].[LANGUAGE_EXT]
+- [COMPILE_PATH]        -> path to the compile output file generated. This is equivalent to [COMPILE_DIR]/[BASENAME].compile
 - [TESTCASE]            -> current testcase number. equal to -1 if not used in the "validate" or the "execute" fields
+- [CASE_PATH]           -> file that contains current testcase. equivalent to [CASE_DIR]/[TESTCASE].in
+- [OUTPUT_DIR]          -> path to the dir that contains the output files. Equivalent to [RUN_DIR]/[BASENAME]
+- [OUTPUT_PATH]         -> path to the textfile generated after executing. This is equivalent to [OUTPUT_DIR]/[TESTCASE].output.
 
 When a run is submitted from a client, the server places it in the run queue. When a run is processed, \
 it creates a file with the code called [CODE_PATH]. The code is then compiled based on the language's execute command, \
@@ -61,4 +64,7 @@ If at any point this process failed unexpectedly, the process ends and the run's
 Once a run stops running testcases, it will let the client know the verdict. All information related to this run (output path, compile path, etc.)
 will persist.
 
-
+The tokens above may be overrided in certain situations. The order they are overrided in is undefined,
+so do not rely on the tokens being expanded in a particular order.
+- [CODE_DIR] -> in a language
+- [CODE_PATH] -> in a language

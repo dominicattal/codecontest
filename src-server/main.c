@@ -9,7 +9,7 @@
 #include "state.h"
 #include "run.h"
 
-#define BUFFER_LENGTH   128
+#define BUFFER_LENGTH 1024
 #define MAX_FILE_SIZE 1000000
 
 GlobalContext ctx;
@@ -105,6 +105,14 @@ static void* handle_client(void* vargp)
     packet = socket_recv(client_socket, BUFFER_LENGTH);
     if (packet == NULL)
         goto fail;
+    if (packet->id != PACKET_CODE_NAME_SEND)
+        goto fail_packet;
+    sprintf(buf, "%s", packet->buffer);
+    packet_destroy(packet);
+
+    packet = socket_recv(client_socket, BUFFER_LENGTH);
+    if (packet == NULL)
+        goto fail;
     if (packet->id != PACKET_LANGUAGE_VALIDATE)
         goto fail_packet;
     language = validate_language(packet->buffer);
@@ -126,7 +134,7 @@ static void* handle_client(void* vargp)
     if (packet == NULL)
         goto fail;
 
-    run = run_create(team->id, language->id, 0, packet->buffer, packet->length-1);
+    run = run_create(buf, team->id, language->id, 0, packet->buffer, packet->length-1);
     run_enqueue(run);
     run_wait(run);
     result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;
@@ -211,7 +219,10 @@ void read_teams(JsonObject* config)
     ctx.num_teams = json_array_length(array);
     if (ctx.num_teams == 0)
         return;
-    ctx.teams = malloc(ctx.num_teams * sizeof(Team));
+    ctx.teams = malloc((ctx.num_teams+1) * sizeof(Team));
+    ctx.teams[ctx.num_teams].id = 0;
+    ctx.teams[ctx.num_teams].username = "no-team";
+    ctx.teams[ctx.num_teams].password = "";
     for (i = 0; i < ctx.num_teams; i++) {
         ctx.teams[i].id = i;
         value = json_array_get(array, i);
@@ -279,6 +290,7 @@ void read_languages(JsonObject* config)
             puts("could not get object in language");
             exit(1);
         }
+        ctx.languages[i].object = object;
         value = json_get_value(object, "language");
         if (value == NULL) {
             puts("Missing language name");
@@ -354,6 +366,7 @@ void read_problems(JsonObject* config)
             puts("could not get object in problem");
             exit(1);
         }
+        ctx.problems[i].object = object;
         value = json_get_value(object, "name");
         if (value == NULL) {
             puts("Missing problem name");
@@ -376,7 +389,7 @@ void read_problems(JsonObject* config)
         }
         string = json_get_string(value);
         ctx.problems[i].dir = string;
-        value = json_get_value(object, "validator");
+        value = json_get_value(object, "validate");
         if (value == NULL) {
             puts("Missing validator path");
             exit(1);
@@ -386,7 +399,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        ctx.problems[i].validator = string;
+        ctx.problems[i].validate = string;
         value = json_get_value(object, "testcases");
         if (value == NULL) {
             puts("Missing testcases");

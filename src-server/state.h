@@ -2,6 +2,7 @@
 #define STATE_H
 
 #include <stdlib.h>
+#include <json.h>
 
 typedef struct {
     const char* username;
@@ -10,6 +11,7 @@ typedef struct {
 } Team;
 
 typedef struct {
+    JsonObject* object;
     const char* name;
     const char* extension;
     const char* compile;
@@ -18,9 +20,10 @@ typedef struct {
 } Language;
 
 typedef struct {
+    JsonObject* object;
     const char* name;
     const char* dir;
-    const char* validator;
+    const char* validate;
     size_t mem_limit;
     double time_limit;
     int num_testcases;

@@ -22,7 +22,6 @@ char* read_file(const char* path, int* size)
     if (fseek(file, 0, SEEK_END) != 0)
         goto fail_close_file;
     end = ftell(file);
-    *size = end;
     if (end == -1L)
         goto fail_close_file;
     buffer = malloc((end+1)*sizeof(char));
@@ -31,6 +30,7 @@ char* read_file(const char* path, int* size)
     if (fseek(file, 0, SEEK_SET) != 0)
         goto fail_free_buffer;
     length = fread(buffer, sizeof(char), end, file);
+    *size = length+1;
     if (ferror(file) != 0)
         goto fail_free_buffer;
     fclose(file);
