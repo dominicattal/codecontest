@@ -24,7 +24,7 @@ char* read_code_file(const char* path)
 {
     FILE* file;
     char* code;
-    int end;
+    int end, length;
     file = fopen(path, "r");
     if (file == NULL)
         goto fail;
@@ -38,11 +38,12 @@ char* read_code_file(const char* path)
         goto fail_close_file;
     if (fseek(file, 0, SEEK_SET) != 0)
         goto fail_free_buffer;
-    fread(code, sizeof(char), end, file);
+    length = fread(code, sizeof(char), end, file);
     if (ferror(file) != 0)
         goto fail_free_buffer;
     fclose(file);
-    code[end] = '\0';
+    code[length] = '\0';
+    puts(code);
     return code;
 
 fail_free_buffer:

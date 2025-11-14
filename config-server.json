@@ -15,41 +15,55 @@
         {
             "language": "python3",
             "extension": ".py",
-            "compile": "python3 compilepython.py %s %s",
-            "execute": "python3 %s"
+            "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
+            "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
         },
         {
             "language": "cpp",
             "extension": ".cpp",
-            "compile": "g++ %s -o %s",
-            "execute": "./%s"
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME].exe",
+            "execute": "[BIN_DIR]/[BASENAME].exe"
+        },
+        {
+            "language": "java",
+            "extension": ".java",
+            "compile": "javac [CODE_PATH]",
+            "execute": "java -cp %s"
         }
     ],
     "problems": [
         {
             "name": "A - Super Easy Problem",
             "dir": "problems/problem1",
-            "validator": "problems/problem1/validator.exe %d %s",
-            "testcases": 3
+            "validate": "problems/problem1/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "testcases": 3,
+            "time_limit": 2,
+            "mem_limit": 256
         },
         {
             "name": "B - Floats",
             "dir": "problems/problem2",
-            "validator": "problems/problem2/validator.exe %d %s",
-            "testcases": 3
+            "validate": "problems/problem2/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "testcases": 3,
+            "time_limit": 2,
+            "mem_limit": 256
         },
         {
             "name": "C - Square?",
             "dir": "problems/problem3",
-            "validator": "problems/problem3/validator.exe %d %s",
+            "validate": "problems/problem3/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "link": "https://codeforces.com/contest/2167/problem/A",
             "testcases": 3,
-            "link": "https://codeforces.com/contest/2167/problem/A"
+            "time_limit": 2,
+            "mem_limit": 256
         },
         {
             "name": "D - Cyclic Array",
             "dir": "problems/problem4",
-            "validator": "problems/problem4/validator.exe %d %s",
-            "testcases": 3
+            "validate": "problems/problem4/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "testcases": 3,
+            "time_limit": 2,
+            "mem_limit": 256
         }
     ]
 }

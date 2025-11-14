@@ -2,5 +2,7 @@ glfw3.dll
 ws2_32.dll
 build
 bin
-problem1/runs/*
-problem1/bin/*
+problems/problem1/runs/*
+problems/problem1/bin/*
+problems/problem1/validator.exe
+

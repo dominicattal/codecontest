@@ -15,7 +15,7 @@ char* read_file(const char* path, int* size)
 {
     FILE* file;
     char* buffer;
-    int end;
+    int end, length;
     file = fopen(path, "r");
     if (file == NULL)
         goto fail;
@@ -30,13 +30,11 @@ char* read_file(const char* path, int* size)
         goto fail_close_file;
     if (fseek(file, 0, SEEK_SET) != 0)
         goto fail_free_buffer;
-    fread(buffer, sizeof(char), end, file);
+    length = fread(buffer, sizeof(char), end, file);
     if (ferror(file) != 0)
         goto fail_free_buffer;
     fclose(file);
-    puts(path);
-    puts(buffer);
-    buffer[end] = EOF;
+    buffer[length] = EOF;
     return buffer;
 
 fail_free_buffer:

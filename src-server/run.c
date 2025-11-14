@@ -83,7 +83,7 @@ void run_destroy(Run* run)
     free(run);
 }
 
-static bool create_dir(const char* path, mode_t mode)
+static bool create_dir(const char* path)
 {
     int result;
 #ifdef __WIN32
@@ -93,8 +93,10 @@ static bool create_dir(const char* path, mode_t mode)
 #else
     result = 2;
 #endif
-    if (result == 0 || errno == EEXIST)
+    // TODO: figure out why EBADF occurs here
+    if (result == 0 || errno == EEXIST || errno == EBADF)
         return true;
+    printf("Creted dir failed: %s %d\n", path, errno);
     return false;
 }
 
@@ -153,56 +155,45 @@ static bool validate(size_t mem_limit, double time_limit, int testcase, const ch
     char response[512];
     time_t start, cur;
     size_t mem;
-    bool status;
 
-    status = true;
-    printf("%s\n%s %s\n", execute_command, in_path, out_path);
+    printf("%s\n%s %s\n%s\n", execute_command, in_path, out_path, validator);
     pid = process_create(execute_command, in_path, out_path);
     time(&start);
     cur = start;
     while (process_running(pid)) {
         mem = process_memory(pid);
-        //printf("%lld %lld\n", mem, mem_limit);
         if (mem > mem_limit) {
             run->status = RUN_MEM_LIMIT_EXCEEDED;
             sprintf(response, "Memory limit exceeded on testcase %d", testcase);
-            set_run_response(run, response);
             goto fail;
         }
         time(&cur);
-        //printf("%f %f\n", difftime(cur,start), time_limit);
         if (difftime(cur, start) > time_limit) {
             run->status = RUN_TIME_LIMIT_EXCEEDED;
             sprintf(response, "Time limit exceeded on testcase %d", testcase);
-            set_run_response(run, response);
             goto fail;
         }
     }
     if (!process_success(pid)) {
         run->status = RUN_RUNTIME_ERROR;
         sprintf(response, "Runtime error on testcase %d", testcase);
-        set_run_response(run, response);
         goto fail;
     }
     process_destroy(pid);
-
-    return true;
 
     pid = process_create(validator, NULL, NULL);
     process_wait(pid);
-    status = process_success(pid);
-    process_destroy(pid);
-    
-    if (!status) {
+    if (!process_success(pid)) {
         run->status = RUN_WRONG_ANSWER;
         sprintf(response, "Wrong answer on testcase %d", testcase);
-        set_run_response(run, response);
         goto fail;
     }
-    
+    process_destroy(pid);
+
     return true;
 
 fail:
+    set_run_response(run, response);
     process_destroy(pid);
     return false;
 }
@@ -225,7 +216,7 @@ static void handle_run(Run* run)
     char execute_command[256];
     char validate_command[256];
     char* response;
-    int i;
+    int testcase;
 
     problem = &ctx.problems[run->problem_id];
     language = &ctx.languages[run->language_id];
@@ -240,23 +231,36 @@ static void handle_run(Run* run)
     sprintf(exec_path, "%s/%s-%d.exe", bin_dir, username, run->id);
     sprintf(compile_path, "%s/%s-%d.compile", run_dir, username, run->id);
     sprintf(code_path, "%s/%s-%d%s", run_dir, username, run->id, extension);
-    if (!create_dir(bin_dir, 0777))
+    puts(bin_dir);
+    puts(run_dir);
+    puts(exec_path);
+    puts(compile_path);
+    puts(code_path);
+    if (!create_dir(bin_dir)) {
+        printf("[%d] Couldn't create bin directory\n", run->id);
         goto server_error;
-    if (!create_dir(run_dir, 0777))
+    }
+    if (!create_dir(run_dir)) {
+        printf("[%d] Couldn't create run directory\n", run->id);
         goto server_error;
-    if (!create_file(code_path, run->code, run->code_length))
+    }
+    if (!create_file(code_path, run->code, run->code_length)) {
+        printf("[%d] Couldn't create code file %s\n", run->id, code_path);
         goto server_error;
+    }
     if (!compile(code_path, exec_path, compile_path, run))
         goto fail;
     sprintf(out_dir, "%s/runs/%s-%d", problem_dir, username, run->id);
-    if (!create_dir(out_dir, 0777))
+    if (!create_dir(out_dir)) {
+        printf("[%d] Couldn't create output dir\n", run->id);
         goto server_error;
-    for (i = 0; i < problem->num_testcases; i++) {
-        sprintf(in_path, "%s/cases/%d.in", problem_dir, i);
-        sprintf(out_path, "%s/%d.output", out_dir, i);
+    }
+    for (testcase = 0; testcase < problem->num_testcases; testcase++) {
+        sprintf(in_path, "%s/cases/%d.in", problem_dir, testcase);
+        sprintf(out_path, "%s/%d.output", out_dir, testcase);
         sprintf(execute_command, language->execute, exec_path);
-        sprintf(validate_command, problem->validator, i, out_path);
-        if (!validate(problem->mem_limit, problem->time_limit, i, validate_command, execute_command, in_path, out_path, run))
+        sprintf(validate_command, problem->validator, testcase, out_path);
+        if (!validate(problem->mem_limit, problem->time_limit, testcase, validate_command, execute_command, in_path, out_path, run))
             goto fail;
     }
     run->status = RUN_SUCCESS;

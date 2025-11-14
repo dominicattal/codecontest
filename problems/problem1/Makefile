@@ -1,2 +1,2 @@
 all:
-	gcc validator.c -o validate.exe
+	gcc validator.c -o validator.exe
