@@ -1,8 +1,8 @@
 .env
 glfw3.dll
 ws2_32.dll
-build
-bin
+build/*
+bin/*
 problems/problem1/runs/*
 problems/problem1/bin/*
 *validate.exe
