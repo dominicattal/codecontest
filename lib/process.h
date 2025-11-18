@@ -4,10 +4,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-// cross-platform create processes
-// god i hate cross platform development
-// why can't we all just use linux
-
 typedef struct ProcessID ProcessID;
 
 void        process_init(void);

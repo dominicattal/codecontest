@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <signal.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <json.h>
+#include <process.h>
 #include "state.h"
 #include "run.h"
 
@@ -193,6 +195,7 @@ static Socket* create_listen_socket(JsonObject* config)
 
     if (!socket_bind(listen_socket)) {
         puts("Couldn't bind socket");
+        printf("%d\n", socket_get_last_error());
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
@@ -200,6 +203,26 @@ static Socket* create_listen_socket(JsonObject* config)
         return NULL;
     }
     return listen_socket;
+}
+
+static void* server_daemon(void* vargp)
+{
+    Socket* listen_socket;
+    Socket* client_socket;
+    JsonObject* config = vargp;
+    pthread_t thread_id;
+    while (!ctx.kill) {
+        listen_socket = create_listen_socket(config);
+        if (listen_socket == NULL) {
+            ctx.kill = true;
+            break;
+        }
+        client_socket = socket_accept(listen_socket);
+        socket_destroy(listen_socket);
+        if (client_socket != NULL)
+            pthread_create(&thread_id, NULL, handle_client, client_socket);
+    }
+    return NULL;
 }
 
 void read_teams(JsonObject* config)
@@ -345,14 +368,20 @@ void read_problems(JsonObject* config)
     int i;
 
     value = json_get_value(config, "problems");
-    if (value == NULL)
-        return;
-    if (json_get_type(value) != JTYPE_ARRAY)
-        return;
+    if (value == NULL) {
+        puts("Could not find problemset");
+        exit(1);
+    }
+    if (json_get_type(value) != JTYPE_ARRAY) {
+        puts("Invalid type for problemset");
+        exit(1);
+    }
     array = json_get_array(value);
     ctx.num_problems = json_array_length(array);
-    if (ctx.num_problems == 0)
-        return;
+    if (ctx.num_problems == 0) {
+        puts("Empty problemset");
+        exit(1);
+    }
     ctx.problems = malloc(ctx.num_problems * sizeof(Problem));
     for (i = 0; i < ctx.num_problems; i++) {
         ctx.problems[i].id = i;
@@ -415,33 +444,57 @@ void read_problems(JsonObject* config)
     }
 }
 
+void read_num_run_threads(JsonObject* config)
+{
+    JsonValue* value;
+    int i;
+    value = json_get_value(config, "num_threads");
+    ctx.num_run_threads = 1;
+    if (value == NULL) {
+        puts("Number of run threads missing, defaulting to 1");
+        goto setup;
+    }
+    if (json_get_type(value) != JTYPE_INT) {
+        puts("Invalid type for number of run threads");
+        goto setup;
+    }
+    ctx.num_run_threads = json_get_int(value);
+
+setup:
+    ctx.run_threads = malloc(ctx.num_run_threads * sizeof(pthread_t));
+    for (i = 0; i < ctx.num_run_threads; i++)
+        pthread_create(&ctx.run_threads[i], NULL, run_daemon, NULL);
+}
+
 bool context_init(JsonObject* config)
 {
     read_teams(config);
     read_languages(config);
     read_problems(config);
+    read_num_run_threads(config);
 
-    if (ctx.num_teams == 0)
-        puts("Contest is not running");
-    else
-        puts("Contest is running");
-
+    puts("Successfully initialized");
     return true;
 }
 
 void context_cleanup(void)
 {
+    for (int i = 0; i < ctx.num_run_threads; i++)
+        pthread_join(ctx.run_threads[i], NULL);
+    free(ctx.run_threads);
     free(ctx.teams);
     free(ctx.languages);
+    free(ctx.problems);
 }
 
 int main(int argc, char** argv)
 {
-    Socket* client_socket;
-    Socket* listen_socket;
-    pthread_t thread_id;
-    pthread_t run_thread_id;
     JsonObject* config;
+    pthread_t server_thread_id;
+    int code;
+
+    process_init();
+    return 1;
 
     if (argc == 1) {
         puts("Must supply config file");
@@ -458,23 +511,21 @@ int main(int argc, char** argv)
         goto fail_config;
 
     networking_init();
-    pthread_create(&run_thread_id, NULL, run_daemon, NULL);
-    pthread_create(&run_thread_id, NULL, run_daemon, NULL);
 
-    while (1) {
-        listen_socket = create_listen_socket(config);
-        if (listen_socket == NULL)
-            goto fail_cleanup;
-        client_socket = socket_accept(listen_socket);
-        socket_destroy(listen_socket);
-        pthread_create(&thread_id, NULL, handle_client, client_socket);
+    pthread_create(&server_thread_id, NULL, server_daemon, config);
+
+    code = 0;
+    while (code != 1) {
+        scanf("%d", &code);
     }
 
-    pthread_kill(run_thread_id, 1);
+    ctx.kill = true;
 
-fail_cleanup:
+    pthread_kill(server_thread_id, 1);
+
     networking_cleanup();
     context_cleanup();
+
 fail_config:
     json_object_destroy(config);
 

@@ -11,6 +11,7 @@
 #include <process.h>
 #include <stdarg.h>
 #include <dirent.h>
+#include <errno.h>
 
 #define TOKEN_BUFFER_LENGTH 1024
 
@@ -485,7 +486,7 @@ void* run_daemon(void* vargp)
 {
     Run* run;
     TokenBuffers* tb = create_token_buffers();
-    while (1) {
+    while (!ctx.kill) {
         run = run_dequeue();
         if (run == NULL)
             continue;

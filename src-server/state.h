@@ -1,8 +1,10 @@
 #ifndef STATE_H
+#include <stdbool.h>
 #define STATE_H
 
 #include <stdlib.h>
 #include <json.h>
+#include <pthread.h>
 
 typedef struct {
     const char* username;
@@ -31,12 +33,15 @@ typedef struct {
 } Problem;
 
 typedef struct {
-    int num_teams;
-    int num_languages;
-    int num_problems;
     Team* teams;
     Language* languages;
     Problem* problems;
+    pthread_t* run_threads;
+    int num_teams;
+    int num_languages;
+    int num_problems;
+    int num_run_threads;
+    bool kill;
 } GlobalContext;
 
 extern GlobalContext ctx;

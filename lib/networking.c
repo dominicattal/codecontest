@@ -191,4 +191,79 @@ void packet_destroy(Packet* packet)
     free(packet);
 }
 
+#else
+
+bool networking_init(void)
+{
+    return true;
+}
+
+void networking_cleanup(void)
+{
+}
+
+char* networking_hostname(void)
+{
+    return NULL;
+}
+
+Socket* socket_create(const char* ip, const char* port, int flags)
+{
+    return NULL;
+}
+
+bool    socket_bind(Socket* socket)
+{
+    return true;
+}
+
+bool    socket_listen(Socket* socket)
+{
+    return true;
+}
+
+Socket* socket_accept(Socket* socket)
+{
+    return NULL;
+}
+
+bool    socket_connect(Socket* socket)
+{
+    return true;
+}
+
+void    socket_destroy(Socket* socket)
+{
+}
+
+bool    socket_send(Socket* socket, Packet* packet)
+{
+    return true;
+}
+
+bool    socket_connected(Socket* socket)
+{
+    return true;
+}
+
+Packet* socket_recv(Socket* socket, int max_length)
+{
+    return NULL;
+}
+
+int     socket_get_last_error(void)
+{
+    return 0;
+}
+
+Packet* packet_create(int id, int length, const char* buffer)
+{
+    return NULL;
+}
+
+void    packet_destroy(Packet* packet)
+{
+}
+
+
 #endif

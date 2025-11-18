@@ -1,10 +1,6 @@
-#include "state.h"
+#include <stdio.h>
 
-int main(int argc, char** argv)
+int main()
 {
-    log_init(argv[0]);
-    state_init();
-    state_loop();
-    state_cleanup();
-    return 0;
+
 }
