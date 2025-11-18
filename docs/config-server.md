@@ -2,6 +2,7 @@
 
 "ip" -> must be either null or properly formatted ip address ("127.0.0.1") \
 "port" -> must be a valid port number formatted as a string ("27105") \
+"num_threads" -> number of threads processing runs
 "teams" -> must be an array containing each team's information \
     "username" -> name of the team \
     "password" -> password for the team \

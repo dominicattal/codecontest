@@ -485,7 +485,7 @@ void* run_daemon(void* vargp)
 {
     Run* run;
     TokenBuffers* tb = create_token_buffers();
-    while (1) {
+    while (!ctx.kill) {
         run = run_dequeue();
         if (run == NULL)
             continue;

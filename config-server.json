@@ -1,6 +1,7 @@
 {
     "ip": null,
     "port": "27105",
+    "num_threads": 2,
     "teams": [
         {
             "username": "team1",

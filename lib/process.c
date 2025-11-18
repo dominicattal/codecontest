@@ -85,6 +85,7 @@ ProcessID* process_create(const char* command, const char* infile_path, const ch
         si.hStdOutput = h;
         si.hStdError = h;
     }
+    puts(command);
     if (!CreateProcess(NULL, (char*)command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pid->pi))
         goto fail_really_bad;
     CloseHandle(h);
