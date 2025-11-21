@@ -38,7 +38,7 @@
         {
             "name": "A - Super Easy Problem",
             "dir": "problems/problem1",
-            "validate": "problems/problem1/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "validate": "problems/problem1/validate [TESTCASE] [OUTPUT_PATH]",
             "testcases": 3,
             "time_limit": 2,
             "mem_limit": 256

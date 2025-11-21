@@ -285,7 +285,7 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
     char* response;
     bool success;
-    ProcessID* pid;
+    Process* pid;
 
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
     pid = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, get_token_value(tb, COMPILE_PATH));
@@ -305,7 +305,7 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
 
 static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
 {
-    ProcessID* pid;
+    Process* pid;
     char response[512];
     time_t start, cur;
     size_t mem;
@@ -331,6 +331,10 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
         }
     }
     if (!process_success(pid)) {
+        if (process_error(pid)) {
+            run->status = RUN_SERVER_ERROR;
+            return false;
+        }
         run->status = RUN_RUNTIME_ERROR;
         sprintf(response, "Runtime error on testcase %d", testcase);
         goto fail;
@@ -338,9 +342,14 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     process_destroy(pid);
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
+    print_token_value(tb, VALIDATE_COMMAND);
     pid = process_create(get_token_value(tb, VALIDATE_COMMAND), NULL, NULL);
     process_wait(pid);
     if (!process_success(pid)) {
+        if (process_error(pid)) {
+            run->status = RUN_SERVER_ERROR;
+            return false;
+        }
         run->status = RUN_WRONG_ANSWER;
         sprintf(response, "Wrong answer on testcase %d", testcase);
         goto fail;
@@ -470,6 +479,8 @@ static void handle_run(TokenBuffers* tb, Run* run)
     return;
 
 fail:
+    if (run->status == RUN_SERVER_ERROR)
+        goto server_error;
     sem_post(&run->signal);
     return;
 

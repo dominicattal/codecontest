@@ -5,4 +5,4 @@ build/*
 bin/*
 problems/problem1/runs/*
 problems/problem1/bin/*
-*validate.exe
+*validate*

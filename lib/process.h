@@ -4,16 +4,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef struct ProcessID ProcessID;
+typedef struct Process Process;
 
-void        process_init(void);
-ProcessID*  process_create(const char* command, const char* infile_path, const char* outfile_path);
-void        process_wait(ProcessID* pid);
-bool        process_running(ProcessID* pid);
-size_t      process_memory(ProcessID* pid);
-bool        process_success(ProcessID* pid);
-void        process_destroy(ProcessID* pid);
-void        process_cleanup(void);
+Process*    process_create(const char* command, const char* infile_path, const char* outfile_path);
+void        process_wait(Process* process);
+bool        process_running(Process* process);
+size_t      process_memory(Process* process);
+bool        process_success(Process* process);
+bool        process_error(Process* process);
+void        process_destroy(Process* process);
 
 #endif
 

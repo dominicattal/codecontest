@@ -4,13 +4,14 @@ NAME_GUI=gui.exe
 BUILD_SUFFIX=w
 LINKER_FLAGS= -pthread
 CFLAGS_ALL = -Ilib -MMD -Wall -Wextra -Werror -Wfatal-errors -Wno-unused-parameter -pthread
+CFLAGS_ALL = -Ilib -MMD -pthread
 
 ifeq ($(OS),Windows_NT)
 	LINKER_FLAGS += -lws2_32
 else
-	NAME_SERVER=server.out
-	NAME_CLIENT=client.out
-	NAME_GUI=gui.out
+	NAME_SERVER=server
+	NAME_CLIENT=client
+	NAME_GUI=gui
 	BUILD_SUFFIX=l
 endif
 
@@ -24,6 +25,7 @@ OBJ_DEV_CLIENT = $(SRC_CLIENT:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 OBJ_DEV_GUI = $(SRC_GUI:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 
 all: dev
+	@rm -rf problems/problem1/bin problems/problem1/runs
 
 dev: build dev-server dev-client
 
@@ -33,7 +35,7 @@ dev-server: $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER)
 
 dev-client: $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT)
 	@mkdir -p bin/dev
-	@gcc $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER) $(LINKER_FLAGS) -o bin/dev/$(NAME_CLIENT)
+	@gcc $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT) $(LINKER_FLAGS) -o bin/dev/$(NAME_CLIENT)
 
 dev-gui: $(OBJ_DEV_LIB) $(OBJ_DEV_GUI)
 	@mkdir -p bin/dev

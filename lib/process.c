@@ -1,19 +1,20 @@
 #include "process.h"
 #include <stdio.h>
 
+#define STATUS_SUCCESS 0
+#define STATUS_FAILED  1
+#define STATUS_ERROR   2
+#define STATUS_RUNNING 3
+
 #ifdef __WIN32
 #include <windows.h>
 #include <psapi.h>
 
-typedef struct ProcessID {
+typedef struct Process {
     PROCESS_INFORMATION pi;
     HANDLE infile;
     HANDLE infile_rd;
-} ProcessID;
-
-void process_init(void)
-{
-}
+} Process;
 
 char* read_file(const char* path, int* size)
 {
@@ -49,10 +50,10 @@ fail:
     return NULL;
 }
 
-ProcessID* process_create(const char* command, const char* infile_path, const char* outfile_path)
+Process* process_create(const char* command, const char* infile_path, const char* outfile_path)
 {
     STARTUPINFO si;
-    ProcessID* process;
+    Process* process;
     char* text;
     int size;
     DWORD written;
@@ -67,7 +68,7 @@ ProcessID* process_create(const char* command, const char* infile_path, const ch
     sa.lpSecurityDescriptor = NULL;
     sa.bInheritHandle = TRUE;
     flags = CREATE_NO_WINDOW;
-    process = malloc(sizeof(ProcessID));
+    process = malloc(sizeof(Process));
     ZeroMemory(&si, sizeof(si));
     ZeroMemory(&process->pi, sizeof(process->pi));
     process->infile = NULL;
@@ -102,33 +103,40 @@ fail_really_bad:
     return NULL;
 }
 
-void process_wait(ProcessID* process)
+void process_wait(Process* process)
 {
     WaitForSingleObject(process->pi.hProcess, INFINITE);
 }
 
-bool process_running(ProcessID* process)
+bool process_running(Process* process)
 {
     DWORD lpExitCode;
     GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
     return lpExitCode == STILL_ACTIVE;
 }
 
-size_t process_memory(ProcessID* process)
+size_t process_memory(Process* process)
 {
     PROCESS_MEMORY_COUNTERS ppsemCounters;
     GetProcessMemoryInfo(process->pi.hProcess, &ppsemCounters, sizeof(ppsemCounters));
     return (size_t)ppsemCounters.PeakWorkingSetSize;
 }
 
-bool process_success(ProcessID* process)
+bool process_success(Process* process)
 {
     DWORD lpExitCode;
     GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
-    return lpExitCode == 0;
+    return lpExitCode == STATUS_SUCCESS;
 }
 
-void process_destroy(ProcessID* process)
+bool process_error(Process* process)
+{
+    DWORD lpExitCode;
+    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
+    return lpExitCode == STATUS_ERROR;
+}
+
+void process_destroy(Process* process)
 {
     TerminateProcess(process->pi.hProcess, 1);
     CloseHandle(process->infile);
@@ -152,21 +160,16 @@ void process_destroy(ProcessID* process)
 #include <sys/wait.h>
 #include <fcntl.h>
 
-#define STATUS_SUCCESS 0
-#define STATUS_FAILED  1
-#define STATUS_ERROR   2
-#define STATUS_RUNNING 3
-
-typedef struct ProcessID {
+typedef struct Process {
     char** argv;
     pthread_t thread_id;
     pid_t pid;
     int status;
-} ProcessID;
+} Process;
 
 static void* handler_daemon(void* vargp)
 {
-    ProcessID* process;
+    Process* process;
     int status;
     process = vargp;
     waitpid(process->pid, &status, 0);
@@ -176,39 +179,41 @@ static void* handler_daemon(void* vargp)
 
 void process_init(void)
 {
-    ProcessID* process;
-    char* command = "python3 test.py";
-    process = process_create(command, "test.in", "test.output");
-    puts("start");
-    while (process_running(process))
-        ;
-    puts("end");
+    Process* process;
+    process = process_create("python3 problems/problem1/bin/team1-0.pyc", "problems/problem1/cases/0.in", "problems/problem1/runs/team1-0/0.output");
+    process_wait(process);
     process_destroy(process);
 }
 
-ProcessID* process_create(const char* command, const char* infile_path, const char* outfile_path)
+Process* process_create(const char* command, const char* infile_path, const char* outfile_path)
 {
-    ProcessID* process;
+    Process* process;
     pid_t pid;
     int fd_in, fd_out;
 
-    process = malloc(sizeof(ProcessID));
+    puts(command);
+    process = malloc(sizeof(Process));
     process->argv = malloc(4 * sizeof(char*));
     process->argv[0] = "/bin/bash";
     process->argv[1] = "-c";
     process->argv[2] = (char*)command;
     process->argv[3] = NULL;
+    process->status = STATUS_RUNNING;
     pid = fork();
     if (pid == -1) {
         goto fail;
     } else if (pid == 0) {
         if (infile_path != NULL) {
             fd_in = open(infile_path, O_RDONLY, S_IRUSR);
+            if (fd_in < 0)
+                goto fail;
             dup2(fd_in, 0);
             close(fd_in);
         }
         if (outfile_path != NULL) {
             fd_out = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+            if (fd_out < 0)
+                goto fail;
             dup2(fd_out, 1);
             dup2(fd_out, 2);
             close(fd_out);
@@ -217,7 +222,6 @@ ProcessID* process_create(const char* command, const char* infile_path, const ch
     }
     process->pid = pid;
     pthread_create(&process->thread_id, NULL, handler_daemon, process);
-    process->status = STATUS_RUNNING;
 
     return process;
 
@@ -226,17 +230,17 @@ fail:
     return NULL;
 }
 
-void process_wait(ProcessID* process)
+void process_wait(Process* process)
 {
     pthread_join(process->thread_id, 0);
 }
 
-bool process_running(ProcessID* process)
+bool process_running(Process* process)
 {
     return process->status == STATUS_RUNNING;
 }
 
-size_t process_memory(ProcessID* process)
+size_t process_memory(Process* process)
 {
     pid_t mem_pid;
     int status;
@@ -263,20 +267,22 @@ size_t process_memory(ProcessID* process)
     return res;
 }
 
-bool process_success(ProcessID* process)
+bool process_success(Process* process)
 {
     return process->status == STATUS_SUCCESS;
 }
 
-void process_destroy(ProcessID* process)
+bool process_error(Process* process)
 {
-    kill(process->pid, 2);
-    pthread_join(process->thread_id, NULL);
-    free(process);
+    return process->status == STATUS_ERROR;
 }
 
-void process_cleanup(void)
+void process_destroy(Process* process)
 {
+    kill(process->pid, 69);
+    pthread_join(process->thread_id, NULL);
+    free(process->argv);
+    free(process);
 }
 
 #endif

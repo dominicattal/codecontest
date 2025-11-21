@@ -187,7 +187,7 @@ static Socket* create_listen_socket(JsonObject* config)
         puts("Could not read port from config file");
         return NULL;
     }
-    listen_socket = socket_create(ip_str, port_str, BIT_TCP|BIT_BIND);
+    listen_socket = socket_create(ip_str, port_str, BIT_TCP);
     if (listen_socket == NULL) {
         puts("Could not create socket");
         return NULL;
@@ -461,7 +461,7 @@ void read_num_run_threads(JsonObject* config)
     ctx.num_run_threads = json_get_int(value);
 
 setup:
-    ctx.run_threads = malloc(ctx.num_run_threads * sizeof(pthread_t));
+    ctx.run_threads = calloc(ctx.num_run_threads, sizeof(pthread_t));
     for (i = 0; i < ctx.num_run_threads; i++)
         pthread_create(&ctx.run_threads[i], NULL, run_daemon, NULL);
 }
@@ -493,9 +493,6 @@ int main(int argc, char** argv)
     pthread_t server_thread_id;
     int code;
 
-    process_init();
-    return 1;
-
     if (argc == 1) {
         puts("Must supply config file");
         return 1;
@@ -510,7 +507,8 @@ int main(int argc, char** argv)
     if (!context_init(config))
         goto fail_config;
 
-    networking_init();
+    if (!networking_init())
+        goto fail_context;
 
     pthread_create(&server_thread_id, NULL, server_daemon, config);
 
@@ -524,8 +522,8 @@ int main(int argc, char** argv)
     pthread_kill(server_thread_id, 1);
 
     networking_cleanup();
+fail_context:
     context_cleanup();
-
 fail_config:
     json_object_destroy(config);
 

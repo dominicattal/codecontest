@@ -27,7 +27,7 @@ int main(int argc, char** argv)
         return SERVER_ERROR;
     }
 
-    sprintf(correct_file_path, "%s\\cases\\%d.ans", dirname(argv[0]), testcase);
+    sprintf(correct_file_path, "%s/cases/%d.ans", dirname(argv[0]), testcase);
     correct_file = fopen(correct_file_path, "r");
     if (correct_file == NULL) {
         fclose(test_file);

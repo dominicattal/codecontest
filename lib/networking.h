@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 #define BIT_TCP  0x1
-#define BIT_BIND 0x2
 
 typedef enum {
     PACKET_NO_CONTEST,
