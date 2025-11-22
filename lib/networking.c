@@ -20,7 +20,7 @@ typedef struct Socket {
 
 static NetworkingContext ctx;
 
-bool networking_init(void)
+bool networking_init(int max_num_conn)
 {
     if (WSAStartup(MAKEWORD(2,2), &ctx.wsa_data))
         return false;
@@ -183,25 +183,68 @@ int socket_get_last_error(void)
 #include <string.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <semaphore.h>
+#include <pthread.h>
 
 typedef struct Socket {
     int fd;
     struct sockaddr_in addr;
     bool connected;
+    bool in_use;
 } Socket;
 
-bool networking_init(void)
+static struct {
+   int num_sockets;
+   Socket* sockets;
+   pthread_mutex_t mutex;
+   sem_t sem;
+} net_ctx;
+
+bool networking_init(int max_num_conn)
 {
+    net_ctx.num_sockets = max_num_conn;
+    net_ctx.sockets = calloc(max_num_conn, sizeof(Socket));
+    for (int i = 0; i < max_num_conn; i++)
+        net_ctx.sockets[i].fd = -1;
+    sem_init(&net_ctx.sem, 0, max_num_conn);
+    pthread_mutex_init(&net_ctx.mutex, NULL);
     return true;
 }
 
 void networking_cleanup(void)
 {
+    for (int i = 0; i < net_ctx.num_sockets; i++) {
+        if (net_ctx.sockets[i].fd == -1)
+            continue;
+        shutdown(net_ctx.sockets[i].fd, SHUT_RDWR);
+    }
+    sleep(5);
+    free(net_ctx.sockets);
 }
 
 char* networking_hostname(void)
 {
     return NULL;
+}
+
+static Socket* get_free_socket(void)
+{
+    Socket* sock = NULL;
+    int i;
+    sem_wait(&net_ctx.sem);
+    pthread_mutex_lock(&net_ctx.mutex);
+    for (i = 0; i < net_ctx.num_sockets; i++) {
+        if (!net_ctx.sockets[i].in_use) {
+            sock = &net_ctx.sockets[i];
+            break;
+        }
+    }
+    if (sock == NULL)
+        puts("Could not find free socket");
+    else 
+        sock->in_use = true;
+    pthread_mutex_unlock(&net_ctx.mutex);
+    return sock;
 }
 
 Socket* socket_create(const char* ip, const char* port_str, int flags)
@@ -210,7 +253,10 @@ Socket* socket_create(const char* ip, const char* port_str, int flags)
     int port;
     port = atoi(port_str);
 
-    sock = malloc(sizeof(Socket));
+    sock = get_free_socket();
+    if (sock == NULL)
+        goto fail;
+
     sock->fd = socket(AF_INET, SOCK_STREAM, 0);
     sock->addr.sin_family = AF_INET;
     if (ip == NULL)
@@ -221,6 +267,10 @@ Socket* socket_create(const char* ip, const char* port_str, int flags)
     setsockopt(sock->fd, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
 
     return sock;
+
+fail:
+    puts("Error creating socketing");
+    return NULL;
 }
 
 bool socket_bind(Socket* sock)
@@ -237,7 +287,7 @@ Socket* socket_accept(Socket* sock)
 {
     Socket* new_sock;
     socklen_t addrlen;
-    new_sock = malloc(sizeof(Socket));
+    new_sock = get_free_socket();
     addrlen = sizeof(sock->addr);
     new_sock->fd = accept(sock->fd, (struct sockaddr*)&sock->addr, &addrlen);
     return new_sock;
@@ -251,8 +301,13 @@ bool socket_connect(Socket* sock)
 
 void socket_destroy(Socket* sock)
 {
+    pthread_mutex_lock(&net_ctx.mutex);
     close(sock->fd);
-    free(sock);
+    sock->connected = false;
+    sock->in_use = false;
+    sock->fd = -1;
+    pthread_mutex_unlock(&net_ctx.mutex);
+    sem_post(&net_ctx.sem);
 }
 
 bool socket_send(Socket* sock, Packet* packet)

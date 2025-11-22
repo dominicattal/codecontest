@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -287,6 +288,7 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     bool success;
     Process* pid;
 
+    puts("Compiling");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
     pid = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, get_token_value(tb, COMPILE_PATH));
     process_wait(pid);
@@ -303,18 +305,24 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     return false;
 }
 
+static double timeval_diff(struct timeval tv1, struct timeval tv2)
+{
+    return tv1.tv_sec - tv2.tv_sec + (double)(tv1.tv_usec-tv2.tv_usec)/1000000;
+}
+
 static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
 {
     Process* pid;
     char response[512];
-    time_t start, cur;
     size_t mem;
+    struct timeval start, cur;
 
+    puts("Executing");
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
     pid = process_create(get_token_value(tb, EXECUTE_COMMAND), 
             get_token_value(tb, CASE_PATH), 
             get_token_value(tb, OUTPUT_PATH));
-    time(&start);
+    gettimeofday(&start, NULL);
     cur = start;
     while (process_running(pid)) {
         mem = process_memory(pid);
@@ -323,8 +331,8 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
             sprintf(response, "Memory limit exceeded on testcase %d", testcase);
             goto fail;
         }
-        time(&cur);
-        if (difftime(cur, start) > problem->time_limit) {
+        gettimeofday(&cur, NULL);
+        if (timeval_diff(cur, start) > problem->time_limit) {
             run->status = RUN_TIME_LIMIT_EXCEEDED;
             sprintf(response, "Time limit exceeded on testcase %d", testcase);
             goto fail;
@@ -341,8 +349,8 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     }
     process_destroy(pid);
 
+    puts("Validating");
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
-    print_token_value(tb, VALIDATE_COMMAND);
     pid = process_create(get_token_value(tb, VALIDATE_COMMAND), NULL, NULL);
     process_wait(pid);
     if (!process_success(pid)) {

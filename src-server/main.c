@@ -507,7 +507,7 @@ int main(int argc, char** argv)
     if (!context_init(config))
         goto fail_config;
 
-    if (!networking_init())
+    if (!networking_init(10))
         goto fail_context;
 
     pthread_create(&server_thread_id, NULL, server_daemon, config);
@@ -519,9 +519,10 @@ int main(int argc, char** argv)
 
     ctx.kill = true;
 
-    pthread_kill(server_thread_id, 1);
-
     networking_cleanup();
+
+    pthread_join(server_thread_id, NULL);
+
 fail_context:
     context_cleanup();
 fail_config:

@@ -30,7 +30,7 @@ typedef struct {
 typedef struct Socket Socket;
 
 // returns true if successful
-bool    networking_init(void);
+bool    networking_init(int max_num_conn);
 void    networking_cleanup(void);
 char*   networking_hostname(void);
 

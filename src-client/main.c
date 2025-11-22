@@ -111,7 +111,7 @@ int main(int argc, char** argv)
         file_name[i] = file_basename[i];
     file_name[i] = '\0';
 
-    networking_init();
+    networking_init(2);
     
     server_socket = socket_create(ip_str, port_str, BIT_TCP);
     if (!socket_connect(server_socket)) {

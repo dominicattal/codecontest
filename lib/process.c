@@ -191,7 +191,6 @@ Process* process_create(const char* command, const char* infile_path, const char
     pid_t pid;
     int fd_in, fd_out;
 
-    puts(command);
     process = malloc(sizeof(Process));
     process->argv = malloc(4 * sizeof(char*));
     process->argv[0] = "/bin/bash";
@@ -246,7 +245,7 @@ size_t process_memory(Process* process)
     int status;
     int pipe_fd[2];
     char pid[16];
-    char output[256];
+    char* output;
     char vsz[16];
     size_t res;
     pipe(pipe_fd);
@@ -260,8 +259,10 @@ size_t process_memory(Process* process)
         execl("/bin/ps", "/bin/ps", "-p", pid, "-o", "vsz", NULL);
     }
     waitpid(mem_pid, &status, 0);
+    output = calloc(256, sizeof(char));
     read(pipe_fd[0], output, 256);
     sscanf(output, "%s %lu", vsz, &res);
+    free(output);
     close(pipe_fd[0]);
     close(pipe_fd[1]);
     return res;
