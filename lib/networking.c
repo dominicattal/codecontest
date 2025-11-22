@@ -204,8 +204,11 @@ bool networking_init(int max_num_conn)
 {
     net_ctx.num_sockets = max_num_conn;
     net_ctx.sockets = calloc(max_num_conn, sizeof(Socket));
-    for (int i = 0; i < max_num_conn; i++)
+    for (int i = 0; i < max_num_conn; i++) {
         net_ctx.sockets[i].fd = -1;
+        net_ctx.sockets[i].connected = false;
+        net_ctx.sockets[i].in_use = false;
+    }
     sem_init(&net_ctx.sem, 0, max_num_conn);
     pthread_mutex_init(&net_ctx.mutex, NULL);
     return true;
@@ -213,13 +216,12 @@ bool networking_init(int max_num_conn)
 
 void networking_cleanup(void)
 {
-    for (int i = 0; i < net_ctx.num_sockets; i++) {
-        if (net_ctx.sockets[i].fd == -1)
-            continue;
-        shutdown(net_ctx.sockets[i].fd, SHUT_RDWR);
-    }
+    for (int i = 0; i < net_ctx.num_sockets; i++)
+        socket_destroy(&net_ctx.sockets[i]);
     sleep(5);
     free(net_ctx.sockets);
+    sem_destroy(&net_ctx.sem);
+    pthread_mutex_destroy(&net_ctx.mutex);
 }
 
 char* networking_hostname(void)
@@ -287,9 +289,13 @@ Socket* socket_accept(Socket* sock)
 {
     Socket* new_sock;
     socklen_t addrlen;
-    new_sock = get_free_socket();
+    int fd;
     addrlen = sizeof(sock->addr);
-    new_sock->fd = accept(sock->fd, (struct sockaddr*)&sock->addr, &addrlen);
+    fd = accept(sock->fd, (struct sockaddr*)&sock->addr, &addrlen);
+    if (fd == -1)
+        return NULL;
+    new_sock = get_free_socket();
+    new_sock->fd = fd;
     return new_sock;
 }
 
@@ -301,8 +307,10 @@ bool socket_connect(Socket* sock)
 
 void socket_destroy(Socket* sock)
 {
+    if (!sock->in_use) return;
     pthread_mutex_lock(&net_ctx.mutex);
-    close(sock->fd);
+    if (sock->fd != -1)
+        shutdown(sock->fd, SHUT_RDWR);
     sock->connected = false;
     sock->in_use = false;
     sock->fd = -1;
