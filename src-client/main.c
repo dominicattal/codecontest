@@ -61,14 +61,14 @@ int main(int argc, char** argv)
     Packet* packet;
     int max_file_size;
     char* file_basename;
-    char  file_name[256];
+    char*  file_name;
     const char* ip_str;
     const char* port_str;
     const char* username;
     const char* password;
     const char* language;
     char* code;
-    int i;
+    int i, length;
     bool contest_running;
 
     if (argc != 4) {
@@ -107,9 +107,12 @@ int main(int argc, char** argv)
     }
 
     file_basename = basename(argv[3]);
+    file_name = malloc((strlen(file_basename)+1) * sizeof(char));
     for (i = 0; file_basename[i] != '\0' && file_basename[i] != '.'; i++)
         file_name[i] = file_basename[i];
     file_name[i] = '\0';
+    puts(file_basename);
+    puts(file_name);
 
     networking_init(2);
     
@@ -146,6 +149,7 @@ int main(int argc, char** argv)
             puts("Unrecognized team name");
             goto fail_destroy_packet;
         }
+        packet_destroy(packet);
         packet = packet_create(PACKET_TEAM_VALIDATE_PASSWORD, strlen(password)+1, password);
         if (packet == NULL)
             goto fail_destroy_socket;
@@ -170,6 +174,7 @@ int main(int argc, char** argv)
         puts("Could not send code name");
         goto fail_destroy_packet;
     }
+    packet_destroy(packet);
 
     packet = packet_create(PACKET_LANGUAGE_VALIDATE, strlen(language)+1, language);
     if (packet == NULL)
@@ -209,6 +214,7 @@ int main(int argc, char** argv)
     socket_destroy(server_socket);
     networking_cleanup();
     free(code);
+    free(file_name);
     json_object_destroy(config);
     return 0;
 
@@ -218,6 +224,7 @@ fail_destroy_socket:
     socket_destroy(server_socket);
     networking_cleanup();
     free(code);
+    free(file_name);
 fail_config:
     json_object_destroy(config);
     return 1;

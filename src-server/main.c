@@ -52,6 +52,7 @@ static void* handle_client(void* vargp)
     const Language* language;
     char buf[BUFFER_LENGTH];
     char dummy = '\0';
+    int length;
 
     sprintf(buf, "%d", MAX_FILE_SIZE);
 
@@ -152,14 +153,14 @@ static void* handle_client(void* vargp)
     run_destroy(run);
     packet_destroy(packet);
     socket_destroy(client_socket);
-    return NULL;
+    pthread_exit(NULL);
 
 fail_packet:
     packet_destroy(packet);
 fail:
     puts("Lost connection to client");
     socket_destroy(client_socket);
-    return NULL;
+    pthread_exit(NULL);
 }
 
 static char* get_string(JsonObject* object, char* key)
@@ -222,6 +223,7 @@ static void* server_daemon(void* vargp)
         if (client_socket != NULL)
             pthread_create(&thread_id, NULL, handle_client, client_socket);
     }
+    pthread_join(thread_id, NULL);
     return NULL;
 }
 

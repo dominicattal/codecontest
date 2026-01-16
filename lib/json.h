@@ -46,13 +46,6 @@ JsonValue* json_member_value(const JsonMember* member);
 // returns the number of members in an object. Undefined if object is NULL
 int json_object_length(const JsonObject* object);
 
-// creates a new json object from two objects. the new object is also in 
-// sorted order. On success, object1 and object2 are destroyed in the process, so do
-// not call json_object_destroy on them. Returns NULL on failure, in which case
-// you must call json_object_destroy on the two objects. Undefined if object1
-// or object2 are NULL.
-JsonObject* json_merge_objects(JsonObject* object1, JsonObject* object2);
-
 // creates an iterator for traversing through key-value pairs
 // in an object. Because of how pairs are stored, the iterator
 // will move through the keys in sorted order. Undefined if

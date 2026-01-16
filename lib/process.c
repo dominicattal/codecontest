@@ -247,7 +247,7 @@ size_t process_memory(Process* process)
     char pid[16];
     char* output;
     char vsz[16];
-    size_t res;
+    size_t res = 0;
     pipe(pipe_fd);
     sprintf(pid, "%d", process->pid);
     mem_pid = fork();

@@ -80,6 +80,21 @@ typedef struct {
     char buffers[NUM_COMMAND_TOKENS][TOKEN_BUFFER_LENGTH+1];
 } TokenBuffers;
 
+typedef struct {
+    Run* head;
+    Run* tail;
+    pthread_mutex_t mutex;
+} RunQueue;
+
+static RunQueue run_queue = {
+    .head = NULL,
+    .tail = NULL,
+    .mutex = PTHREAD_MUTEX_INITIALIZER
+};
+
+static int num_runs;
+static pthread_mutex_t num_runs_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static TokenBuffers* create_token_buffers(void)
 {
     TokenBuffers* tb = malloc(sizeof(TokenBuffers));
@@ -157,20 +172,6 @@ static void delete_token_buffers(TokenBuffers* tb)
     free(tb);
 }
 
-typedef struct {
-    Run* head;
-    Run* tail;
-    pthread_mutex_t mutex;
-} RunQueue;
-
-static RunQueue run_queue = {
-    .head = NULL,
-    .tail = NULL,
-    .mutex = PTHREAD_MUTEX_INITIALIZER
-};
-
-static int num_runs;
-
 Run* run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length)
 {
     Run* run = malloc(sizeof(Run));
@@ -183,9 +184,11 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->response = NULL;
     run->response_length = 0;
     run->problem_id = 0;
-    run->id = num_runs++;
     run->status = RUN_IDLE;
     run->next = NULL;
+    pthread_mutex_lock(&num_runs_mutex);
+    run->id = num_runs++;
+    pthread_mutex_unlock(&num_runs_mutex);
     sem_init(&run->signal, 0, 1);
     return run;
 }

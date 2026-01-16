@@ -1,8 +1,8 @@
 #ifndef STATE_H
-#include <stdbool.h>
 #define STATE_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <json.h>
 #include <pthread.h>
 

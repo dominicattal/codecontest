@@ -218,7 +218,6 @@ void networking_cleanup(void)
 {
     for (int i = 0; i < net_ctx.num_sockets; i++)
         socket_destroy(&net_ctx.sockets[i]);
-    sleep(5);
     free(net_ctx.sockets);
     sem_destroy(&net_ctx.sem);
     pthread_mutex_destroy(&net_ctx.mutex);

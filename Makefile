@@ -28,6 +28,8 @@ all: dev
 	@rm -rf problems/problem1/bin problems/problem1/runs
 
 dev: build dev-server dev-client
+client: dev-client
+server: dev-server
 
 dev-server: $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER)
 	@mkdir -p bin/dev
