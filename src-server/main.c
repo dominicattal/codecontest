@@ -52,7 +52,6 @@ static void* handle_client(void* vargp)
     const Team* team;
     const Language* language;
     char buf[BUFFER_LENGTH];
-    char dummy = '\0';
     int length;
 
     sprintf(buf, "%d", MAX_FILE_SIZE);
@@ -167,12 +166,14 @@ static void* handle_client(void* vargp)
                 result = PACKET_CODE_NOTIFICATION;
                 break;
         }
-        result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;
-        packet = packet_create(result, run->response_length+1, run->response);
-        if (packet == NULL)
-            goto fail_run;
+        packet = packet_create(result, run->response_length, run->response);
+        if (packet == NULL) {
+            run_die(run);
+            goto fail;
+        }
         socket_send(client_socket, packet);
-    } while (result != PACKET_CODE_ACCEPTED && result != PACKET_CODE_FAILED);
+        run_post(run);
+    } while (result == PACKET_CODE_NOTIFICATION);
     packet_destroy(run_packet);
 
     run_destroy(run);
@@ -180,8 +181,6 @@ static void* handle_client(void* vargp)
     socket_destroy(client_socket);
     pthread_exit(NULL);
 
-fail_run:
-    run_destroy(run);
 fail_packet:
     packet_destroy(packet);
 fail:

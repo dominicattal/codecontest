@@ -189,7 +189,8 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     pthread_mutex_lock(&num_runs_mutex);
     run->id = num_runs++;
     pthread_mutex_unlock(&num_runs_mutex);
-    sem_init(&run->signal, 0, 1);
+    sem_init(&run->run_to_server_signal, 0, 1);
+    sem_init(&run->server_to_run_signal, 0, 1);
     return run;
 }
 
@@ -202,7 +203,8 @@ void run_enqueue(Run* run)
         run_queue.tail->next = run;
         run_queue.tail = run;
     }
-    sem_wait(&run->signal);
+    sem_wait(&run->run_to_server_signal);
+    sem_wait(&run->server_to_run_signal);
     pthread_mutex_unlock(&run_queue.mutex);
 }
 
@@ -224,12 +226,24 @@ static Run* run_dequeue(void)
 
 void run_wait(Run* run)
 {
-    sem_wait(&run->signal);
+    sem_wait(&run->run_to_server_signal);
+}
+
+void run_post(Run* run)
+{
+    sem_post(&run->server_to_run_signal);
+}
+
+void run_die(Run* run)
+{
+    run->status = RUN_DEAD;
+    run_post(run);
 }
 
 void run_destroy(Run* run)
 {
-    sem_destroy(&run->signal);
+    sem_destroy(&run->server_to_run_signal);
+    sem_destroy(&run->run_to_server_signal);
     free(run->response);
     free(run);
 }
@@ -280,10 +294,19 @@ static bool create_file(const char* path, const char* code, int code_length)
 static void set_run_response(Run* run, const char* response)
 {
     int n = strlen(response);
-    run->response_length = n;
+    run->response_length = n+1;
     run->response = malloc((n+1) * sizeof(char));
     memcpy(run->response, response, n+1);
 }
+
+static bool set_run_status(Run* run, RunEnum status)
+{
+    run->status = status;
+    sem_post(&run->run_to_server_signal);
+    sem_wait(&run->server_to_run_signal);
+    return run->status != RUN_DEAD;
+}
+
 
 static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
@@ -397,7 +420,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
 
     problem = &ctx.problems[run->problem_id];
     language = &ctx.languages[run->language_id];
-    run->status = RUN_RUNNING;
 
     // default values
     set_token_value(tb, PROBLEM_DIR, "%s", problem->dir);
@@ -471,11 +493,15 @@ static void handle_run(TokenBuffers* tb, Run* run)
         printf("[%d] Couldn't create code file\n", run->id);
         goto server_error;
     }
-    // ...compiling
+    set_run_response(run, "Compiling");
+    if (!set_run_status(run, RUN_COMPILING))
+        goto run_dead;
     if (!compile(tb, language, run))
         goto fail;
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
-        // ...running on testcase [number]
+        set_run_response(run, "Running on testcase");
+        if (!set_run_status(run, RUN_RUNNING))
+            goto run_dead;
         set_token_value(tb, TESTCASE, "%d", testcase);
         set_token_value(tb, CASE_PATH, "%s/%s.in",
                 get_token_value(tb, CASE_DIR),
@@ -488,14 +514,14 @@ static void handle_run(TokenBuffers* tb, Run* run)
     }
     run->status = RUN_SUCCESS;
     set_run_response(run, "");
-    sem_post(&run->signal);
+    sem_post(&run->run_to_server_signal);
     return;
 
 fail:
     if (run->status == RUN_SERVER_ERROR)
         goto server_error;
     // ...run failed on testcase [number]: [tle/runtime/mem/wrong]
-    sem_post(&run->signal);
+    sem_post(&run->run_to_server_signal);
     return;
 
 server_error:
@@ -504,7 +530,11 @@ server_error:
     response = "server error";
     run->status = RUN_SERVER_ERROR;
     set_run_response(run, response);
-    sem_post(&run->signal);
+    sem_post(&run->run_to_server_signal);
+    return;
+
+run_dead:
+    run_destroy(run);
 }
 
 void* run_daemon(void* vargp)
