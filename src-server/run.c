@@ -416,6 +416,9 @@ static void handle_run(TokenBuffers* tb, Run* run)
     Problem* problem;
     Language* language;
     char* response;
+    char* testcase_buffer;
+    char* testcase_format;
+    int testcase_buffer_length;
     int testcase;
 
     problem = &ctx.problems[run->problem_id];
@@ -499,9 +502,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
     if (!compile(tb, language, run))
         goto fail;
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
-        set_run_response(run, "Running on testcase");
-        if (!set_run_status(run, RUN_RUNNING))
-            goto run_dead;
         set_token_value(tb, TESTCASE, "%d", testcase);
         set_token_value(tb, CASE_PATH, "%s/%s.in",
                 get_token_value(tb, CASE_DIR),
@@ -509,6 +509,15 @@ static void handle_run(TokenBuffers* tb, Run* run)
         set_token_value(tb, OUTPUT_PATH, "%s/%s.output",
                 get_token_value(tb, OUTPUT_DIR),
                 get_token_value(tb, TESTCASE));
+        testcase_format = "Running on testcase %d";
+        testcase_buffer_length = snprintf(NULL, 0, testcase_format, testcase);
+        testcase_buffer = malloc(testcase_buffer_length * sizeof(char));
+        snprintf(testcase_buffer, testcase_buffer_length, testcase_format, testcase);
+        puts(testcase_buffer);
+        set_run_response(run, testcase_buffer);
+        free(testcase_buffer);
+        if (!set_run_status(run, RUN_RUNNING))
+            goto run_dead;
         if (!validate(tb, language, problem, run, testcase))
             goto fail;
     }
