@@ -357,9 +357,12 @@ int socket_get_last_error(void)
 
 // compatible on linux and windows
 
-Packet* packet_create(int id, int length, const char* buffer)
+Packet* packet_create(PacketEnum id, int length, const char* buffer)
 {
-    Packet* packet = malloc(sizeof(Packet));
+    Packet* packet;
+    if (buffer == NULL && length != 0)
+        return NULL;
+    packet = malloc(sizeof(Packet));
     packet->id = id;
     packet->length = length+2;
     packet->buffer = malloc(packet->length * sizeof(char));

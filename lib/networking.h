@@ -6,6 +6,8 @@
 #define BIT_TCP  0x1
 
 typedef enum {
+    PACKET_CLI_CLIENT,
+    PACKET_WEB_CLIENT,
     PACKET_NO_CONTEST,
     PACKET_CONTEST,
     PACKET_TEAM_VALIDATE_USERNAME,
@@ -18,13 +20,14 @@ typedef enum {
     PACKET_CODE_NAME_SEND,
     PACKET_CODE_SEND,
     PACKET_CODE_ACCEPTED,
-    PACKET_CODE_FAILED
+    PACKET_CODE_FAILED,
+    PACKET_CODE_NOTIFICATION
 } PacketEnum;
 
 typedef struct {
-    int id;
-    int length;
+    PacketEnum id;
     char* buffer;
+    int length;
 } Packet;
 
 typedef struct Socket Socket;
@@ -67,7 +70,11 @@ Packet* socket_recv(Socket* socket, int max_length);
 // Return error code of last networking function, will differ based on OS
 int     socket_get_last_error(void);
 
-Packet* packet_create(int id, int length, const char* buffer);
+// Create a packet with id with a buffer of length. buffer can be NULL iff length is 0.
+// Returns NULL if buffer is NULL and length is not 0
+Packet* packet_create(PacketEnum id, int length, const char* buffer);
+
+// Frees memory from packet
 void    packet_destroy(Packet* packet);
 
 #endif

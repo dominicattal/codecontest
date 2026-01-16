@@ -6,6 +6,7 @@
 typedef enum {
     RUN_IDLE,
     RUN_ENQUEUED,
+    RUN_COMPILING,
     RUN_RUNNING,
     RUN_SUCCESS,
     RUN_COMPILATION_ERROR,
@@ -39,7 +40,7 @@ Run*    run_create(const char* filename, int team_id, int language_id, int probl
 // add run to the queue
 void    run_enqueue(Run* run);
 
-// block execution until the run finishes
+// block execution until run changes state
 void    run_wait(Run* run);
 
 // free run memory

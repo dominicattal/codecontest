@@ -471,9 +471,11 @@ static void handle_run(TokenBuffers* tb, Run* run)
         printf("[%d] Couldn't create code file\n", run->id);
         goto server_error;
     }
+    // ...compiling
     if (!compile(tb, language, run))
         goto fail;
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
+        // ...running on testcase [number]
         set_token_value(tb, TESTCASE, "%d", testcase);
         set_token_value(tb, CASE_PATH, "%s/%s.in",
                 get_token_value(tb, CASE_DIR),
@@ -492,6 +494,7 @@ static void handle_run(TokenBuffers* tb, Run* run)
 fail:
     if (run->status == RUN_SERVER_ERROR)
         goto server_error;
+    // ...run failed on testcase [number]: [tle/runtime/mem/wrong]
     sem_post(&run->signal);
     return;
 

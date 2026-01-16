@@ -45,6 +45,7 @@ static Language* validate_language(const char* str)
 static void* handle_client(void* vargp)
 {
     Packet* packet;
+    Packet* run_packet;
     Socket* client_socket;
     Run* run;
     PacketEnum result;
@@ -57,10 +58,19 @@ static void* handle_client(void* vargp)
     sprintf(buf, "%d", MAX_FILE_SIZE);
 
     client_socket = vargp;
-    if (contest_is_running())
-        packet = packet_create(PACKET_CONTEST, strlen(buf)+1, buf);
-    else
-        packet = packet_create(PACKET_NO_CONTEST, strlen(buf)+1, buf);
+
+    packet = socket_recv(client_socket, BUFFER_LENGTH);
+    if (packet == NULL) {
+        puts("Could not get client header");
+        goto fail;
+    }
+    if (packet->id != PACKET_CLI_CLIENT && packet->id != PACKET_WEB_CLIENT) {
+        puts("Client header is invalid");
+        goto fail;
+    }
+    packet_destroy(packet);
+
+    packet = packet_create((contest_is_running()) ? PACKET_CONTEST : PACKET_NO_CONTEST, strlen(buf)+1, buf);
     if (packet == NULL)
         goto fail;
     socket_send(client_socket, packet);
@@ -76,12 +86,12 @@ static void* handle_client(void* vargp)
         team = validate_team_username(packet->buffer);
         if (team == NULL) {
             packet_destroy(packet);
-            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 1, &dummy);
+            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 0, NULL);
             socket_send(client_socket, packet);
             goto fail_packet;
         }
         packet_destroy(packet);
-        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 1, &dummy);
+        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 0, NULL);
         if (packet == NULL)
             goto fail;
         socket_send(client_socket, packet);
@@ -93,12 +103,12 @@ static void* handle_client(void* vargp)
             goto fail_packet;
         if (!validate_team_password(team, packet->buffer)) {
             packet_destroy(packet);
-            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 1, &dummy);
+            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 0, NULL);
             socket_send(client_socket, packet);
             goto fail_packet;
         }
         packet_destroy(packet);
-        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 1, &dummy);
+        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 0, NULL);
         if (packet == NULL)
             goto fail;
         socket_send(client_socket, packet);
@@ -121,40 +131,57 @@ static void* handle_client(void* vargp)
     language = validate_language(packet->buffer);
     if (language == NULL) {
         packet_destroy(packet);
-        packet = packet_create(PACKET_LANGUAGE_VALIDATION_FAILED, 1, &dummy);
+        packet = packet_create(PACKET_LANGUAGE_VALIDATION_FAILED, 0, NULL);
         socket_send(client_socket, packet);
         goto fail_packet;
     }
     packet_destroy(packet);
 
-    packet = packet_create(PACKET_LANGUAGE_VALIDATION_SUCCESS, 1, &dummy);
+    packet = packet_create(PACKET_LANGUAGE_VALIDATION_SUCCESS, 0, NULL);
     if (packet == NULL)
         goto fail;
     socket_send(client_socket, packet);
     packet_destroy(packet);
 
-    packet = socket_recv(client_socket, MAX_FILE_SIZE);
+    run_packet = socket_recv(client_socket, MAX_FILE_SIZE);
     if (packet == NULL)
         goto fail;
 
-    run = run_create(buf, team->id, language->id, 0, packet->buffer, packet->length-1);
+    run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1);
     run_enqueue(run);
-    run_wait(run);
-    result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;
-    packet_destroy(packet);
-
-    packet = packet_create(result, run->response_length+1, run->response);
-    if (packet == NULL) {
-        run_destroy(run);
-        goto fail;
-    }
-    socket_send(client_socket, packet);
+    do {
+        run_wait(run);
+        switch (run->status) {
+            case RUN_SUCCESS:
+                result = PACKET_CODE_ACCEPTED;
+                break;
+            case RUN_COMPILATION_ERROR:
+            case RUN_RUNTIME_ERROR:
+            case RUN_TIME_LIMIT_EXCEEDED:
+            case RUN_MEM_LIMIT_EXCEEDED:
+            case RUN_WRONG_ANSWER:
+            case RUN_SERVER_ERROR:
+                result = PACKET_CODE_FAILED;
+                break;
+            default:
+                result = PACKET_CODE_NOTIFICATION;
+                break;
+        }
+        result = (run->status == RUN_SUCCESS) ? PACKET_CODE_ACCEPTED : PACKET_CODE_FAILED;
+        packet = packet_create(result, run->response_length+1, run->response);
+        if (packet == NULL)
+            goto fail_run;
+        socket_send(client_socket, packet);
+    } while (result != PACKET_CODE_ACCEPTED && result != PACKET_CODE_FAILED);
+    packet_destroy(run_packet);
 
     run_destroy(run);
     packet_destroy(packet);
     socket_destroy(client_socket);
     pthread_exit(NULL);
 
+fail_run:
+    run_destroy(run);
 fail_packet:
     packet_destroy(packet);
 fail:
@@ -210,20 +237,25 @@ static void* server_daemon(void* vargp)
 {
     Socket* listen_socket;
     Socket* client_socket;
+    Packet* packet;
     JsonObject* config = vargp;
     pthread_t thread_id;
     while (!ctx.kill) {
         listen_socket = create_listen_socket(config);
         if (listen_socket == NULL) {
+            puts("Listen socket is null");
             ctx.kill = true;
             break;
         }
         client_socket = socket_accept(listen_socket);
         socket_destroy(listen_socket);
-        if (client_socket != NULL)
-            pthread_create(&thread_id, NULL, handle_client, client_socket);
+        if (client_socket == NULL) {
+            if (!ctx.kill)
+                puts("Client socket is null");
+            continue;
+        }
+        pthread_create(&thread_id, NULL, handle_client, client_socket);
     }
-    pthread_join(thread_id, NULL);
     return NULL;
 }
 
@@ -474,7 +506,6 @@ bool context_init(JsonObject* config)
     read_languages(config);
     read_problems(config);
     read_num_run_threads(config);
-
     puts("Successfully initialized");
     return true;
 }
@@ -495,6 +526,8 @@ int main(int argc, char** argv)
     pthread_t server_thread_id;
     int code;
 
+    const int max_num_conn = 10;
+
     if (argc == 1) {
         puts("Must supply config file");
         return 1;
@@ -509,7 +542,7 @@ int main(int argc, char** argv)
     if (!context_init(config))
         goto fail_config;
 
-    if (!networking_init(10))
+    if (!networking_init(max_num_conn))
         goto fail_context;
 
     pthread_create(&server_thread_id, NULL, server_daemon, config);

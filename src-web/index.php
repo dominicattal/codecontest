@@ -18,5 +18,15 @@
         <input type="text" id="test_text" name="test_text"></input>
         <input type="submit" value="Submit" id="submit"></input>
     </form>
+    <br />
+    <p id="dynamic-ele"></p>
+
+    <script>
+        var host = "ws://0.0.0.0:12345/socket.php";
+        var socket = new WebSocket(host);
+        socket.onmessage = function(e) {
+               document.getElementById("dynamic-ele").text = e.data;
+        }
+    </script>
 </body>
 </html>

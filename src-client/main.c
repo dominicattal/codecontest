@@ -6,6 +6,9 @@
 #include <networking.h>
 #include <json.h>
 
+#define BUFFER_LENGTH_SMALL 100
+#define BUFFER_LENGTH_BIG   10000
+
 const char* get_json_string(JsonObject* config, const char* key)
 {
     JsonValue* value;
@@ -111,10 +114,8 @@ int main(int argc, char** argv)
     for (i = 0; file_basename[i] != '\0' && file_basename[i] != '.'; i++)
         file_name[i] = file_basename[i];
     file_name[i] = '\0';
-    puts(file_basename);
-    puts(file_name);
 
-    networking_init(2);
+    networking_init(1);
     
     server_socket = socket_create(ip_str, port_str, BIT_TCP);
     if (!socket_connect(server_socket)) {
@@ -122,7 +123,16 @@ int main(int argc, char** argv)
         goto fail_destroy_socket;
     }
 
-    packet = socket_recv(server_socket, 100);
+    packet = packet_create(PACKET_CLI_CLIENT, 0, NULL);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (!socket_send(server_socket, packet)) {
+        puts("Could not send preliminary packet");
+        goto fail_destroy_socket;
+    }
+    packet_destroy(packet);
+
+    packet = socket_recv(server_socket, BUFFER_LENGTH_SMALL);
     contest_running = packet->id == PACKET_CONTEST;
     if (packet->id == PACKET_CONTEST)
         puts("contest is running");
@@ -144,7 +154,7 @@ int main(int argc, char** argv)
             goto fail_destroy_packet;
         }
         packet_destroy(packet);
-        packet = socket_recv(server_socket, 100);
+        packet = socket_recv(server_socket, BUFFER_LENGTH_SMALL);
         if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
             puts("Unrecognized team name");
             goto fail_destroy_packet;
@@ -158,7 +168,7 @@ int main(int argc, char** argv)
             goto fail_destroy_packet;
         }
         packet_destroy(packet);
-        packet = socket_recv(server_socket, 100);
+        packet = socket_recv(server_socket, BUFFER_LENGTH_SMALL);
         if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
             puts("Incorrect team password");
             goto fail_destroy_packet;
@@ -185,7 +195,7 @@ int main(int argc, char** argv)
     }
     packet_destroy(packet);
 
-    packet = socket_recv(server_socket, 10000);
+    packet = socket_recv(server_socket, BUFFER_LENGTH_BIG);
     if (packet == NULL)
         goto fail_destroy_socket;
     if (packet->id != PACKET_LANGUAGE_VALIDATION_SUCCESS) {
@@ -202,13 +212,26 @@ int main(int argc, char** argv)
     puts("sent code");
     packet_destroy(packet);
 
-    packet = socket_recv(server_socket, 10000);
-    if (packet == NULL)
-        goto fail_destroy_socket;
-    if (packet->id == PACKET_CODE_ACCEPTED)
-        puts("Accepted");
-    else
-        printf("Failed: %s\n", packet->buffer);
+    do {
+        packet = socket_recv(server_socket, BUFFER_LENGTH_BIG);
+        if (packet == NULL)
+            goto fail_destroy_socket;
+        switch (packet->id) {
+            case PACKET_CODE_ACCEPTED:
+                puts("Accepted");
+                break;
+            case PACKET_CODE_FAILED:
+                printf("Failed: %s\n", packet->buffer);
+                break;
+            case PACKET_CODE_NOTIFICATION:
+                puts(packet->buffer);
+                break;
+            default:
+                puts("Unexpected packet received, ignoring it");
+                break;
+        }
+        packet_destroy(packet);
+    } while (1);
 
     packet_destroy(packet);
     socket_destroy(server_socket);
