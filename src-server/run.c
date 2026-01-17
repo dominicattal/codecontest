@@ -511,9 +511,8 @@ static void handle_run(TokenBuffers* tb, Run* run)
                 get_token_value(tb, TESTCASE));
         testcase_format = "Running on testcase %d";
         testcase_buffer_length = snprintf(NULL, 0, testcase_format, testcase);
-        testcase_buffer = malloc(testcase_buffer_length * sizeof(char));
-        snprintf(testcase_buffer, testcase_buffer_length, testcase_format, testcase);
-        puts(testcase_buffer);
+        testcase_buffer = malloc((testcase_buffer_length+1) * sizeof(char));
+        snprintf(testcase_buffer, testcase_buffer_length+1, testcase_format, testcase);
         set_run_response(run, testcase_buffer);
         free(testcase_buffer);
         if (!set_run_status(run, RUN_RUNNING))
@@ -529,7 +528,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
 fail:
     if (run->status == RUN_SERVER_ERROR)
         goto server_error;
-    // ...run failed on testcase [number]: [tle/runtime/mem/wrong]
     sem_post(&run->run_to_server_signal);
     return;
 

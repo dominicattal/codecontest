@@ -119,7 +119,7 @@ size_t process_memory(Process* process)
 {
     PROCESS_MEMORY_COUNTERS ppsemCounters;
     GetProcessMemoryInfo(process->pi.hProcess, &ppsemCounters, sizeof(ppsemCounters));
-    return (size_t)ppsemCounters.PeakWorkingSetSize;
+    return ((size_t)ppsemCounters.PeakWorkingSetSize)<<10;
 }
 
 bool process_success(Process* process)
@@ -280,8 +280,7 @@ bool process_error(Process* process)
 
 void process_destroy(Process* process)
 {
-    kill(process->pid, 69);
-    pthread_join(process->thread_id, NULL);
+    pthread_kill(process->thread_id, 69);
     free(process->argv);
     free(process);
 }
