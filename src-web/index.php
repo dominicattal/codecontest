@@ -22,7 +22,11 @@
     <p id="dynamic-ele"></p>
 
     <script>
-        var host = "ws://0.0.0.0:12345/socket.php";
+        document.addEventListener("beforeunload", (event) => { 
+            socket.close();
+        })
+        var host = "ws://127.0.0.1:27106";
+        console.log("Creating socket");
         var socket = new WebSocket(host);
         socket.onmessage = function(e) {
                document.getElementById("dynamic-ele").text = e.data;

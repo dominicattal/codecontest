@@ -21,7 +21,10 @@ typedef enum {
     PACKET_CODE_SEND,
     PACKET_CODE_ACCEPTED,
     PACKET_CODE_FAILED,
-    PACKET_CODE_NOTIFICATION
+    PACKET_CODE_NOTIFICATION,
+    WEB_PACKET_HANDSHAKE_VALID,
+    WEB_PACKET_HANDSHAKE_INVALID,
+    WEB_PACKET_GET_RUN_STATUS
 } PacketEnum;
 
 typedef struct {
@@ -29,6 +32,10 @@ typedef struct {
     char* buffer;
     int length;
 } Packet;
+
+typedef struct {
+    char* buffer;
+} WebPacket;
 
 typedef struct Socket Socket;
 
@@ -58,14 +65,23 @@ bool    socket_connect(Socket* socket);
 // Destroy socket and all related information
 void    socket_destroy(Socket* socket);
 
-// Send a packet over a socket. Returns true if successful
-bool    socket_send(Socket* socket, Packet* packet);
-
 // Check if socket still connected. Returns true if successful
 bool    socket_connected(Socket* socket);
 
+// Send a packet over a socket. Returns true if successful
+bool    socket_send(Socket* socket, Packet* packet);
+
+// Send a generic server-to-client handshake
+bool    socket_send_web_handshake(Socket* socket);
+
 // Receive a packet from a socket
 Packet* socket_recv(Socket* socket, int max_length);
+
+// Receive web socket packet
+Packet* socket_recv_web(Socket* socket);
+
+// Perform web socket handshake with client socket
+bool    socket_web_handshake(Socket* socket);
 
 // Return error code of last networking function, will differ based on OS
 int     socket_get_last_error(void);

@@ -16,6 +16,19 @@
 
 GlobalContext ctx;
 
+static char* get_string(JsonObject* object, char* key)
+{
+    JsonValue* value;
+    
+    value = json_get_value(object, key);
+    if (value == NULL)
+        return NULL;
+    if (json_get_type(value) != JTYPE_STRING)
+        return NULL;
+
+    return json_get_string(value);
+}
+
 static bool contest_is_running(void)
 {
     return ctx.num_teams != 0;
@@ -42,7 +55,7 @@ static Language* validate_language(const char* str)
     return NULL;
 }
 
-static void* handle_client(void* vargp)
+static void* handle_cli_client(void* vargp)
 {
     Packet* packet;
     Packet* run_packet;
@@ -189,27 +202,14 @@ fail:
     pthread_exit(NULL);
 }
 
-static char* get_string(JsonObject* object, char* key)
-{
-    JsonValue* value;
-    
-    value = json_get_value(object, key);
-    if (value == NULL)
-        return NULL;
-    if (json_get_type(value) != JTYPE_STRING)
-        return NULL;
-
-    return json_get_string(value);
-}
-
-static Socket* create_listen_socket(JsonObject* config)
+static Socket* cli_create_listen_socket(JsonObject* config)
 {
     Socket* listen_socket;
     char* ip_str;
     char* port_str;
     
     ip_str = get_string(config, "ip");
-    port_str = get_string(config, "port");
+    port_str = get_string(config, "cli_port");
     if (port_str == NULL) {
         puts("Could not read port from config file");
         return NULL;
@@ -232,7 +232,7 @@ static Socket* create_listen_socket(JsonObject* config)
     return listen_socket;
 }
 
-static void* server_daemon(void* vargp)
+static void* cli_server_daemon(void* vargp)
 {
     Socket* listen_socket;
     Socket* client_socket;
@@ -240,7 +240,7 @@ static void* server_daemon(void* vargp)
     JsonObject* config = vargp;
     pthread_t thread_id;
     while (!ctx.kill) {
-        listen_socket = create_listen_socket(config);
+        listen_socket = cli_create_listen_socket(config);
         if (listen_socket == NULL) {
             puts("Listen socket is null");
             ctx.kill = true;
@@ -253,7 +253,88 @@ static void* server_daemon(void* vargp)
                 puts("Client socket is null");
             continue;
         }
-        pthread_create(&thread_id, NULL, handle_client, client_socket);
+        pthread_create(&thread_id, NULL, handle_cli_client, client_socket);
+    }
+    return NULL;
+}
+
+static void* handle_web_client(void* vargp)
+{
+    Packet* packet;
+    Socket* client_socket;
+
+    client_socket = vargp;
+
+    while (!ctx.kill) {
+        continue;
+        packet = socket_recv_web(client_socket);
+        if (packet == NULL) {
+            continue;
+        }
+        switch (packet->id) {
+            default:
+                puts("Recveied weird web packet, ignoring");
+                break;
+        }
+        packet_destroy(packet);
+    }
+    return NULL;
+}
+
+static Socket* web_create_listen_socket(JsonObject* config)
+{
+    Socket* listen_socket;
+    char* ip_str;
+    char* port_str;
+    
+    ip_str = get_string(config, "ip");
+    port_str = get_string(config, "web_port");
+    if (port_str == NULL) {
+        puts("Could not read port from config file");
+        return NULL;
+    }
+    listen_socket = socket_create(ip_str, port_str, BIT_TCP);
+    if (listen_socket == NULL) {
+        puts("Could not create socket");
+        return NULL;
+    }
+
+    if (!socket_bind(listen_socket)) {
+        puts("Couldn't bind socket");
+        printf("%d\n", socket_get_last_error());
+        return NULL;
+    }
+    if (!socket_listen(listen_socket)) {
+        puts("Couldn't listen");
+        return NULL;
+    }
+    return listen_socket;
+}
+
+static void* web_server_daemon(void* vargp)
+{
+    Socket* listen_socket;
+    Socket* client_socket;
+    Packet* packet;
+    JsonObject* config = vargp;
+    pthread_t thread_id;
+    while (!ctx.kill) {
+        listen_socket = web_create_listen_socket(config);
+        if (listen_socket == NULL) {
+            puts("Listen socket is null");
+            ctx.kill = true;
+            break;
+        }
+        client_socket = socket_accept(listen_socket);
+        socket_destroy(listen_socket);
+        if (client_socket == NULL) {
+            if (!ctx.kill)
+                puts("Client socket is null");
+            continue;
+        }
+        socket_web_handshake(client_socket);
+        // check if client is already connected
+        pthread_create(&thread_id, NULL, handle_web_client, client_socket);
     }
     return NULL;
 }
@@ -473,7 +554,7 @@ void read_problems(JsonObject* config)
         }
         ctx.problems[i].num_testcases = json_get_int(value);
         ctx.problems[i].time_limit = 2.0;
-        ctx.problems[i].mem_limit = 256<<10;
+        ctx.problems[i].mem_limit = 1<<20;
     }
 }
 
@@ -522,7 +603,8 @@ void context_cleanup(void)
 int main(int argc, char** argv)
 {
     JsonObject* config;
-    pthread_t server_thread_id;
+    pthread_t cli_server_thread_id;
+    pthread_t web_server_thread_id;
     int code;
 
     const int max_num_conn = 10;
@@ -544,7 +626,8 @@ int main(int argc, char** argv)
     if (!networking_init(max_num_conn))
         goto fail_context;
 
-    pthread_create(&server_thread_id, NULL, server_daemon, config);
+    pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
+    pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
 
     code = 0;
     while (code != 1) {
@@ -555,7 +638,8 @@ int main(int argc, char** argv)
 
     networking_cleanup();
 
-    pthread_join(server_thread_id, NULL);
+    pthread_join(cli_server_thread_id, NULL);
+    pthread_join(web_server_thread_id, NULL);
 
 fail_context:
     context_cleanup();

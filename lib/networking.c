@@ -1,7 +1,33 @@
 #include "networking.h"
+#define SHA_IMPLEMENTATION
+#include "sha.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
+// compatible on linux and windows
+
+Packet* packet_create(PacketEnum id, int length, const char* buffer)
+{
+    Packet* packet;
+    if (buffer == NULL && length != 0)
+        return NULL;
+    packet = malloc(sizeof(Packet));
+    packet->id = id;
+    packet->length = length+2;
+    packet->buffer = malloc(packet->length * sizeof(char));
+    packet->buffer[0] = (id>>8) & 0xFF;
+    packet->buffer[1] = id & 0xFF;
+    memcpy(packet->buffer+2, buffer, length);
+    return packet;
+}
+
+
+void packet_destroy(Packet* packet)
+{
+    free(packet->buffer);
+    free(packet);
+}
 #ifdef __WIN32
 
 #include <winsock2.h>
@@ -142,6 +168,11 @@ bool socket_send(Socket* sock, Packet* packet)
     return true;
 }
 
+bool socket_send_web(Socket* socket, Packet* packet)
+{
+    return false;
+}
+
 Packet* socket_recv(Socket* sock, int max_length)
 {
     Packet* packet;
@@ -161,6 +192,13 @@ Packet* socket_recv(Socket* sock, int max_length)
     memcpy(packet->buffer, buffer+2, packet->length * sizeof(char));
     free(buffer);
     return packet;
+}
+
+Packet* socket_recv_web(Socket* socket)
+{
+    Packet* packet;
+    unsigned long long data;
+    return NULL;
 }
 
 bool socket_connected(Socket* sock)
@@ -322,6 +360,11 @@ bool socket_send(Socket* sock, Packet* packet)
     return send(sock->fd, packet->buffer, packet->length, 0) != -1;
 }
 
+bool socket_send_web(Socket* socket, Packet* packet)
+{
+    return false;
+}
+
 bool socket_connected(Socket* socket)
 {
     return true;
@@ -348,33 +391,127 @@ Packet* socket_recv(Socket* sock, int max_length)
     return packet;
 }
 
+Packet* socket_recv_web(Socket* sock)
+{
+    Packet* packet;
+    int length;
+    char* buffer;
+    char data;
+    // fields in web socket packet
+    bool fin, rsv1, rsv2, rsv3, mask;
+    char opcode;
+    int payload_len;
+    unsigned long long ext_payload_len = 0;
+    unsigned long long buffer_length = 0;
+    unsigned long long masking_key;
+    read(sock->fd, &data, 1);
+    fin = (data>>7) & 1;
+    rsv1 = (data>>6) & 1;
+    rsv2 = (data>>5) & 1;
+    rsv3 = (data>>4) & 1;
+    opcode = data & 0xF;
+    read(sock->fd, &data, 1);
+    mask = (data>>7) & 1;
+    payload_len = data & 0x7F;
+    buffer_length = payload_len;
+    if (payload_len == 126) {
+        read(sock->fd, &ext_payload_len, 2);
+        buffer_length = ext_payload_len;
+    } else if (payload_len == 127) {
+        read(sock->fd, &ext_payload_len, 8);
+        buffer_length = ext_payload_len;
+    }
+    buffer = malloc(buffer_length * sizeof(char));
+    read(sock->fd, &masking_key, 4);
+    read(sock->fd, buffer, 8);
+    // read into buffer
+    printf("fin=%hhd\n"
+           "rsv1=%hhd\n"
+           "rsv2=%hhd\n"
+           "rsv3=%hhd\n"
+           "opcode=0x%hhX\n"
+           "mask=%hhd\n"
+           "payload_len=%d\n"
+           "ext_payload_len=%llu\n"
+           "masking-key=%llu\n",
+           fin, rsv1, rsv2, rsv3,
+           opcode, mask, payload_len,
+           ext_payload_len, masking_key);
+    for (int i = 0; i < buffer_length; i++)
+        printf("%02x ", buffer[i]);
+    puts("");
+    return NULL;
+}
+
+bool socket_web_handshake(Socket* sock)
+{
+    char magic_string[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    char* recv_buffer;
+    char* key;
+    char c;
+    int i, j, length, key_length;
+    key = NULL;
+    recv_buffer = malloc(1024 * sizeof(char));
+    length = read(sock->fd, recv_buffer, 1024);
+    for (int i = 0; i < length; i++)
+        printf("%c", recv_buffer[i]);
+    puts("");
+    
+    for (i = 0; i+17 < length; i++) {
+        if (recv_buffer[i] == 'S' && recv_buffer[i+16] == 'y') {
+            c = recv_buffer[i+17];
+            recv_buffer[i+17] = '\0';
+            if (strcmp(recv_buffer+i, "Sec-WebSocket-Key") != 0) {
+                recv_buffer[i+17] = c;
+                continue;
+            }
+            recv_buffer[i+17] = c;
+            i += 19;
+            for (j = i; j < length && recv_buffer[j] != '\r'; j++)
+                ;
+            key_length = j-i;
+            key = malloc((key_length+1) * sizeof(char));
+            key[key_length] = '\0';
+            c = recv_buffer[j];
+            recv_buffer[j] = '\0';
+            sprintf(key, "%s", recv_buffer+i);
+            recv_buffer[j] = c;
+            goto found;
+        }
+    }
+    free(recv_buffer);
+    return false;
+
+found:
+
+    char* utf8 = malloc((key_length+strlen(magic_string)+1)*sizeof(char));
+    sprintf(utf8, "%s%s", key, magic_string);
+    char* hash = sha1_utf8(utf8, strlen(utf8));
+    char* ret = hex_to_base64(hash, strlen(hash));
+    char send_buffer_fmt[] =
+        "HTTP/1.1 101 Switching Protocols\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        "Sec-WebSocket-Accept: %s\r\n\r\n";
+    char* send_buffer;
+    length = snprintf(NULL, 0, send_buffer_fmt, ret);
+    send_buffer = malloc((length+1) * sizeof(char));
+    snprintf(send_buffer, length+1, send_buffer_fmt, ret);
+    puts(send_buffer);
+
+    free(key);
+    free(utf8);
+    free(hash);
+    free(ret);
+    free(recv_buffer);
+    bool success = send(sock->fd, send_buffer, strlen(send_buffer), 0) != -1;
+    free(send_buffer);
+    return success;
+}
+
 int socket_get_last_error(void)
 {
     return 0;
 }
 
 #endif
-
-// compatible on linux and windows
-
-Packet* packet_create(PacketEnum id, int length, const char* buffer)
-{
-    Packet* packet;
-    if (buffer == NULL && length != 0)
-        return NULL;
-    packet = malloc(sizeof(Packet));
-    packet->id = id;
-    packet->length = length+2;
-    packet->buffer = malloc(packet->length * sizeof(char));
-    packet->buffer[0] = (id>>8) & 0xFF;
-    packet->buffer[1] = id & 0xFF;
-    memcpy(packet->buffer+2, buffer, length);
-    return packet;
-}
-
-
-void packet_destroy(Packet* packet)
-{
-    free(packet->buffer);
-    free(packet);
-}
