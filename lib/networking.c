@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 // compatible on linux and windows
 
@@ -394,37 +395,52 @@ Packet* socket_recv(Socket* sock, int max_length)
 Packet* socket_recv_web(Socket* sock)
 {
     Packet* packet;
-    int length;
+    int len;
     char* buffer;
     char data;
     // fields in web socket packet
     bool fin, rsv1, rsv2, rsv3, mask;
     char opcode;
-    int payload_len;
+    int i, payload_len, cur_read;
     unsigned long long ext_payload_len = 0;
     unsigned long long buffer_length = 0;
-    unsigned long long masking_key;
-    read(sock->fd, &data, 1);
+    unsigned int masking_key;
+
+    len = read(sock->fd, &data, 1);
+    // why does this happen?
+    printf("%d\n", len);
+    if (len == 0) return NULL;
     fin = (data>>7) & 1;
     rsv1 = (data>>6) & 1;
     rsv2 = (data>>5) & 1;
     rsv3 = (data>>4) & 1;
     opcode = data & 0xF;
-    read(sock->fd, &data, 1);
+    len = read(sock->fd, &data, 1);
+    assert(len == 1);
     mask = (data>>7) & 1;
     payload_len = data & 0x7F;
     buffer_length = payload_len;
     if (payload_len == 126) {
-        read(sock->fd, &ext_payload_len, 2);
+        len = read(sock->fd, &ext_payload_len, 2);
+        assert(len == 2);
+        ext_payload_len = ((ext_payload_len>>8)&0xFF)
+                       +  ((ext_payload_len&0xFF)<<8);
         buffer_length = ext_payload_len;
     } else if (payload_len == 127) {
-        read(sock->fd, &ext_payload_len, 8);
+        len = read(sock->fd, &ext_payload_len, 8);
+        assert(len == 8);
+        ext_payload_len = ((ext_payload_len>>56)&0xFF)
+                       +  (((ext_payload_len>>48)&0xFF)<<8)
+                       +  (((ext_payload_len>>40)&0xFF)<<16)
+                       +  (((ext_payload_len>>32)&0xFF)<<24)
+                       +  (((ext_payload_len>>24)&0xFF)<<32)
+                       +  (((ext_payload_len>>16)&0xFF)<<40)
+                       +  (((ext_payload_len>>8)&0xFF)<<48)
+                       +  ((ext_payload_len&0xFF)<<56);
         buffer_length = ext_payload_len;
     }
-    buffer = malloc(buffer_length * sizeof(char));
-    read(sock->fd, &masking_key, 4);
-    read(sock->fd, buffer, 8);
-    // read into buffer
+    if (buffer_length != 91437)
+        return NULL;
     printf("fin=%hhd\n"
            "rsv1=%hhd\n"
            "rsv2=%hhd\n"
@@ -433,13 +449,22 @@ Packet* socket_recv_web(Socket* sock)
            "mask=%hhd\n"
            "payload_len=%d\n"
            "ext_payload_len=%llu\n"
-           "masking-key=%llu\n",
+           "masking-key=%x\n",
            fin, rsv1, rsv2, rsv3,
            opcode, mask, payload_len,
            ext_payload_len, masking_key);
-    for (int i = 0; i < buffer_length; i++)
-        printf("%02x ", buffer[i]);
-    puts("");
+    buffer = malloc(buffer_length * sizeof(char));
+    len = read(sock->fd, &masking_key, 4);
+    assert(len == 4);
+    cur_read = 0;
+    while (cur_read < buffer_length) {
+        len = read(sock->fd, buffer+cur_read, buffer_length-cur_read);
+        printf("%d\n", len);
+        for (i = cur_read; i < buffer_length; i++)
+            buffer[i] ^= (masking_key>>((i&3)<<3))&0xFF;
+        cur_read += len;
+    }
+    free(buffer);
     return NULL;
 }
 

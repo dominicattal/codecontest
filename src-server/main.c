@@ -266,7 +266,6 @@ static void* handle_web_client(void* vargp)
     client_socket = vargp;
 
     while (!ctx.kill) {
-        continue;
         packet = socket_recv_web(client_socket);
         if (packet == NULL) {
             continue;
