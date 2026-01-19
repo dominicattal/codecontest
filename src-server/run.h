@@ -48,7 +48,7 @@ void    run_wait(Run* run);
 // signal run that it can continue executing
 void    run_post(Run* run);
 
-// if something goes wrong in client handler, safelty stops run
+// if something goes wrong in cli client handler, safelty stops run
 // run must be waited, otherwise will introduce race conditions in run handler
 void    run_die(Run* run);
 

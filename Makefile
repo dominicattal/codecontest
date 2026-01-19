@@ -3,8 +3,7 @@ NAME_CLIENT=client.exe
 NAME_GUI=gui.exe
 BUILD_SUFFIX=w
 LINKER_FLAGS= -pthread
-CFLAGS_ALL = -Ilib -MMD -Wall -Wextra -Werror -Wfatal-errors -Wno-unused-parameter -pthread
-CFLAGS_ALL = -Ilib -MMD -pthread
+CFLAGS_ALL = -Ilib -MMD -Wall -Wextra -Werror -Wfatal-errors -Wno-unused-parameter -pthread -mshstk -Wno-implicit-fallthrough
 
 ifeq ($(OS),Windows_NT)
 	LINKER_FLAGS += -lws2_32

@@ -375,7 +375,6 @@ bool socket_send_web(Socket* sock, Packet* packet)
     bool res;
     int opcode, payload_len, buffer_len, idx;
     unsigned long long ext_payload_len = 0;
-    unsigned long long masking_key = 0;
     char* buffer;
     switch (packet->id) {
         case WEB_PACKET_PING:
@@ -397,13 +396,13 @@ bool socket_send_web(Socket* sock, Packet* packet)
     } else if (packet->length < 0xFFFF) {
         assert(opcode != 0x9);
         assert(opcode != 0xA);
-        buffer_len += 2 + 4 + 2 + packet->length;
+        buffer_len = 2 + 4 + 2 + packet->length;
         ext_payload_len = packet->length;
         payload_len = 126;
     } else {
         assert(opcode != 0x9);
         assert(opcode != 0xA);
-        buffer_len += 2 + 4 + 8 + packet->length;
+        buffer_len = 2 + 4 + 8 + packet->length;
         ext_payload_len = packet->length;
         payload_len = 127;
     }
@@ -465,9 +464,9 @@ Packet* socket_recv_web(Socket* sock)
     // fields in web socket packet
     bool fin, mask;
     char opcode = 0;
-    int i, payload_len, cur_read;
+    unsigned long long i, payload_len;
     unsigned long long ext_payload_len = 0;
-    unsigned long long buffer_length = 0;
+    unsigned long long buffer_length = 0, cur_read;
     unsigned int masking_key;
     int res_length = 0;
 
@@ -484,6 +483,8 @@ Packet* socket_recv_web(Socket* sock)
         len = read(sock->fd, &data, 1);
         assert(len == 1);
         mask = (data>>7) & 1;
+        if (!mask)
+            puts("expected mask bit to be set");
         payload_len = data & 0x7F;
         buffer_length = payload_len;
         if (payload_len == 126) {

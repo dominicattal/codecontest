@@ -71,7 +71,7 @@ int main(int argc, char** argv)
     const char* password;
     const char* language;
     char* code;
-    int i, length;
+    int i;
     bool contest_running;
 
     if (argc != 4) {

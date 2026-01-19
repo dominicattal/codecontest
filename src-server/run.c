@@ -301,6 +301,8 @@ static void set_run_response(Run* run, const char* response)
 
 static bool set_run_status(Run* run, RunEnum status)
 {
+    // if cli client, do this
+    // if web client, dont do this
     run->status = status;
     sem_post(&run->run_to_server_signal);
     sem_wait(&run->server_to_run_signal);

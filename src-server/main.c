@@ -65,7 +65,6 @@ static void* handle_cli_client(void* vargp)
     const Team* team;
     const Language* language;
     char buf[BUFFER_LENGTH];
-    int length;
 
     sprintf(buf, "%d", MAX_FILE_SIZE);
 
@@ -236,7 +235,6 @@ static void* cli_server_daemon(void* vargp)
 {
     Socket* listen_socket;
     Socket* client_socket;
-    Packet* packet;
     JsonObject* config = vargp;
     pthread_t thread_id;
     while (!ctx.kill) {
@@ -342,7 +340,6 @@ static void* web_server_daemon(void* vargp)
 {
     Socket* listen_socket;
     Socket* client_socket;
-    Packet* packet;
     JsonObject* config = vargp;
     pthread_t thread_id;
     while (!ctx.kill) {
@@ -653,7 +650,7 @@ int main(int argc, char** argv)
     if (!networking_init(max_num_conn))
         goto fail_context;
 
-    //pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
+    pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
 
     code = 0;
@@ -665,7 +662,7 @@ int main(int argc, char** argv)
 
     networking_shutdown_sockets();
 
-    //pthread_join(cli_server_thread_id, NULL);
+    pthread_join(cli_server_thread_id, NULL);
     pthread_join(web_server_thread_id, NULL);
 
     networking_cleanup();
