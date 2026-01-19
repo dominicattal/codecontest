@@ -128,7 +128,7 @@ static char* sha1_utf8(char* message, int message_length)
     mod = (-64-1-ml)%512;
     num_bits = ml + 1 + mod + 64;
     len = num_bits>>3;
-    m = calloc(len, sizeof(char));
+    m = calloc(len+1, sizeof(char));
     for (i = 0; i < message_length; i++)
         m[i] = message[i];
     bit = message_length<<3;
@@ -180,6 +180,7 @@ static char* sha1_utf8(char* message, int message_length)
         h3 = h3 + d;
         h4 = h4 + e;
     }
+    free(m-len);
     res = malloc(41 * sizeof(char));
     sprintf(res,"%08x%08x%08x%08x%08x",h0,h1,h2,h3,h4);
     return res;

@@ -261,16 +261,44 @@ static void* cli_server_daemon(void* vargp)
 static void* handle_web_client(void* vargp)
 {
     Packet* packet;
+    Packet* send_packet;
     Socket* client_socket;
-
+    bool closed = false;
     client_socket = vargp;
 
-    while (!ctx.kill) {
+    packet = packet_create(WEB_PACKET_PING, 0, NULL);
+    socket_send_web(client_socket, packet);
+    packet_destroy(packet);
+
+    while (!ctx.kill && !closed) {
         packet = socket_recv_web(client_socket);
         if (packet == NULL) {
             continue;
         }
         switch (packet->id) {
+            case WEB_PACKET_TEXT:
+                puts("Received text");
+                puts(packet->buffer);
+                break;
+            case WEB_PACKET_PING:
+                if (packet->length > 125) {
+                    puts("Invalid ping packet, ignoring");
+                    break;
+                }
+                puts("Received ping");
+                send_packet = packet_create(WEB_PACKET_PONG, packet->length, packet->buffer);
+                socket_send_web(client_socket, send_packet);
+                packet_destroy(send_packet);
+                break;
+            case WEB_PACKET_PONG:
+                puts("Received pong");
+                break;
+            case WEB_PACKET_CLOSE:
+                send_packet = packet_create(WEB_PACKET_CLOSE, 0, NULL); 
+                socket_send_web(client_socket, send_packet);
+                packet_destroy(send_packet);
+                closed = true;
+                break;
             default:
                 puts("Recveied weird web packet, ignoring");
                 break;
@@ -625,7 +653,7 @@ int main(int argc, char** argv)
     if (!networking_init(max_num_conn))
         goto fail_context;
 
-    pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
+    //pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
 
     code = 0;
@@ -635,10 +663,12 @@ int main(int argc, char** argv)
 
     ctx.kill = true;
 
-    networking_cleanup();
+    networking_shutdown_sockets();
 
-    pthread_join(cli_server_thread_id, NULL);
+    //pthread_join(cli_server_thread_id, NULL);
     pthread_join(web_server_thread_id, NULL);
+
+    networking_cleanup();
 
 fail_context:
     context_cleanup();

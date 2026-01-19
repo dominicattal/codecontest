@@ -29,6 +29,7 @@ void packet_destroy(Packet* packet)
     free(packet->buffer);
     free(packet);
 }
+
 #ifdef __WIN32
 
 #include <winsock2.h>
@@ -158,8 +159,6 @@ void socket_destroy(Socket* sock)
 {
     freeaddrinfo(sock->info);
     closesocket(*sock->sock);
-    free(sock->sock);
-    free(sock);
 }
 
 bool socket_send(Socket* sock, Packet* packet)
@@ -233,10 +232,10 @@ typedef struct Socket {
 } Socket;
 
 static struct {
-   int num_sockets;
-   Socket* sockets;
    pthread_mutex_t mutex;
-   sem_t sem;
+   Socket* sockets;
+   int num_sockets;
+   sem_t num_sockets_available;
 } net_ctx;
 
 bool networking_init(int max_num_conn)
@@ -248,17 +247,21 @@ bool networking_init(int max_num_conn)
         net_ctx.sockets[i].connected = false;
         net_ctx.sockets[i].in_use = false;
     }
-    sem_init(&net_ctx.sem, 0, max_num_conn);
+    sem_init(&net_ctx.num_sockets_available, 0, max_num_conn);
     pthread_mutex_init(&net_ctx.mutex, NULL);
     return true;
 }
 
-void networking_cleanup(void)
+void networking_shutdown_sockets(void)
 {
     for (int i = 0; i < net_ctx.num_sockets; i++)
         socket_destroy(&net_ctx.sockets[i]);
+}
+
+void networking_cleanup(void)
+{
     free(net_ctx.sockets);
-    sem_destroy(&net_ctx.sem);
+    sem_destroy(&net_ctx.num_sockets_available);
     pthread_mutex_destroy(&net_ctx.mutex);
 }
 
@@ -271,7 +274,7 @@ static Socket* get_free_socket(void)
 {
     Socket* sock = NULL;
     int i;
-    sem_wait(&net_ctx.sem);
+    sem_wait(&net_ctx.num_sockets_available);
     pthread_mutex_lock(&net_ctx.mutex);
     for (i = 0; i < net_ctx.num_sockets; i++) {
         if (!net_ctx.sockets[i].in_use) {
@@ -343,17 +346,23 @@ bool socket_connect(Socket* sock)
     return sock->connected;
 }
 
+bool socket_connected(Socket* socket)
+{
+    return true;
+}
+
 void socket_destroy(Socket* sock)
 {
-    if (!sock->in_use) return;
     pthread_mutex_lock(&net_ctx.mutex);
+    if (!sock->in_use) goto unlock;
     if (sock->fd != -1)
         shutdown(sock->fd, SHUT_RDWR);
     sock->connected = false;
     sock->in_use = false;
     sock->fd = -1;
+    sem_post(&net_ctx.num_sockets_available);
+unlock:
     pthread_mutex_unlock(&net_ctx.mutex);
-    sem_post(&net_ctx.sem);
 }
 
 bool socket_send(Socket* sock, Packet* packet)
@@ -361,14 +370,68 @@ bool socket_send(Socket* sock, Packet* packet)
     return send(sock->fd, packet->buffer, packet->length, 0) != -1;
 }
 
-bool socket_send_web(Socket* socket, Packet* packet)
+bool socket_send_web(Socket* sock, Packet* packet)
 {
-    return false;
-}
-
-bool socket_connected(Socket* socket)
-{
-    return true;
+    bool res;
+    int opcode, payload_len, buffer_len, idx;
+    unsigned long long ext_payload_len = 0;
+    unsigned long long masking_key = 0;
+    char* buffer;
+    switch (packet->id) {
+        case WEB_PACKET_PING:
+            opcode = 0x9;
+            break;
+        case WEB_PACKET_PONG:
+            opcode = 0xA;
+            break;
+        case WEB_PACKET_CLOSE:
+            opcode = 0x8;
+            break;
+        default:
+            opcode = 0x0;
+            break;
+    }
+    if (packet->length < 126) {
+        buffer_len = 2 + 4 + packet->length;
+        payload_len = packet->length;
+    } else if (packet->length < 0xFFFF) {
+        assert(opcode != 0x9);
+        assert(opcode != 0xA);
+        buffer_len += 2 + 4 + 2 + packet->length;
+        ext_payload_len = packet->length;
+        payload_len = 126;
+    } else {
+        assert(opcode != 0x9);
+        assert(opcode != 0xA);
+        buffer_len += 2 + 4 + 8 + packet->length;
+        ext_payload_len = packet->length;
+        payload_len = 127;
+    }
+    buffer = malloc(buffer_len * sizeof(char));
+    idx = 0;
+    buffer[idx++] = (1<<7) + opcode;
+    buffer[idx++] = payload_len;
+    if (payload_len == 126) {
+        buffer[idx++] = ext_payload_len & 0xFF;
+        buffer[idx++] = (ext_payload_len>>8) & 0xFF;
+    } else if (payload_len == 127) {
+        buffer[idx++] = ext_payload_len & 0xFF;
+        buffer[idx++] = (ext_payload_len>>8) & 0xFF;
+        buffer[idx++] = (ext_payload_len>>16) & 0xFF;
+        buffer[idx++] = (ext_payload_len>>24) & 0xFF;
+        buffer[idx++] = (ext_payload_len>>32) & 0xFF;
+        buffer[idx++] = (ext_payload_len>>40) & 0xFF;
+        buffer[idx++] = (ext_payload_len>>48) & 0xFF;
+        buffer[idx++] = (ext_payload_len>>56) & 0xFF;
+    }
+    buffer[idx++] = 0;
+    buffer[idx++] = 0;
+    buffer[idx++] = 0;
+    buffer[idx++] = 0;
+    memcpy(buffer+idx, packet->buffer, packet->length);
+    res = send(sock->fd, buffer, buffer_len, 0);
+    free(buffer);
+    return res != 0;
 }
 
 Packet* socket_recv(Socket* sock, int max_length)
@@ -397,75 +460,89 @@ Packet* socket_recv_web(Socket* sock)
     Packet* packet;
     int len;
     char* buffer;
+    char* res = NULL;
     char data;
     // fields in web socket packet
-    bool fin, rsv1, rsv2, rsv3, mask;
-    char opcode;
+    bool fin, mask;
+    char opcode = 0;
     int i, payload_len, cur_read;
     unsigned long long ext_payload_len = 0;
     unsigned long long buffer_length = 0;
     unsigned int masking_key;
+    int res_length = 0;
 
-    len = read(sock->fd, &data, 1);
-    // why does this happen?
-    printf("%d\n", len);
-    if (len == 0) return NULL;
-    fin = (data>>7) & 1;
-    rsv1 = (data>>6) & 1;
-    rsv2 = (data>>5) & 1;
-    rsv3 = (data>>4) & 1;
-    opcode = data & 0xF;
-    len = read(sock->fd, &data, 1);
-    assert(len == 1);
-    mask = (data>>7) & 1;
-    payload_len = data & 0x7F;
-    buffer_length = payload_len;
-    if (payload_len == 126) {
-        len = read(sock->fd, &ext_payload_len, 2);
-        assert(len == 2);
-        ext_payload_len = ((ext_payload_len>>8)&0xFF)
-                       +  ((ext_payload_len&0xFF)<<8);
-        buffer_length = ext_payload_len;
-    } else if (payload_len == 127) {
-        len = read(sock->fd, &ext_payload_len, 8);
-        assert(len == 8);
-        ext_payload_len = ((ext_payload_len>>56)&0xFF)
-                       +  (((ext_payload_len>>48)&0xFF)<<8)
-                       +  (((ext_payload_len>>40)&0xFF)<<16)
-                       +  (((ext_payload_len>>32)&0xFF)<<24)
-                       +  (((ext_payload_len>>24)&0xFF)<<32)
-                       +  (((ext_payload_len>>16)&0xFF)<<40)
-                       +  (((ext_payload_len>>8)&0xFF)<<48)
-                       +  ((ext_payload_len&0xFF)<<56);
-        buffer_length = ext_payload_len;
+    do {
+        len = read(sock->fd, &data, 1);
+        if (len == 0)  {
+            if (res == NULL) return NULL;
+            puts("expected len != 0");
+            abort();
+        }
+        fin = (data>>7) & 1;
+        if (res == NULL)
+            opcode = data & 0xF;
+        len = read(sock->fd, &data, 1);
+        assert(len == 1);
+        mask = (data>>7) & 1;
+        payload_len = data & 0x7F;
+        buffer_length = payload_len;
+        if (payload_len == 126) {
+            len = read(sock->fd, &ext_payload_len, 2);
+            assert(len == 2);
+            ext_payload_len = ((ext_payload_len>>8)&0xFF)
+                           +  ((ext_payload_len&0xFF)<<8);
+            buffer_length = ext_payload_len;
+        } else if (payload_len == 127) {
+            len = read(sock->fd, &ext_payload_len, 8);
+            assert(len == 8);
+            ext_payload_len = ((ext_payload_len>>56)&0xFF)
+                            + (((ext_payload_len>>48)&0xFF)<<8)
+                            + (((ext_payload_len>>40)&0xFF)<<16)
+                            + (((ext_payload_len>>32)&0xFF)<<24)
+                            + (((ext_payload_len>>24)&0xFF)<<32)
+                            + (((ext_payload_len>>16)&0xFF)<<40)
+                            + (((ext_payload_len>>8)&0xFF)<<48)
+                            + ((ext_payload_len&0xFF)<<56);
+            buffer_length = ext_payload_len;
+        }
+        buffer = malloc(buffer_length * sizeof(char));
+        len = read(sock->fd, &masking_key, 4);
+        assert(len == 4);
+        cur_read = 0;
+        while (cur_read < buffer_length) {
+            len = read(sock->fd, buffer+cur_read, buffer_length-cur_read);
+            for (i = cur_read; i < buffer_length; i++)
+                buffer[i] ^= (masking_key>>((i&3)<<3))&0xFF;
+            cur_read += len;
+        }
+        if (res == NULL)
+            res = malloc((buffer_length+1) * sizeof(char));
+        else
+            res = realloc(res, res_length+buffer_length+1);
+        memcpy(res+res_length, buffer, buffer_length);
+        res_length += buffer_length;
+        res[res_length] = '\0';
+        free(buffer);
+    } while (fin == 0);
+
+    packet = malloc(sizeof(Packet));
+    switch (opcode) {
+        case 0x1:
+            packet->id = WEB_PACKET_TEXT;
+            break;
+        case 0x8:
+            packet->id = WEB_PACKET_CLOSE;
+            break;
+        case 0x9:
+            packet->id = WEB_PACKET_PING;
+            break;
+        case 0xA:
+            packet->id = WEB_PACKET_PONG;
+            break;
     }
-    if (buffer_length != 91437)
-        return NULL;
-    printf("fin=%hhd\n"
-           "rsv1=%hhd\n"
-           "rsv2=%hhd\n"
-           "rsv3=%hhd\n"
-           "opcode=0x%hhX\n"
-           "mask=%hhd\n"
-           "payload_len=%d\n"
-           "ext_payload_len=%llu\n"
-           "masking-key=%x\n",
-           fin, rsv1, rsv2, rsv3,
-           opcode, mask, payload_len,
-           ext_payload_len, masking_key);
-    buffer = malloc(buffer_length * sizeof(char));
-    len = read(sock->fd, &masking_key, 4);
-    assert(len == 4);
-    cur_read = 0;
-    while (cur_read < buffer_length) {
-        len = read(sock->fd, buffer+cur_read, buffer_length-cur_read);
-        printf("%d\n", len);
-        for (i = cur_read; i < buffer_length; i++)
-            buffer[i] ^= (masking_key>>((i&3)<<3))&0xFF;
-        cur_read += len;
-    }
-    free(buffer);
-    return NULL;
+    packet->length = res_length;
+    packet->buffer = res;
+    return packet;
 }
 
 bool socket_web_handshake(Socket* sock)
@@ -478,9 +555,6 @@ bool socket_web_handshake(Socket* sock)
     key = NULL;
     recv_buffer = malloc(1024 * sizeof(char));
     length = read(sock->fd, recv_buffer, 1024);
-    for (int i = 0; i < length; i++)
-        printf("%c", recv_buffer[i]);
-    puts("");
     
     for (i = 0; i+17 < length; i++) {
         if (recv_buffer[i] == 'S' && recv_buffer[i+16] == 'y') {
@@ -522,7 +596,6 @@ found:
     length = snprintf(NULL, 0, send_buffer_fmt, ret);
     send_buffer = malloc((length+1) * sizeof(char));
     snprintf(send_buffer, length+1, send_buffer_fmt, ret);
-    puts(send_buffer);
 
     free(key);
     free(utf8);

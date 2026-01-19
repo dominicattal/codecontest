@@ -2,6 +2,7 @@
 #define NETWORKING_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define BIT_TCP  0x1
 
@@ -22,14 +23,16 @@ typedef enum {
     PACKET_CODE_ACCEPTED,
     PACKET_CODE_FAILED,
     PACKET_CODE_NOTIFICATION,
-    WEB_PACKET_NOTIFICATION,
-    WEB_PACKET_GET_RUN_STATUS
+    WEB_PACKET_TEXT,
+    WEB_PACKET_CLOSE,
+    WEB_PACKET_PING,
+    WEB_PACKET_PONG
 } PacketEnum;
 
 typedef struct {
     PacketEnum id;
     char* buffer;
-    int length;
+    size_t length;
 } Packet;
 
 typedef struct {
@@ -40,6 +43,7 @@ typedef struct Socket Socket;
 
 // returns true if successful
 bool    networking_init(int max_num_conn);
+void    networking_shutdown_sockets(void);
 void    networking_cleanup(void);
 char*   networking_hostname(void);
 
@@ -69,6 +73,9 @@ bool    socket_connected(Socket* socket);
 
 // Send a packet over a socket. Returns true if successful
 bool    socket_send(Socket* socket, Packet* packet);
+
+// Send a packet over a web socket. Returns true if successful
+bool    socket_send_web(Socket* socket, Packet* packet);
 
 // Send a generic server-to-client handshake
 bool    socket_send_web_handshake(Socket* socket);
