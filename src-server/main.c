@@ -160,32 +160,28 @@ static void* handle_cli_client(void* vargp)
 
     run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1);
     run_enqueue(run);
-    do {
-        run_wait(run);
-        switch (run->status) {
-            case RUN_SUCCESS:
-                result = PACKET_CODE_ACCEPTED;
-                break;
-            case RUN_COMPILATION_ERROR:
-            case RUN_RUNTIME_ERROR:
-            case RUN_TIME_LIMIT_EXCEEDED:
-            case RUN_MEM_LIMIT_EXCEEDED:
-            case RUN_WRONG_ANSWER:
-            case RUN_SERVER_ERROR:
-                result = PACKET_CODE_FAILED;
-                break;
-            default:
-                result = PACKET_CODE_NOTIFICATION;
-                break;
-        }
-        packet = packet_create(result, run->response_length, run->response);
-        if (packet == NULL) {
-            run_die(run);
-            goto fail;
-        }
-        socket_send(client_socket, packet);
-        run_post(run);
-    } while (result == PACKET_CODE_NOTIFICATION);
+    run_wait(run);
+    switch (run->status) {
+        case RUN_SUCCESS:
+            result = PACKET_CODE_ACCEPTED;
+            break;
+        case RUN_COMPILATION_ERROR:
+        case RUN_RUNTIME_ERROR:
+        case RUN_TIME_LIMIT_EXCEEDED:
+        case RUN_MEM_LIMIT_EXCEEDED:
+        case RUN_WRONG_ANSWER:
+        case RUN_SERVER_ERROR:
+            result = PACKET_CODE_FAILED;
+            break;
+        default:
+            result = PACKET_CODE_NOTIFICATION;
+            break;
+    }
+    packet = packet_create(result, run->response_length, run->response);
+    if (packet == NULL) {
+        goto fail;
+    }
+    socket_send(client_socket, packet);
     packet_destroy(run_packet);
 
     run_destroy(run);
@@ -261,13 +257,11 @@ static void* handle_web_client(void* vargp)
     Packet* packet;
     Packet* send_packet;
     Socket* client_socket;
+    char* msg;
     bool closed = false;
     client_socket = vargp;
 
-    packet = packet_create(WEB_PACKET_PING, 0, NULL);
-    socket_send_web(client_socket, packet);
-    packet_destroy(packet);
-
+    puts("Connected to web client");
     while (!ctx.kill && !closed) {
         packet = socket_recv_web(client_socket);
         if (packet == NULL) {
@@ -292,7 +286,9 @@ static void* handle_web_client(void* vargp)
                 puts("Received pong");
                 break;
             case WEB_PACKET_CLOSE:
-                send_packet = packet_create(WEB_PACKET_CLOSE, 0, NULL); 
+                puts("Closing web socket connection");
+                msg = "received close packet";
+                send_packet = packet_create(WEB_PACKET_CLOSE, strlen(msg), msg); 
                 socket_send_web(client_socket, send_packet);
                 packet_destroy(send_packet);
                 closed = true;
@@ -624,6 +620,114 @@ void context_cleanup(void)
     free(ctx.problems);
 }
 
+bool db_init(JsonObject* config)
+{
+    Problem* problem;
+    char* db_file_path;
+    char* query;
+    char* query_fmt;
+    char* error;
+    int i, res, query_length;
+    if (!sqlite3_threadsafe()) {
+        puts("sqlite3 must be threadsafe");
+        return false;
+    }
+    db_file_path = get_string(config, "database");
+    if (db_file_path == NULL) {
+        puts("Missing database file in config");
+        return false;
+    }
+    res = sqlite3_open(db_file_path, &ctx.db);
+    if (res) {
+        puts("Opening database failed");
+        return false;
+    }
+    error = sqlite3_malloc(512);
+    res = sqlite3_exec(ctx.db,
+            "CREATE TABLE runs ("
+            "    id INT PRIMARY KEY,"
+            "    problem_id INT,"
+            "    language_id INT,"
+            "    testcase INT,"
+            "    status INT,"
+            "    timestamp TEXT"
+            ");"
+            ""
+            "CREATE TABLE users ("
+            "    id INT PRIMARY KEY,"
+            "    username TEXT,"
+            "    password TEXT"
+            ");"
+            ""
+            "CREATE TABLE languages ("
+            "    id INT PRIMARY KEY,"
+            "    name TEXT"
+            ");"
+            ""
+            "CREATE TABLE problems ("
+            "    id INT PRIMARY KEY,"
+            "    name TEXT,"
+            "    time_limit REAL,"
+            "    mem_limit INT"
+            ");",
+            NULL,
+            NULL,
+            &error);
+    //if (res && strcmp(error, "table runs already exists") != 0) {
+    if (res) {
+        printf("sqlite3 command failed %d: %s\n", __LINE__, error);
+        //sqlite3_free(error);
+        //sqlite3_close(ctx.db);
+        //return false;
+    }
+    res = sqlite3_exec(ctx.db,
+            "DELETE FROM runs;DELETE FROM users;DELETE FROM languages;DELETE FROM problems;",
+            NULL,
+            NULL,
+            &error);
+    if (res) {
+        printf("sqlite3 command failed %d: %s\n", __LINE__, error);
+    }
+    for (i = 0; i < ctx.num_languages; i++) {
+        query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
+        query_length = snprintf(NULL, 0, query_fmt, ctx.languages[i].id, ctx.languages[i].name);
+        query = malloc((query_length+1) * sizeof(char));
+        snprintf(query, query_length+1, query_fmt, ctx.languages[i].id, ctx.languages[i].name);
+        puts(query);
+        res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
+        if (res) printf("sqlite3 command failed %d: %s\n", __LINE__, error);
+        free(query);
+    }
+    for (i = 0; i < ctx.num_problems; i++) {
+        problem = &ctx.problems[i];
+        query_fmt = "INSERT INTO problems (id, name, time_limit, mem_limit) VALUES (%d, '%s', %f, %d);";
+        query_length = snprintf(NULL, 0, query_fmt, problem->id, problem->name, problem->time_limit, problem->mem_limit);
+        query = malloc((query_length+1) * sizeof(char));
+        snprintf(query, query_length+1, query_fmt, problem->id, problem->name, problem->time_limit, problem->mem_limit);
+        puts(query);
+        res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
+        if (res) printf("sqlite3 command failed %d: %s\n", __LINE__, error);
+        free(query);
+    }
+    for (i = 0; i < ctx.num_teams; i++) {
+        query_fmt = "INSERT INTO users (id, username, password) VALUES (%d, '%s', '%s');";
+        query_length = snprintf(NULL, 0, query_fmt, ctx.teams[i].id, ctx.teams[i].username, ctx.teams[i].password);
+        query = malloc((query_length+1) * sizeof(char));
+        snprintf(query, query_length+1, query_fmt, ctx.teams[i].id, ctx.teams[i].username, ctx.teams[i].password);
+        puts(query);
+        res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
+        if (res) printf("sqlite3 command failed %d: %s\n", __LINE__, error);
+        free(query);
+    }
+    sqlite3_free(error);
+    return true;
+}
+
+void db_cleanup(void)
+{
+    sqlite3_close(ctx.db);
+}
+
 int main(int argc, char** argv)
 {
     JsonObject* config;
@@ -638,6 +742,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // two options: load from database or load from config
+    // for now, just load from config and overwite database
+
     config = json_read(argv[1]);
     if (config == NULL) {
         printf("Could not read config file: %s\n", argv[1]);
@@ -647,8 +754,15 @@ int main(int argc, char** argv)
     if (!context_init(config))
         goto fail_config;
 
-    if (!networking_init(max_num_conn))
+    if (!db_init(config)) {
+        ctx.kill = true;
         goto fail_context;
+    }
+
+    if (!networking_init(max_num_conn)) {
+        ctx.kill = true;
+        goto fail_db;
+    }
 
     pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
@@ -667,6 +781,8 @@ int main(int argc, char** argv)
 
     networking_cleanup();
 
+fail_db:
+    db_cleanup();
 fail_context:
     context_cleanup();
 fail_config:

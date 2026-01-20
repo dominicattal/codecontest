@@ -2,7 +2,7 @@ NAME_SERVER=server.exe
 NAME_CLIENT=client.exe
 NAME_GUI=gui.exe
 BUILD_SUFFIX=w
-LINKER_FLAGS= -pthread
+LINKER_FLAGS= -pthread -lsqlite3
 CFLAGS_ALL = -Ilib -MMD -Wall -Wextra -Werror -Wfatal-errors -Wno-unused-parameter -pthread -mshstk -Wno-implicit-fallthrough
 
 ifeq ($(OS),Windows_NT)
@@ -24,7 +24,7 @@ OBJ_DEV_CLIENT = $(SRC_CLIENT:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 OBJ_DEV_GUI = $(SRC_GUI:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 
 all: dev
-	@rm -rf problems/problem1/bin problems/problem1/runs
+	@rm -rf problems/problem1/bin problems/problem1/runs problems/runs.db
 
 dev: build dev-server dev-client
 client: dev-client
@@ -51,7 +51,7 @@ build:
 	@mkdir -p build
 
 clean:
-	rm -rf build bin problems/problem1/runs problems/problem1/bin
+	rm -rf build bin problems/problem1/runs problems/problem1/bin problems/runs.db
 	
 .PHONY: clean
 

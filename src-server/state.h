@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <json.h>
 #include <pthread.h>
+#include <sqlite3.h>
 
 typedef struct {
     const char* username;
@@ -33,6 +34,7 @@ typedef struct {
 } Problem;
 
 typedef struct {
+    sqlite3* db;
     Team* teams;
     Language* languages;
     Problem* problems;

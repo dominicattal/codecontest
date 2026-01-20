@@ -210,6 +210,7 @@ void run_enqueue(Run* run)
 
 static Run* run_dequeue(void)
 {
+    // make this a semaphore to prevent busy waiting
     Run* run = NULL;
     pthread_mutex_lock(&run_queue.mutex);
     if (run_queue.head != NULL) {
@@ -301,11 +302,8 @@ static void set_run_response(Run* run, const char* response)
 
 static bool set_run_status(Run* run, RunEnum status)
 {
-    // if cli client, do this
-    // if web client, dont do this
+    // update database here?
     run->status = status;
-    sem_post(&run->run_to_server_signal);
-    sem_wait(&run->server_to_run_signal);
     return run->status != RUN_DEAD;
 }
 
@@ -338,6 +336,10 @@ static double timeval_diff(struct timeval tv1, struct timeval tv2)
     return tv1.tv_sec - tv2.tv_sec + (double)(tv1.tv_usec-tv2.tv_usec)/1000000;
 }
 
+#define VALIDATE_SUCCESS    0
+#define VALIDATE_FAILED     1
+#define VALIDATE_ERROR      2
+
 static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
 {
     Process* pid;
@@ -355,23 +357,21 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     while (process_running(pid)) {
         mem = process_memory(pid);
         if (mem > problem->mem_limit) {
-            run->status = RUN_MEM_LIMIT_EXCEEDED;
+            set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
             sprintf(response, "Memory limit exceeded on testcase %d", testcase);
             goto fail;
         }
         gettimeofday(&cur, NULL);
         if (timeval_diff(cur, start) > problem->time_limit) {
-            run->status = RUN_TIME_LIMIT_EXCEEDED;
+            set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
             sprintf(response, "Time limit exceeded on testcase %d", testcase);
             goto fail;
         }
     }
     if (!process_success(pid)) {
-        if (process_error(pid)) {
-            run->status = RUN_SERVER_ERROR;
-            return false;
-        }
-        run->status = RUN_RUNTIME_ERROR;
+        if (process_error(pid))
+            return VALIDATE_ERROR;
+        set_run_status(run, RUN_RUNTIME_ERROR);
         sprintf(response, "Runtime error on testcase %d", testcase);
         goto fail;
     }
@@ -382,22 +382,19 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     pid = process_create(get_token_value(tb, VALIDATE_COMMAND), NULL, NULL);
     process_wait(pid);
     if (!process_success(pid)) {
-        if (process_error(pid)) {
-            run->status = RUN_SERVER_ERROR;
-            return false;
-        }
-        run->status = RUN_WRONG_ANSWER;
+        if (process_error(pid))
+            return VALIDATE_ERROR;
+        set_run_status(run, RUN_WRONG_ANSWER);
         sprintf(response, "Wrong answer on testcase %d", testcase);
         goto fail;
     }
     process_destroy(pid);
-
-    return true;
+    return VALIDATE_SUCCESS;
 
 fail:
     set_run_response(run, response);
     process_destroy(pid);
-    return false;
+    return VALIDATE_FAILED;
 }
 
 static void try_override(JsonObject* object, TokenBuffers* tb, CommandToken tok)
@@ -422,6 +419,7 @@ static void handle_run(TokenBuffers* tb, Run* run)
     char* testcase_format;
     int testcase_buffer_length;
     int testcase;
+    int validate_res;
 
     problem = &ctx.problems[run->problem_id];
     language = &ctx.languages[run->language_id];
@@ -499,8 +497,7 @@ static void handle_run(TokenBuffers* tb, Run* run)
         goto server_error;
     }
     set_run_response(run, "Compiling");
-    if (!set_run_status(run, RUN_COMPILING))
-        goto run_dead;
+    set_run_status(run, RUN_COMPILING);
     if (!compile(tb, language, run))
         goto fail;
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
@@ -517,19 +514,19 @@ static void handle_run(TokenBuffers* tb, Run* run)
         snprintf(testcase_buffer, testcase_buffer_length+1, testcase_format, testcase);
         set_run_response(run, testcase_buffer);
         free(testcase_buffer);
-        if (!set_run_status(run, RUN_RUNNING))
-            goto run_dead;
-        if (!validate(tb, language, problem, run, testcase))
+        set_run_status(run, RUN_RUNNING);
+        validate_res = validate(tb, language, problem, run, testcase);
+        if (validate_res == VALIDATE_FAILED)
             goto fail;
+        else if (validate_res == VALIDATE_ERROR)
+            goto server_error;
     }
-    run->status = RUN_SUCCESS;
+    set_run_status(run, RUN_SUCCESS);
     set_run_response(run, "");
     sem_post(&run->run_to_server_signal);
     return;
 
 fail:
-    if (run->status == RUN_SERVER_ERROR)
-        goto server_error;
     sem_post(&run->run_to_server_signal);
     return;
 
@@ -541,9 +538,6 @@ server_error:
     set_run_response(run, response);
     sem_post(&run->run_to_server_signal);
     return;
-
-run_dead:
-    run_destroy(run);
 }
 
 void* run_daemon(void* vargp)

@@ -2,7 +2,9 @@
     "ip": null,
     "cli_port": "27105",
     "web_port": "27106",
-    "num_threads": 2,
+    "num_threads": 1,
+    "contest": true,
+    "database": "problems/runs.db",
     "teams": [
         {
             "username": "team1",

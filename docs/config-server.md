@@ -1,8 +1,11 @@
 ## Configuration file for server
 
 "ip" -> must be either null or properly formatted ip address ("127.0.0.1") \
-"port" -> must be a valid port number formatted as a string ("27105") \
-"num_threads" -> number of threads processing runs
+"cli_port" -> must be a valid port number formatted as a string ("27105") \
+"web_port" -> must be a valid port number formatted as a string ("27106") \
+"num_threads" -> number of threads processing runs \
+"contest" -> whether contest is running or not \
+"database" -> the sqlite3 database file. more info in database section. \
 "teams" -> must be an array containing each team's information \
     "username" -> name of the team \
     "password" -> password for the team \
@@ -62,10 +65,11 @@ continue to the next testcase. If no errors occur during this process, the run w
 
 If at any point this process failed unexpectedly, the process ends and the run's status is set to server error.
 
-Once a run stops running testcases, it will let the client know the verdict. All information related to this run (output path, compile path, etc.)
-will persist.
+Once a run stops running testcases, it will let the client know the verdict. All information related to this run (output path, compile path, etc.) will persist.
 
-The tokens above may be overrided in certain situations. The order they are overrided in is undefined,
-so do not rely on the tokens being expanded in a particular order.
+Some of the tokens above may be overrided in some situations. The order they are overrided in is undefined, so do not rely on the tokens being expanded in a particular order.
 - [CODE_DIR] -> in a language
 - [CODE_PATH] -> in a language
+
+TEMP DATABASE SECTION \
+This program writes run info to a sqlite3 database so that the web client can easily access it. The path to the database file is specified in the "database" field in the server config. If the file does not exist, the server will attempt to create it and initialize it with tables. Otherwise, it will use the runs table in the existings database file. However, it will always update the users table with what is currently in the server config.
