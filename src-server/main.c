@@ -556,6 +556,17 @@ void read_problems(JsonObject* config)
         }
         string = json_get_string(value);
         ctx.problems[i].name = string;
+        value = json_get_value(object, "html");
+        if (value == NULL) {
+            puts("Missing problem html");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid problem html");
+            exit(1);
+        }
+        string = json_get_string(value);
+        ctx.problems[i].html = string;
         value = json_get_value(object, "dir");
         if (value == NULL) {
             puts("Missing dir path");
@@ -682,6 +693,7 @@ bool db_init(JsonObject* config)
         "    id INT PRIMARY KEY,"
         "    letter TEXT,"
         "    name TEXT,"
+        "    html_path TEXT,"
         "    time_limit REAL,"
         "    mem_limit INT"
         ");");
@@ -692,8 +704,9 @@ bool db_init(JsonObject* config)
     }
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
-        query_fmt = "INSERT INTO problems (id, letter, name, time_limit, mem_limit) VALUES (%d, '%c', '%s', %f, %d);";
-        db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->time_limit, problem->mem_limit);
+        puts(problem->html);
+        query_fmt = "INSERT INTO problems (id, letter, name, html_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', %f, %d);";
+        db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->html, problem->time_limit, problem->mem_limit);
     }
     for (i = 0; i < ctx.num_teams; i++) {
         query_fmt = "INSERT INTO teams (id, username, password) VALUES (%d, '%s', '%s');";

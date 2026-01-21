@@ -1,0 +1,79 @@
+/* copied from table mdn docs */
+body {
+    font-family: sans-serif;
+}
+
+table {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 15px;
+    border-collapse: collapse;
+    text-align: center;
+    border: 2px solid rgb(140 140 140);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+thead, tfoot {
+    background-color: rgb(228 240 245);
+}
+
+th, td {
+    border: 1px solid rgb(160 160 160);
+    padding: 8px 10px;
+}
+
+tbody > tr:nth-of-type(even) {
+    background-color: rgb(237 238 242);
+}
+tbody > tr:nth-of-type(odd) {
+    background-color: rgb(255 255 255);
+}
+
+tfoot th {
+  text-align: right;
+}
+
+tfoot td {
+  font-weight: bold;
+}
+
+#problem-header {
+    text-align: center;
+}
+
+#problem-header h1, h2 {
+    margin: 0px;
+    padding: 0px;
+}
+
+#problems {
+    background: yellow;
+    display: flex;
+    justify-content: center;
+    margin: 10px;
+}
+
+#problems-left {
+    background: red;
+    width: 60%;
+}
+
+#problems-right {
+    background: orange;
+    width: 40%;
+}
+
+#header {
+    display: flex;
+    justify-content: center;
+    background: #f0f0f0;
+}
+#header a {
+    padding: 20px;
+    color: blue;
+}
+
+.td-click {
+    cursor: pointer;
+}

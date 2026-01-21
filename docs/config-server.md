@@ -1,5 +1,7 @@
 ## Configuration file for server
 
+forgive me im not checking this in a md renderer right now
+
 "ip" -> must be either null or properly formatted ip address ("127.0.0.1") \
 "cli_port" -> must be a valid port number formatted as a string ("27105") \
 "web_port" -> must be a valid port number formatted as a string ("27106") \
@@ -17,6 +19,7 @@
 "problems" -> must be an array containing each problem's information \
     "name" -> name of the problem. clients will see exactly what is put here \
     "dir" -> directory of the problem's information \
+    "html" -> path of problem statement relative to php server. see problem html section \
     "validate" -> command for validating a program's output \
     "testcases" -> number of testcases for this problem \
     "time_limit" -> time limit in seconds \
@@ -73,3 +76,74 @@ Some of the tokens above may be overrided in some situations. The order they are
 
 TEMP DATABASE SECTION \
 This program writes run info to a sqlite3 database so that the web client can easily access it. The path to the database file is specified in the "database" field in the server config. If the file does not exist, the server will attempt to create it and initialize it with tables. Otherwise, it will use the runs table in the existings database file. However, it will always update the users table with what is currently in the server config.
+
+full schema:
+```sql
+CREATE TABLE runs (
+    id INT PRIMARY KEY,
+    team_id INT,
+    problem_id INT,
+    language_id INT,
+    testcase_id INT,
+    status INT,
+    timestamp TEXT
+);
+
+CREATE TABLE teams (
+    id INT PRIMARY KEY,
+    username TEXT,
+    password TEXT
+);
+
+CREATE TABLE languages (
+    id INT PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE problems (
+    id INT PRIMARY KEY,
+    letter TEXT,
+    name TEXT,
+    html_path TEXT,
+    time_limit REAL,
+    mem_limit INT
+);
+
+CREATE TABLE testcases (
+    id INT,
+    problem_id INT,
+    path TEXT,
+    PRIMARY KEY (id, problem_id)
+);
+```
+
+PROBLEM HTML
+The specified path is relative to the current directory. must contain 5 divs to work properly:
+- problem-header
+- problem-body
+- problem-input
+- problem-output
+- problem-examples
+
+example:
+```html
+<div id='problem-header'>
+    <h1>A - Problem</h1>
+    <h2>Time limit per test: 2 seconds</h2>
+    <h2>Memory limit per test: 2 GB</h2>
+</div>
+<div id='problem-body'>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+</div>
+<div id='problem-input'>
+    <h2>Input</h2>
+    <p>1 <= n <= 100</p>
+</div>
+<div id='problem-output'>
+    <h2>Output</h2>
+    <p>n integers</p>
+</div>
+<div id='problem-examples'>
+    <h2>Examples</h2>
+</div>
+```

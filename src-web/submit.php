@@ -1,31 +1,48 @@
-<body>
-<h1>Stuff:</h1>
 <?php
-    if ($_FILES["code"]["error"] != UPLOAD_ERR_OK) {
-        echo "could not upload";
-        die();
-    }
-
-    $path = "./uploads";
-    
-    if (!is_dir($path)) {
-        mkdir($path, 0777, true);
-    }
-
-    trigger_error("WARNING 1", E_USER_WARNING);
-
-    $tmp_name = $_FILES["code"]["tmp_name"];
-    $org_name = basename($_FILES["code"]["name"]);
-    $new_file_name = "$path/$org_name";
-
-    echo "<br />";
-    echo $tmp_name;
-    echo "<br />";
-    echo $new_file_name;
-    echo "<br />";
-    $res = move_uploaded_file($tmp_name, $new_file_name) ? "true" : "false";
-    echo "<p>" . $res . "</p>";
-
+    include "header.php";
 ?>
-</body>
-</html>
+    <form action="submit_handler.php" method="post" enctype="multipart/form-data">
+        <label for="language">Language</label>
+        <select id="language" name="language">
+            <option value="">Choose Language</option>
+            <option value="CPP">C++</option>
+            <option value="Python">Python</option>
+        </select>
+        <br />
+        <label for="code">File</label>
+        <input type="hidden" name="MAX_FILE_SIZE" value="30000" />
+        <input type="file" id="code" name="code"></input>
+        <br />
+        <input type="submit" value="Submit" id="submit"></input>
+    </form>
+    <br />
+    <p id="dynamic-ele"></p>
+    <button id="send-socket">Send</button>
+    <button id="close-socket">Close</button>
+
+    <script>
+        var host = "ws://127.0.0.1:27106";
+        var socket = new WebSocket(host);
+        socket.onopen = (e) => {
+            console.log(e);
+        }
+        socket.onmessage = (e) => {
+            console.log(e);
+        }
+        socket.onclose = (e) => {
+            console.log(e);
+        }
+        socket.onerror = (e) => {
+            console.log(e);
+        }
+
+        var ele = document.getElementById("close-socket");
+        ele.onclick = (e) => {
+            socket.close();
+        }
+
+        var ele = document.getElementById("send-socket");
+        ele.onclick = (e) => {
+            socket.send("Hello from client");
+        }
+    </script>

@@ -26,6 +26,7 @@ typedef struct {
     JsonObject* object;
     const char* name;
     const char* dir;
+    const char* html;
     const char* validate;
     char letter;
     size_t mem_limit;
