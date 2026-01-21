@@ -1,3 +1,4 @@
 <?php
-    include "header.php";
+    header("Location: problems.php");
+    die();
 ?>

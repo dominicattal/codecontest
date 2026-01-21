@@ -42,3 +42,4 @@
     }
     showProblem('A');
 </script>
+<script src="fouc.js"></script>
