@@ -43,9 +43,12 @@ typedef struct {
     int num_languages;
     int num_problems;
     int num_run_threads;
+    int num_runs;
     bool kill;
 } GlobalContext;
 
 extern GlobalContext ctx;
+
+bool db_exec(char* query_fmt, ...);
 
 #endif

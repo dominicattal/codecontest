@@ -1,8 +1,6 @@
-<html>
-<head>
-    <title>NJIT Programming Team</title>
-</head>
-<body>
+<?php
+    include "header.php";
+?>
     <h1>Hello World</h1>
     <form action="submit.php" method="post" enctype="multipart/form-data">
         <label for="language">Language</label>
@@ -49,5 +47,3 @@
             socket.send("Hello from client");
         }
     </script>
-</body>
-</html>

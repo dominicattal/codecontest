@@ -92,7 +92,6 @@ static RunQueue run_queue = {
     .mutex = PTHREAD_MUTEX_INITIALIZER
 };
 
-static int num_runs;
 static pthread_mutex_t num_runs_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static TokenBuffers* create_token_buffers(void)
@@ -187,7 +186,9 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->status = RUN_IDLE;
     run->next = NULL;
     pthread_mutex_lock(&num_runs_mutex);
-    run->id = num_runs++;
+    run->id = ctx.num_runs++;
+    db_exec("INSERT INTO runs (id, team_id, problem_id, language_id, testcase, status) VALUES (%d, %d, %d, %d, 0, 0)",
+            run->id, team_id, problem_id, language_id);
     pthread_mutex_unlock(&num_runs_mutex);
     sem_init(&run->run_to_server_signal, 0, 1);
     sem_init(&run->server_to_run_signal, 0, 1);
@@ -415,9 +416,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
     Problem* problem;
     Language* language;
     char* response;
-    char* testcase_buffer;
-    char* testcase_format;
-    int testcase_buffer_length;
     int testcase;
     int validate_res;
 
@@ -500,6 +498,7 @@ static void handle_run(TokenBuffers* tb, Run* run)
     set_run_status(run, RUN_COMPILING);
     if (!compile(tb, language, run))
         goto fail;
+    set_run_status(run, RUN_RUNNING);
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
         set_token_value(tb, TESTCASE, "%d", testcase);
         set_token_value(tb, CASE_PATH, "%s/%s.in",
@@ -508,13 +507,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
         set_token_value(tb, OUTPUT_PATH, "%s/%s.output",
                 get_token_value(tb, OUTPUT_DIR),
                 get_token_value(tb, TESTCASE));
-        testcase_format = "Running on testcase %d";
-        testcase_buffer_length = snprintf(NULL, 0, testcase_format, testcase);
-        testcase_buffer = malloc((testcase_buffer_length+1) * sizeof(char));
-        snprintf(testcase_buffer, testcase_buffer_length+1, testcase_format, testcase);
-        set_run_response(run, testcase_buffer);
-        free(testcase_buffer);
-        set_run_status(run, RUN_RUNNING);
         validate_res = validate(tb, language, problem, run, testcase);
         if (validate_res == VALIDATE_FAILED)
             goto fail;

@@ -606,6 +606,7 @@ bool context_init(JsonObject* config)
     read_languages(config);
     read_problems(config);
     read_num_run_threads(config);
+    ctx.num_runs = 0;
     puts("Successfully initialized");
     return true;
 }
@@ -624,10 +625,8 @@ bool db_init(JsonObject* config)
 {
     Problem* problem;
     char* db_file_path;
-    char* query;
     char* query_fmt;
-    char* error;
-    int i, res, query_length;
+    int i, res;
     if (!sqlite3_threadsafe()) {
         puts("sqlite3 must be threadsafe");
         return false;
@@ -642,90 +641,77 @@ bool db_init(JsonObject* config)
         puts("Opening database failed");
         return false;
     }
-    error = sqlite3_malloc(512);
-    res = sqlite3_exec(ctx.db,
-            "CREATE TABLE runs ("
-            "    id INT PRIMARY KEY,"
-            "    problem_id INT,"
-            "    language_id INT,"
-            "    testcase INT,"
-            "    status INT,"
-            "    timestamp TEXT"
-            ");"
-            ""
-            "CREATE TABLE users ("
-            "    id INT PRIMARY KEY,"
-            "    username TEXT,"
-            "    password TEXT"
-            ");"
-            ""
-            "CREATE TABLE languages ("
-            "    id INT PRIMARY KEY,"
-            "    name TEXT"
-            ");"
-            ""
-            "CREATE TABLE problems ("
-            "    id INT PRIMARY KEY,"
-            "    name TEXT,"
-            "    time_limit REAL,"
-            "    mem_limit INT"
-            ");",
-            NULL,
-            NULL,
-            &error);
-    //if (res && strcmp(error, "table runs already exists") != 0) {
-    if (res) {
-        printf("sqlite3 command failed %d: %s\n", __LINE__, error);
-        //sqlite3_free(error);
-        //sqlite3_close(ctx.db);
-        //return false;
-    }
-    res = sqlite3_exec(ctx.db,
-            "DELETE FROM runs;DELETE FROM users;DELETE FROM languages;DELETE FROM problems;",
-            NULL,
-            NULL,
-            &error);
-    if (res) {
-        printf("sqlite3 command failed %d: %s\n", __LINE__, error);
-    }
+    db_exec(
+        "CREATE TABLE runs ("
+        "    id INT PRIMARY KEY,"
+        "    team_id INT,"
+        "    problem_id INT,"
+        "    language_id INT,"
+        "    testcase INT,"
+        "    status INT,"
+        "    timestamp TEXT"
+        ");"
+        ""
+        "CREATE TABLE teams ("
+        "    id INT PRIMARY KEY,"
+        "    username TEXT,"
+        "    password TEXT"
+        ");"
+        ""
+        "CREATE TABLE languages ("
+        "    id INT PRIMARY KEY,"
+        "    name TEXT"
+        ");"
+        ""
+        "CREATE TABLE problems ("
+        "    id INT PRIMARY KEY,"
+        "    name TEXT,"
+        "    time_limit REAL,"
+        "    mem_limit INT"
+        ");");
+    db_exec( "DELETE FROM runs;DELETE FROM users;DELETE FROM languages;DELETE FROM problems;");
     for (i = 0; i < ctx.num_languages; i++) {
         query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
-        query_length = snprintf(NULL, 0, query_fmt, ctx.languages[i].id, ctx.languages[i].name);
-        query = malloc((query_length+1) * sizeof(char));
-        snprintf(query, query_length+1, query_fmt, ctx.languages[i].id, ctx.languages[i].name);
-        puts(query);
-        res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-        if (res) printf("sqlite3 command failed %d: %s\n", __LINE__, error);
-        free(query);
+        db_exec(query_fmt, ctx.languages[i].id, ctx.languages[i].name);
     }
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
         query_fmt = "INSERT INTO problems (id, name, time_limit, mem_limit) VALUES (%d, '%s', %f, %d);";
-        query_length = snprintf(NULL, 0, query_fmt, problem->id, problem->name, problem->time_limit, problem->mem_limit);
-        query = malloc((query_length+1) * sizeof(char));
-        snprintf(query, query_length+1, query_fmt, problem->id, problem->name, problem->time_limit, problem->mem_limit);
-        puts(query);
-        res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-        if (res) printf("sqlite3 command failed %d: %s\n", __LINE__, error);
-        free(query);
+        db_exec(query_fmt, problem->id, problem->name, problem->time_limit, problem->mem_limit);
     }
     for (i = 0; i < ctx.num_teams; i++) {
-        query_fmt = "INSERT INTO users (id, username, password) VALUES (%d, '%s', '%s');";
-        query_length = snprintf(NULL, 0, query_fmt, ctx.teams[i].id, ctx.teams[i].username, ctx.teams[i].password);
-        query = malloc((query_length+1) * sizeof(char));
-        snprintf(query, query_length+1, query_fmt, ctx.teams[i].id, ctx.teams[i].username, ctx.teams[i].password);
-        puts(query);
-        res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-        if (res) printf("sqlite3 command failed %d: %s\n", __LINE__, error);
-        free(query);
+        query_fmt = "INSERT INTO teams (id, username, password) VALUES (%d, '%s', '%s');";
+        db_exec(query_fmt, ctx.teams[i].id, ctx.teams[i].username, ctx.teams[i].password);
     }
-    sqlite3_free(error);
     return true;
 }
 
 void db_cleanup(void)
 {
     sqlite3_close(ctx.db);
+}
+
+bool db_exec(char* query_fmt, ...)
+{
+    char* query;
+    char* error;
+    int query_length;
+    bool res;
+    va_list ap;
+    va_start(ap, query_fmt);
+    query_length = vsnprintf(NULL, 0, query_fmt, ap);
+    va_end(ap);
+    if (query_length < 0) return false;
+    query = malloc((query_length+1) * sizeof(char));
+    va_start(ap, query_fmt);
+    vsnprintf(query, query_length+1, query_fmt, ap);
+    va_end(ap);
+    puts(query);
+    res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
+    if (res) printf("sqlite3 command failed: %s\n", error);
+    sqlite3_free(error);
+    free(query);
+    return res;
 }
 
 int main(int argc, char** argv)
