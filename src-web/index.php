@@ -1,7 +1,6 @@
 <?php
     include "header.php";
 ?>
-    <h1>Hello World</h1>
     <form action="submit.php" method="post" enctype="multipart/form-data">
         <label for="language">Language</label>
         <select id="language" name="language">

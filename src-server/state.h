@@ -27,6 +27,7 @@ typedef struct {
     const char* name;
     const char* dir;
     const char* validate;
+    char letter;
     size_t mem_limit;
     double time_limit;
     int num_testcases;

@@ -530,6 +530,21 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         ctx.problems[i].object = object;
+        value = json_get_value(object, "letter");
+        if (value == NULL) {
+            puts("Missing problem letter");
+            exit(1);
+        }
+        if (json_get_type(value) != JTYPE_STRING) {
+            puts("Invalid problem letter - invalid type");
+            exit(1);
+        }
+        string = json_get_string(value);
+        if (strlen(string) != 1) {
+            puts("Invalid problem letter - too many letters");
+            exit(1);
+        }
+        ctx.problems[i].letter = string[0];
         value = json_get_value(object, "name");
         if (value == NULL) {
             puts("Missing problem name");
@@ -665,19 +680,20 @@ bool db_init(JsonObject* config)
         ""
         "CREATE TABLE problems ("
         "    id INT PRIMARY KEY,"
+        "    letter TEXT,"
         "    name TEXT,"
         "    time_limit REAL,"
         "    mem_limit INT"
         ");");
-    db_exec( "DELETE FROM runs;DELETE FROM users;DELETE FROM languages;DELETE FROM problems;");
+    db_exec( "DELETE FROM runs;DELETE FROM teams;DELETE FROM languages;DELETE FROM problems;");
     for (i = 0; i < ctx.num_languages; i++) {
         query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
         db_exec(query_fmt, ctx.languages[i].id, ctx.languages[i].name);
     }
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
-        query_fmt = "INSERT INTO problems (id, name, time_limit, mem_limit) VALUES (%d, '%s', %f, %d);";
-        db_exec(query_fmt, problem->id, problem->name, problem->time_limit, problem->mem_limit);
+        query_fmt = "INSERT INTO problems (id, letter, name, time_limit, mem_limit) VALUES (%d, '%c', '%s', %f, %d);";
+        db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->time_limit, problem->mem_limit);
     }
     for (i = 0; i < ctx.num_teams; i++) {
         query_fmt = "INSERT INTO teams (id, username, password) VALUES (%d, '%s', '%s');";

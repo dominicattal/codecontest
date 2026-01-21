@@ -39,7 +39,8 @@
     ],
     "problems": [
         {
-            "name": "A - Super Easy Problem",
+            "letter": "A",
+            "name": "Super Easy Problem",
             "dir": "problems/problem1",
             "validate": "problems/problem1/validate [TESTCASE] [OUTPUT_PATH]",
             "testcases": 3,
@@ -47,7 +48,8 @@
             "mem_limit": 256
         },
         {
-            "name": "B - Floats",
+            "letter": "B",
+            "name": "Floats",
             "dir": "problems/problem2",
             "validate": "problems/problem2/validate.exe [TESTCASE] [OUTPUT_PATH]",
             "testcases": 3,
@@ -55,7 +57,8 @@
             "mem_limit": 256
         },
         {
-            "name": "C - Square?",
+            "letter": "C",
+            "name": "Square?",
             "dir": "problems/problem3",
             "validate": "problems/problem3/validate.exe [TESTCASE] [OUTPUT_PATH]",
             "link": "https://codeforces.com/contest/2167/problem/A",
@@ -64,7 +67,8 @@
             "mem_limit": 256
         },
         {
-            "name": "D - Cyclic Array",
+            "letter": "D",
+            "name": "Cyclic Array",
             "dir": "problems/problem4",
             "validate": "problems/problem4/validate.exe [TESTCASE] [OUTPUT_PATH]",
             "testcases": 3,
