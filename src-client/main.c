@@ -295,9 +295,17 @@ found_file:
             puts("Incorrect team password");
             goto fail_destroy_packet;
         }
-        puts("validation successful");
         packet_destroy(packet);
     }
+
+    packet = packet_create(PACKET_ASYNC, 1, &async);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (!socket_send(server_socket, packet)) {
+        puts("Could not send code name");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
 
     packet = packet_create(PACKET_CODE_NAME_SEND, strlen(file_name)+1, file_name);
     if (packet == NULL)
@@ -306,7 +314,6 @@ found_file:
         puts("Could not send code name");
         goto fail_destroy_packet;
     }
-    puts("sent code name");
     packet_destroy(packet);
 
     packet = packet_create(PACKET_LANGUAGE_VALIDATE, strlen(language)+1, language);

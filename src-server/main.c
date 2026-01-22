@@ -130,6 +130,14 @@ static void* handle_cli_client(void* vargp)
     packet = socket_recv(client_socket);
     if (packet == NULL)
         goto fail;
+    if (packet->id != PACKET_ASYNC)
+        goto fail_packet;
+    async = packet->buffer[0];
+    packet_destroy(packet);
+
+    packet = socket_recv(client_socket);
+    if (packet == NULL)
+        goto fail;
     if (packet->id != PACKET_CODE_NAME_SEND)
         goto fail_packet;
     sprintf(buf, "%s", packet->buffer);
@@ -187,9 +195,9 @@ static void* handle_cli_client(void* vargp)
     socket_send(client_socket, packet);
     packet_destroy(run_packet);
     run_destroy(run);
+    packet_destroy(packet);
 
 success:
-    packet_destroy(packet);
     socket_destroy(client_socket);
     pthread_exit(NULL);
 
