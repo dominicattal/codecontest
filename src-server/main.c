@@ -679,6 +679,7 @@ bool db_init(JsonObject* config)
         puts("Opening database failed");
         return false;
     }
+    puts(db_file_path);
     db_exec(
         "CREATE TABLE runs ("
         "    id INT PRIMARY KEY,"

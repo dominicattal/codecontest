@@ -64,8 +64,6 @@ int main(int argc, char** argv)
     Socket* server_socket;
     Packet* packet;
     int max_file_size;
-    char* file_basename;
-    char*  file_name;
     char* config_path = NULL;
     char* ip_str = NULL;
     char* port_str = NULL;
@@ -74,6 +72,8 @@ int main(int argc, char** argv)
     char* problem = NULL;
     char* language = NULL;
     char* file = NULL;
+    char* file_basename = NULL;
+    char* file_name = NULL;
     const char* config_path_key = "config";
     const char* ip_str_key = "ip";
     const char* port_str_key = "port";
@@ -83,6 +83,7 @@ int main(int argc, char** argv)
     const char* language_key = "language";
     const char* file_key = "file";
     const char* async_key = "async";
+    const char* file_basename_key = "basename";
     char* code;
     int i, option_idx;
     char c;
@@ -97,13 +98,14 @@ int main(int argc, char** argv)
         {password_key,          required_argument,  NULL, 'p'},
         {problem_key,           required_argument,  NULL, 'b'},
         {language_key,          required_argument,  NULL, 'l'},
-        {file_key,    required_argument,  NULL, 'f'},
+        {file_key,              required_argument,  NULL, 'f'},
+        {file_basename_key,     required_argument,  NULL, 'n'},
         {async_key,             no_argument,        NULL, 'a'},
         {NULL, 0, NULL, 0}
     };
 
     option_idx = 0;
-    while ((c = getopt_long(argc, argv, "c:i:t:u:p:l:f:ab:", long_options, &option_idx)) != -1) {
+    while ((c = getopt_long(argc, argv, "c:i:t:u:p:l:f:b:n:a", long_options, &option_idx)) != -1) {
         switch (c) {
             case 'c':
                 config_path = optarg;
@@ -128,6 +130,9 @@ int main(int argc, char** argv)
                 break;
             case 'f':
                 file = optarg;
+                break;
+            case 'n':
+                file_basename = optarg;
                 break;
             case 'a':
                 async = true;
@@ -222,6 +227,23 @@ missing_file:
     }
 found_file:
 
+    if (file_basename == NULL) {
+        if (config == NULL) goto missing_basename;
+        file_basename = get_json_string(config, file_basename_key);
+        if (file_basename == NULL) goto missing_basename;
+        goto found_basename;
+missing_basename:
+        file_basename = basename(file);
+    }
+found_basename:
+
+    file_name = malloc((strlen(file_basename)+1) * sizeof(char));
+    for (i = 0; file_basename[i] != '\0' && file_basename[i] != '.'; i++)
+        file_name[i] = file_basename[i];
+    file_name[i] = '\0';
+
+    puts(file_name);
+
     if (config != NULL && json_get_value(config, async_key) != NULL)
         async = json_get_type(json_get_value(config, async_key)) == JTYPE_TRUE;
 
@@ -230,12 +252,6 @@ found_file:
         printf("Could not read code file: %s\n", file);
         goto fail_config;
     }
-
-    file_basename = basename(file);
-    file_name = malloc((strlen(file_basename)+1) * sizeof(char));
-    for (i = 0; file_basename[i] != '\0' && file_basename[i] != '.'; i++)
-        file_name[i] = file_basename[i];
-    file_name[i] = '\0';
 
     networking_init(1);
     
