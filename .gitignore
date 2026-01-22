@@ -6,4 +6,5 @@ problems/problem1/runs/*
 problems/problem1/bin/*
 src-web/uploads/*
 *validate*
-*.db
+*.db*
+todo.txt

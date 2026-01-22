@@ -24,7 +24,7 @@ OBJ_DEV_CLIENT = $(SRC_CLIENT:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 OBJ_DEV_GUI = $(SRC_GUI:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 
 all: dev
-	@rm -rf problems/problem1/bin problems/problem1/runs problems/runs.db
+	@rm -rf problems/problem1/bin problems/problem1/runs problems/runs.db problems/runs.db-shm problems/runs.db-wal
 
 dev: build dev-server dev-client
 client: dev-client
@@ -51,7 +51,7 @@ build:
 	@mkdir -p build
 
 clean:
-	rm -rf build bin problems/problem1/runs problems/problem1/bin problems/runs.db
+	rm -rf build bin problems/problem1/runs problems/problem1/bin problems/runs.db problems/runs.db-shm problems/runs.db-wal
 	
 .PHONY: clean
 

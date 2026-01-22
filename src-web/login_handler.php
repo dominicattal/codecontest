@@ -1,8 +1,8 @@
 <?php
     session_start();
-    var_dump($_POST);
     $db = new SQLite3("../problems/runs.db", SQLITE3_OPEN_READONLY);
     $db->enableExceptions(true);
+    $db->exec('PRAGMA journal_mode = wal;');
     $username = htmlspecialchars($_POST["username"]);
     $password = htmlspecialchars($_POST["password"]);
     $stmt = $db->prepare("SELECT * FROM teams WHERE username=:username");
@@ -21,6 +21,7 @@
     }
     unset($_SESSION["login_error"]);
     $_SESSION["username"] = $username;
+    $_SESSION["password"] = $password;
     $_SESSION["loggedin"] = true;
     header('Location: problems.php');
 cleanup:
