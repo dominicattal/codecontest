@@ -369,12 +369,12 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     max_mem = mem = 0;
     while (process_running(pid)) {
         mem = process_memory(pid);
+        max_mem = (mem > max_mem) ? mem : max_mem;
         if (mem > problem->mem_limit) {
             set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
             sprintf(response, "Memory limit exceeded on testcase %d", testcase);
             goto fail;
         }
-        max_mem = (mem > max_mem) ? mem : max_mem;
         gettimeofday(&cur, NULL);
         if (timeval_diff(cur, start) > problem->time_limit) {
             set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
@@ -390,7 +390,6 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
         goto fail;
     }
     process_destroy(pid);
-    set_run_stats(run, timeval_diff(cur, start), problem->time_limit, max_mem, problem->mem_limit);
 
     puts("Validating");
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
@@ -404,6 +403,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
         goto fail;
     }
     process_destroy(pid);
+    set_run_stats(run, timeval_diff(cur, start), problem->time_limit, max_mem, problem->mem_limit);
     return VALIDATE_SUCCESS;
 
 fail:
