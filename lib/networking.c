@@ -15,14 +15,17 @@ Packet* packet_create(PacketEnum id, int length, const char* buffer)
         return NULL;
     packet = malloc(sizeof(Packet));
     packet->id = id;
-    packet->length = length+2;
+    packet->length = length+6;
     packet->buffer = malloc(packet->length * sizeof(char));
-    packet->buffer[0] = (id>>8) & 0xFF;
-    packet->buffer[1] = id & 0xFF;
-    memcpy(packet->buffer+2, buffer, length);
+    packet->buffer[0] = (length>>24) & 0xFF;
+    packet->buffer[1] = (length>>16) & 0xFF;
+    packet->buffer[2] = (length>>8) & 0xFF;
+    packet->buffer[3] = length & 0xFF;
+    packet->buffer[4] = (id>>8) & 0xFF;
+    packet->buffer[5] = id & 0xFF;
+    memcpy(packet->buffer+6, buffer, length);
     return packet;
 }
-
 
 void packet_destroy(Packet* packet)
 {
@@ -163,9 +166,7 @@ void socket_destroy(Socket* sock)
 
 bool socket_send(Socket* sock, Packet* packet)
 {
-    if (send(*sock->sock, packet->buffer, packet->length, 0) == SOCKET_ERROR)
-        return false;
-    return true;
+    return send(*sock->sock, packet->buffer, packet->length, 0) != SOCKET_ERROR;
 }
 
 bool socket_send_web(Socket* socket, Packet* packet)
@@ -173,23 +174,23 @@ bool socket_send_web(Socket* socket, Packet* packet)
     return false;
 }
 
-Packet* socket_recv(Socket* sock, int max_length)
+Packet* socket_recv(Socket* sock)
 {
     Packet* packet;
-    int length;
+    int length, buf_len;
     char* buffer;
-    buffer = malloc(max_length * sizeof(char));
-    length = recv(*sock->sock, buffer, max_length, 0);
+    buffer = malloc(6 * sizeof(char));
+    length = recv(*sock->sock, buffer, 6, 0);
     if (length == SOCKET_ERROR || length == 0) {
         sock->connected = false;
         free(buffer);
         return NULL;
     }
     packet = malloc(sizeof(Packet));
-    packet->id = (buffer[0]<<8) + buffer[1];
-    packet->length = length-2;
+    packet->id = (buffer[4]<<8) + buffer[5];
+    packet->length = (buffer[0]<<24)+(buffer[1]<<16)+(buffer[2]<<8)+buffer[3];
     packet->buffer = malloc(packet->length * sizeof(char));
-    memcpy(packet->buffer, buffer+2, packet->length * sizeof(char));
+    length = recv(*sock->sock, packet->buffer, packet->length, 0);
     free(buffer);
     return packet;
 }
@@ -433,23 +434,23 @@ bool socket_send_web(Socket* sock, Packet* packet)
     return res != 0;
 }
 
-Packet* socket_recv(Socket* sock, int max_length)
+Packet* socket_recv(Socket* sock)
 {
     Packet* packet;
     int length;
     char* buffer;
-    buffer = malloc(max_length * sizeof(char));
-    length = read(sock->fd, buffer, max_length);
+    buffer = malloc(6 * sizeof(char));
+    length = read(sock->fd, buffer, 6);
     if (length <= 0) {
         sock->connected = false;
         free(buffer);
         return NULL;
     }
     packet = malloc(sizeof(Packet));
-    packet->id = (buffer[0]<<8) + buffer[1];
-    packet->length = length-2;
+    packet->id = (buffer[4]<<8) + buffer[5];
+    packet->length = (buffer[0]<<24)+(buffer[1]<<16)+(buffer[2]<<8)+buffer[3];
     packet->buffer = malloc(packet->length * sizeof(char));
-    memcpy(packet->buffer, buffer+2, packet->length * sizeof(char));
+    length = read(sock->fd, packet->buffer, packet->length);
     free(buffer);
     return packet;
 }

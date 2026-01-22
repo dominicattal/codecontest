@@ -254,7 +254,7 @@ found_file:
     }
     packet_destroy(packet);
 
-    packet = socket_recv(server_socket, BUFFER_LENGTH_SMALL);
+    packet = socket_recv(server_socket);
     contest_running = packet->id == PACKET_CONTEST;
     if (packet->id == PACKET_CONTEST)
         puts("contest is running");
@@ -276,7 +276,7 @@ found_file:
             goto fail_destroy_packet;
         }
         packet_destroy(packet);
-        packet = socket_recv(server_socket, BUFFER_LENGTH_SMALL);
+        packet = socket_recv(server_socket);
         if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
             puts("Unrecognized team name");
             goto fail_destroy_packet;
@@ -290,7 +290,7 @@ found_file:
             goto fail_destroy_packet;
         }
         packet_destroy(packet);
-        packet = socket_recv(server_socket, BUFFER_LENGTH_SMALL);
+        packet = socket_recv(server_socket);
         if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
             puts("Incorrect team password");
             goto fail_destroy_packet;
@@ -306,6 +306,7 @@ found_file:
         puts("Could not send code name");
         goto fail_destroy_packet;
     }
+    puts("sent code name");
     packet_destroy(packet);
 
     packet = packet_create(PACKET_LANGUAGE_VALIDATE, strlen(language)+1, language);
@@ -317,7 +318,7 @@ found_file:
     }
     packet_destroy(packet);
 
-    packet = socket_recv(server_socket, BUFFER_LENGTH_BIG);
+    packet = socket_recv(server_socket);
     if (packet == NULL)
         goto fail_destroy_socket;
     if (packet->id != PACKET_LANGUAGE_VALIDATION_SUCCESS) {
@@ -337,7 +338,7 @@ found_file:
     if (async) goto success;
 
     do {
-        packet = socket_recv(server_socket, BUFFER_LENGTH_BIG);
+        packet = socket_recv(server_socket);
         if (packet == NULL)
             goto fail_destroy_socket;
         switch (packet->id) {

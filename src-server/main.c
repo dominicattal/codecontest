@@ -71,7 +71,7 @@ static void* handle_cli_client(void* vargp)
 
     client_socket = vargp;
 
-    packet = socket_recv(client_socket, BUFFER_LENGTH);
+    packet = socket_recv(client_socket);
     if (packet == NULL) {
         puts("Could not get client header");
         goto fail;
@@ -90,7 +90,7 @@ static void* handle_cli_client(void* vargp)
 
     team = NULL;
     if (contest_is_running()) {
-        packet = socket_recv(client_socket, 1000);
+        packet = socket_recv(client_socket);
         if (packet == NULL)
             goto fail;
         if (packet->id != PACKET_TEAM_VALIDATE_USERNAME)
@@ -108,7 +108,7 @@ static void* handle_cli_client(void* vargp)
             goto fail;
         socket_send(client_socket, packet);
         packet_destroy(packet);
-        packet = socket_recv(client_socket, 1000);
+        packet = socket_recv(client_socket);
         if (packet == NULL)
             goto fail;
         if (packet->id != PACKET_TEAM_VALIDATE_PASSWORD)
@@ -127,7 +127,7 @@ static void* handle_cli_client(void* vargp)
         packet_destroy(packet);
     }
 
-    packet = socket_recv(client_socket, BUFFER_LENGTH);
+    packet = socket_recv(client_socket);
     if (packet == NULL)
         goto fail;
     if (packet->id != PACKET_CODE_NAME_SEND)
@@ -135,7 +135,7 @@ static void* handle_cli_client(void* vargp)
     sprintf(buf, "%s", packet->buffer);
     packet_destroy(packet);
 
-    packet = socket_recv(client_socket, BUFFER_LENGTH);
+    packet = socket_recv(client_socket);
     if (packet == NULL)
         goto fail;
     if (packet->id != PACKET_LANGUAGE_VALIDATE)
@@ -155,14 +155,9 @@ static void* handle_cli_client(void* vargp)
     socket_send(client_socket, packet);
     packet_destroy(packet);
 
-    run_packet = socket_recv(client_socket, MAX_FILE_SIZE);
+    run_packet = socket_recv(client_socket);
     if (packet == NULL)
         goto fail;
-
-    if (async) {
-        socket_destroy(client_socket);
-        client_socket = NULL;
-    }
 
     run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1, async);
     run_enqueue(run);

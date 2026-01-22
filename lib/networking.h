@@ -85,7 +85,7 @@ bool    socket_send_web(Socket* socket, Packet* packet);
 bool    socket_send_web_handshake(Socket* socket);
 
 // Receive a packet from a socket
-Packet* socket_recv(Socket* socket, int max_length);
+Packet* socket_recv(Socket* socket);
 
 // Receive web socket packet
 Packet* socket_recv_web(Socket* socket);
