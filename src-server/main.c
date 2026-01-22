@@ -65,6 +65,7 @@ static void* handle_cli_client(void* vargp)
     const Team* team;
     const Language* language;
     char buf[BUFFER_LENGTH];
+    bool async = false;
 
     sprintf(buf, "%d", MAX_FILE_SIZE);
 
@@ -158,8 +159,15 @@ static void* handle_cli_client(void* vargp)
     if (packet == NULL)
         goto fail;
 
-    run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1);
+    if (async) {
+        socket_destroy(client_socket);
+        client_socket = NULL;
+    }
+
+    run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1, async);
     run_enqueue(run);
+    if (async)
+        goto success;
     run_wait(run);
     switch (run->status) {
         case RUN_SUCCESS:
@@ -183,8 +191,9 @@ static void* handle_cli_client(void* vargp)
     }
     socket_send(client_socket, packet);
     packet_destroy(run_packet);
-
     run_destroy(run);
+
+success:
     packet_destroy(packet);
     socket_destroy(client_socket);
     pthread_exit(NULL);

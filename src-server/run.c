@@ -171,7 +171,7 @@ static void delete_token_buffers(TokenBuffers* tb)
     free(tb);
 }
 
-Run* run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length)
+Run* run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length, bool async)
 {
     Run* run = malloc(sizeof(Run));
     run->filename = filename;
@@ -185,6 +185,7 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->problem_id = 0;
     run->status = RUN_IDLE;
     run->next = NULL;
+    run->async = async;
     pthread_mutex_lock(&num_runs_mutex);
     run->id = ctx.num_runs++;
     db_exec("INSERT INTO runs (id, team_id, problem_id, language_id, testcase, status) VALUES (%d, %d, %d, %d, 0, 0)",
@@ -515,12 +516,10 @@ static void handle_run(TokenBuffers* tb, Run* run)
     }
     set_run_status(run, RUN_SUCCESS);
     set_run_response(run, "");
-    sem_post(&run->run_to_server_signal);
-    return;
+    goto deconstruct_run;
 
 fail:
-    sem_post(&run->run_to_server_signal);
-    return;
+    goto deconstruct_run;
 
 server_error:
     puts("");
@@ -529,7 +528,14 @@ server_error:
     run->status = RUN_SERVER_ERROR;
     set_run_response(run, response);
     sem_post(&run->run_to_server_signal);
-    return;
+    goto deconstruct_run;
+
+deconstruct_run:
+    if (!run->async) {
+        sem_post(&run->run_to_server_signal);
+    } else {
+        run_destroy(run);
+    }
 }
 
 void* run_daemon(void* vargp)

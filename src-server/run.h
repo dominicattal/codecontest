@@ -2,6 +2,7 @@
 #define PROBLEM_H
 
 #include <semaphore.h>
+#include <stdbool.h>
 
 typedef enum {
     RUN_IDLE,
@@ -34,10 +35,11 @@ typedef struct Run {
     int code_length;
     int response_length;
     int id;
+    bool async;
 } Run;
 
 // create new run
-Run*    run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length);
+Run*    run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length, bool async);
 
 // add run to the queue
 void    run_enqueue(Run* run);

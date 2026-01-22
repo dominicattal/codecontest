@@ -64,6 +64,14 @@ tfoot td {
     width: 40%;
 }
 
+#problems-list {
+    background: green;
+}
+
+#problems-submit {
+    background: blue;
+}
+
 #header {
     display: flex;
     justify-content: center;
@@ -76,4 +84,14 @@ tfoot td {
 
 .td-click {
     cursor: pointer;
+}
+
+#problems-submit {
+    justify-content: center;
+    background-color: #ff0080;
+}
+
+form {
+    background-color: #fff080;
+    display: inline-grid;
 }

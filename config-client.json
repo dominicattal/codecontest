@@ -2,5 +2,9 @@
     "ip": "127.0.0.1",
     "port": "27105",
     "username": "team1",
-    "password": "shape-untrue"
+    "password": "shape-untrue",
+    "language": "python3",
+    "problem": "A",
+    "file": "problems/problem1/test-py/wrong4.py",
+    "async": false
 }

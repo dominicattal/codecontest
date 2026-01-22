@@ -5,11 +5,12 @@
 #include <libgen.h>
 #include <networking.h>
 #include <json.h>
+#include <getopt.h>
 
 #define BUFFER_LENGTH_SMALL 100
 #define BUFFER_LENGTH_BIG   10000
 
-const char* get_json_string(JsonObject* config, const char* key)
+char* get_json_string(JsonObject* config, const char* key)
 {
     JsonValue* value;
     value = json_get_value(config, key);
@@ -59,57 +60,178 @@ fail:
 
 int main(int argc, char** argv)
 {
-    JsonObject* config;
+    JsonObject* config = NULL;
     Socket* server_socket;
     Packet* packet;
     int max_file_size;
     char* file_basename;
     char*  file_name;
-    const char* ip_str;
-    const char* port_str;
-    const char* username;
-    const char* password;
-    const char* language;
+    char* config_path = NULL;
+    char* ip_str = NULL;
+    char* port_str = NULL;
+    char* username = NULL;
+    char* password = NULL;
+    char* problem = NULL;
+    char* language = NULL;
+    char* file = NULL;
+    const char* config_path_key = "config";
+    const char* ip_str_key = "ip";
+    const char* port_str_key = "port";
+    const char* username_key = "username";
+    const char* password_key = "password";
+    const char* problem_key = "problem";
+    const char* language_key = "language";
+    const char* file_key = "file";
+    const char* async_key = "async";
     char* code;
-    int i;
+    int i, option_idx;
+    char c;
     bool contest_running;
+    char async = false;
 
-    if (argc != 4) {
-        puts("usage: ./client [config] [language] [code_file_path]");
-        return 1;
+    struct option long_options[] = {
+        {config_path_key,       required_argument,  NULL, 'c'},
+        {ip_str_key,            required_argument,  NULL, 'i'},
+        {port_str_key,          required_argument,  NULL, 't'},
+        {username_key,          required_argument,  NULL, 'u'},
+        {password_key,          required_argument,  NULL, 'p'},
+        {problem_key,           required_argument,  NULL, 'b'},
+        {language_key,          required_argument,  NULL, 'l'},
+        {file_key,    required_argument,  NULL, 'f'},
+        {async_key,             no_argument,        NULL, 'a'},
+        {NULL, 0, NULL, 0}
+    };
+
+    option_idx = 0;
+    while ((c = getopt_long(argc, argv, "c:i:t:u:p:l:f:ab:", long_options, &option_idx)) != -1) {
+        switch (c) {
+            case 'c':
+                config_path = optarg;
+                break;
+            case 'i':
+                ip_str = optarg;
+                break;
+            case 't':
+                port_str = optarg;
+                break;
+            case 'u':
+                username = optarg;
+                break;
+            case 'p':
+                password = optarg;
+                break;
+            case 'b':
+                problem = optarg;
+                break;
+            case 'l':
+                language = optarg;
+                break;
+            case 'f':
+                file = optarg;
+                break;
+            case 'a':
+                async = true;
+                break;
+            default:
+                break;
+        }
     }
 
-    config = json_read(argv[1]);
-    if (config == NULL) {
-        printf("Could not read config file: %s\n", argv[1]);
-        return 1;
+    if (config_path != NULL) {
+        config = json_read(config_path);
+        if (config == NULL) {
+            printf("Could not read config path: %s\n", config_path);
+            goto fail_config;
+        }
     }
     
-    ip_str = get_json_string(config, "ip");
-    if (ip_str == NULL)
+    if (ip_str == NULL) {
+        if (config == NULL) goto missing_ip_str;
+        ip_str = get_json_string(config, ip_str_key);
+        if (ip_str == NULL) goto missing_ip_str;
+        goto found_ip_str;
+missing_ip_str:
+        printf("Missing ip string\n");
         goto fail_config;
+    }
+found_ip_str:
 
-    port_str = get_json_string(config, "port");
-    if (ip_str == NULL)
+    if (port_str == NULL) {
+        if (config == NULL) goto missing_port_str;
+        port_str = get_json_string(config, port_str_key);
+        if (port_str == NULL) goto missing_port_str;
+        goto found_port_str;
+missing_port_str:
+        printf("Missing port string\n");
         goto fail_config;
+    }
+found_port_str:
 
-    username = get_json_string(config, "username");
-    if (ip_str == NULL)
+    if (username == NULL) {
+        if (config == NULL) goto missing_username;
+        username = get_json_string(config, username_key);
+        if (username == NULL) goto missing_username;
+        goto found_username;
+missing_username:
+        printf("Missing username string\n");
         goto fail_config;
+    }
+found_username:
 
-    password = get_json_string(config, "password");
-    if (ip_str == NULL)
+    if (password == NULL) {
+        if (config == NULL) goto missing_password;
+        password = get_json_string(config, password_key);
+        if (password == NULL) goto missing_password;
+        goto found_password;
+missing_password:
+        printf("Missing password string\n");
         goto fail_config;
+    }
+found_password:
 
-    language = argv[2];
+    if (language == NULL) {
+        if (config == NULL) goto missing_language;
+        language = get_json_string(config, language_key);
+        if (language == NULL) goto missing_language;
+        goto found_language;
+missing_language:
+        printf("Missing language string\n");
+        goto fail_config;
+    }
+found_language:
 
-    code = read_code_file(argv[3]);
+    if (problem == NULL) {
+        if (config == NULL) goto missing_problem;
+        problem = get_json_string(config, problem_key);
+        if (problem == NULL) goto missing_problem;
+        goto found_problem;
+missing_problem:
+        printf("Missing problem string\n");
+        goto fail_config;
+    }
+found_problem:
+
+    if (file == NULL) {
+        if (config == NULL) goto missing_file;
+        file = get_json_string(config, file_key);
+        if (file == NULL) goto missing_file;
+        goto found_file;
+missing_file:
+        printf("Missing file string\n");
+        goto fail_config;
+    }
+found_file:
+
+    if (config != NULL && json_get_value(config, async_key) != NULL)
+        async = json_get_type(json_get_value(config, async_key)) == JTYPE_TRUE;
+
+    code = read_code_file(file);
     if (code == NULL) {
-        printf("Could not read code file: %s\n", argv[3]);
+        printf("Could not read code file: %s\n", file);
         goto fail_config;
     }
 
-    file_basename = basename(argv[3]);
+    file_basename = basename(file);
     file_name = malloc((strlen(file_basename)+1) * sizeof(char));
     for (i = 0; file_basename[i] != '\0' && file_basename[i] != '.'; i++)
         file_name[i] = file_basename[i];
@@ -212,6 +334,8 @@ int main(int argc, char** argv)
     puts("sent code");
     packet_destroy(packet);
 
+    if (async) goto success;
+
     do {
         packet = socket_recv(server_socket, BUFFER_LENGTH_BIG);
         if (packet == NULL)
@@ -232,13 +356,15 @@ int main(int argc, char** argv)
         }
         packet_destroy(packet);
     } while (1);
-
     packet_destroy(packet);
+
+success:
     socket_destroy(server_socket);
     networking_cleanup();
     free(code);
     free(file_name);
-    json_object_destroy(config);
+    if (config != NULL)
+        json_object_destroy(config);
     return 0;
 
 fail_destroy_packet:
@@ -249,6 +375,7 @@ fail_destroy_socket:
     free(code);
     free(file_name);
 fail_config:
-    json_object_destroy(config);
+    if (config != NULL)
+        json_object_destroy(config);
     return 1;
 }
