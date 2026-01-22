@@ -1,12 +1,15 @@
 <?php
     include "header.php";
     include "create_arrays.php";
+    require "run_enum.php";
 
-    $db = new SQLite3("../problems/runs.db", SQLITE3_OPEN_READONLY);
+    $db = new SQLite3("../problems/runs.db");
     $db->enableExceptions(true);
+    $db->busyTimeout(5000);
+    $db->exec('PRAGMA journal_mode = wal;');
     $stmt = $db->prepare("SELECT * FROM runs ORDER BY id DESC");
     $res = $stmt->execute();
-    $row = $res->fetchArray(SQLITE3_ASSOC);
+    $run = $res->fetchArray(SQLITE3_ASSOC);
     echo "<table id='runs-table'>";
     echo "<thead><tr>";
     echo "<th scope='col'>ID</th>";
@@ -19,20 +22,21 @@
     echo "<th scope='col'>Memory</th>";
     echo "</tr></thead>";
     echo "<tbody>";
-    while ($row) {
+    while ($run) {
         echo "<tr>";
-        echo "<td>$row[id]</td>";
+        echo "<td>$run[id]</td>";
         echo "<td>TDB</td>";
-        echo "<td>{$teams[$row['team_id']]}</td>";
-        $problem_letter = $problems[$row['problem_id']]["letter"];
-        $problem_name = $problems[$row['problem_id']]["name"];
+        echo "<td>{$teams[$run['team_id']]}</td>";
+        $problem_letter = $problems[$run['problem_id']]["letter"];
+        $problem_name = $problems[$run['problem_id']]["name"];
         echo "<td>$problem_letter - $problem_name</td>";
-        echo "<td>{$langs[$row['language_id']]}</td>";
-        echo "<td>TBD</td>";
-        echo "<td>TBD</td>";
-        echo "<td>TBD</td>";
+        echo "<td>{$langs[$run['language_id']]}</td>";
+        $status_str = run_status_str($run);
+        echo "<td>$status_str</td>";
+        echo "<td>$run[time]</td>";
+        echo "<td>$run[memory]</td>";
         echo "</tr>";
-        $row = $res->fetchArray(SQLITE3_ASSOC);
+        $run = $res->fetchArray(SQLITE3_ASSOC);
     }
     echo "</tbody>";
     echo "</table>";

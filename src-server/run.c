@@ -188,7 +188,8 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->async = async;
     pthread_mutex_lock(&num_runs_mutex);
     run->id = ctx.num_runs++;
-    db_exec("INSERT INTO runs (id, team_id, problem_id, language_id, testcase, status) VALUES (%d, %d, %d, %d, 0, 0)",
+    db_exec("INSERT INTO runs (id, team_id, problem_id, language_id, testcase, status, timestamp, time, memory)"
+            "VALUES (%d, %d, %d, %d, 0, 0, 0, 0, 0)",
             run->id, team_id, problem_id, language_id);
     pthread_mutex_unlock(&num_runs_mutex);
     sem_init(&run->run_to_server_signal, 0, 1);
@@ -304,15 +305,25 @@ static void set_run_response(Run* run, const char* response)
 
 static bool set_run_status(Run* run, RunEnum status)
 {
-    // update database here?
     run->status = status;
-    return run->status != RUN_DEAD;
+    return db_exec("UPDATE runs SET status=%d WHERE id=%d", run->status, run->id);
 }
 
+static bool set_run_testcase(Run* run, int testcase)
+{
+    return db_exec("UPDATE runs SET testcase=%d WHERE id=%d", testcase, run->id);
+}
+
+static bool set_run_stats(Run* run, double time, double time_limit, int memory, int memory_limit)
+{
+    return db_exec("UPDATE runs SET time=%f, memory=%d WHERE id=%d", 
+                    (time < time_limit) ? time : time_limit, 
+                    (memory < memory_limit) ? memory : memory_limit, 
+                    run->id);
+}
 
 static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
-    char* response;
     bool success;
     Process* pid;
 
@@ -326,9 +337,8 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     if (success)
         return true;
 
-    run->status = RUN_COMPILATION_ERROR;
-    response = "Compilation failed";
-    set_run_response(run, response);
+    set_run_status(run, RUN_COMPILATION_ERROR);
+    set_run_response(run, "Compilation failed");
 
     return false;
 }
@@ -346,7 +356,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
 {
     Process* pid;
     char response[512];
-    size_t mem;
+    size_t mem, max_mem;
     struct timeval start, cur;
 
     puts("Executing");
@@ -356,6 +366,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
             get_token_value(tb, OUTPUT_PATH));
     gettimeofday(&start, NULL);
     cur = start;
+    max_mem = mem = 0;
     while (process_running(pid)) {
         mem = process_memory(pid);
         if (mem > problem->mem_limit) {
@@ -363,6 +374,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
             sprintf(response, "Memory limit exceeded on testcase %d", testcase);
             goto fail;
         }
+        max_mem = (mem > max_mem) ? mem : max_mem;
         gettimeofday(&cur, NULL);
         if (timeval_diff(cur, start) > problem->time_limit) {
             set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
@@ -378,6 +390,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
         goto fail;
     }
     process_destroy(pid);
+    set_run_stats(run, timeval_diff(cur, start), problem->time_limit, max_mem, problem->mem_limit);
 
     puts("Validating");
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
@@ -394,6 +407,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     return VALIDATE_SUCCESS;
 
 fail:
+    set_run_stats(run, timeval_diff(cur, start), problem->time_limit, mem, problem->mem_limit);
     set_run_response(run, response);
     process_destroy(pid);
     return VALIDATE_FAILED;
@@ -416,9 +430,10 @@ static void handle_run(TokenBuffers* tb, Run* run)
 {
     Problem* problem;
     Language* language;
-    char* response;
     int testcase;
     int validate_res;
+
+    db_exec("UPDATE runs SET status=1 WHERE id=%d", run->id);
 
     problem = &ctx.problems[run->problem_id];
     language = &ctx.languages[run->language_id];
@@ -508,6 +523,8 @@ static void handle_run(TokenBuffers* tb, Run* run)
         set_token_value(tb, OUTPUT_PATH, "%s/%s.output",
                 get_token_value(tb, OUTPUT_DIR),
                 get_token_value(tb, TESTCASE));
+        set_run_testcase(run, testcase);
+        db_exec("UPDATE runs SET status=3, testcase=%d WHERE id=%d", testcase, run->id);
         validate_res = validate(tb, language, problem, run, testcase);
         if (validate_res == VALIDATE_FAILED)
             goto fail;
@@ -524,18 +541,16 @@ fail:
 server_error:
     puts("");
     print_all_tokens(tb);
-    response = "server error";
-    run->status = RUN_SERVER_ERROR;
-    set_run_response(run, response);
+    set_run_status(run, RUN_SERVER_ERROR);
+    set_run_response(run, "server error");
     sem_post(&run->run_to_server_signal);
     goto deconstruct_run;
 
 deconstruct_run:
-    if (!run->async) {
+    if (!run->async)
         sem_post(&run->run_to_server_signal);
-    } else {
+    else
         run_destroy(run);
-    }
 }
 
 void* run_daemon(void* vargp)

@@ -178,7 +178,7 @@ Packet* socket_recv(Socket* sock)
 {
     Packet* packet;
     int length, buf_len;
-    char* buffer;
+    unsigned char* buffer;
     buffer = malloc(6 * sizeof(char));
     length = recv(*sock->sock, buffer, 6, 0);
     if (length == SOCKET_ERROR || length == 0) {
@@ -376,7 +376,7 @@ bool socket_send_web(Socket* sock, Packet* packet)
     bool res;
     int opcode, payload_len, buffer_len, idx;
     unsigned long long ext_payload_len = 0;
-    char* buffer;
+    unsigned char* buffer;
     switch (packet->id) {
         case WEB_PACKET_PING:
             opcode = 0x9;
@@ -437,8 +437,8 @@ bool socket_send_web(Socket* sock, Packet* packet)
 Packet* socket_recv(Socket* sock)
 {
     Packet* packet;
-    int length;
-    char* buffer;
+    size_t length;
+    unsigned char* buffer;
     buffer = malloc(6 * sizeof(char));
     length = read(sock->fd, buffer, 6);
     if (length <= 0) {
@@ -451,6 +451,13 @@ Packet* socket_recv(Socket* sock)
     packet->length = (buffer[0]<<24)+(buffer[1]<<16)+(buffer[2]<<8)+buffer[3];
     packet->buffer = malloc(packet->length * sizeof(char));
     length = read(sock->fd, packet->buffer, packet->length);
+    if (length != packet->length) {
+        printf("Unexpected packet length %lu vs %lu\n", length, packet->length);
+        free(packet->buffer);
+        free(packet);
+        free(buffer);
+        return NULL;
+    }
     free(buffer);
     return packet;
 }
@@ -459,7 +466,7 @@ Packet* socket_recv_web(Socket* sock)
 {
     Packet* packet;
     int len;
-    char* buffer;
+    unsigned char* buffer;
     char* res = NULL;
     char data;
     // fields in web socket packet

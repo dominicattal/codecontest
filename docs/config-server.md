@@ -84,9 +84,11 @@ CREATE TABLE runs (
     team_id INT,
     problem_id INT,
     language_id INT,
-    testcase_id INT,
+    testcase INT,
     status INT,
-    timestamp TEXT
+    timestamp TEXT,
+    time REAL,
+    memory INT
 );
 
 CREATE TABLE teams (
@@ -108,14 +110,6 @@ CREATE TABLE problems (
     time_limit REAL,
     mem_limit INT
 );
-
-CREATE TABLE testcases (
-    id INT,
-    problem_id INT,
-    path TEXT,
-    PRIMARY KEY (id, problem_id)
-);
-```
 
 PROBLEM HTML
 The specified path is relative to the current directory. must contain 5 divs to work properly:

@@ -1,6 +1,7 @@
 <?php
-    $db = new SQLite3("../problems/runs.db", SQLITE3_OPEN_READONLY);
+    $db = new SQLite3("../problems/runs.db");
     $db->enableExceptions(true);
+    $db->exec('PRAGMA journal_mode = wal;');
 
     $stmt = $db->prepare("SELECT * FROM teams");
     $res = $stmt->execute();

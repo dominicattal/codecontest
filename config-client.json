@@ -3,8 +3,8 @@
     "port": "27105",
     "username": "team1",
     "password": "shape-untrue",
-    "language": "python3",
+    "language": "cpp",
     "problem": "A",
-    "file": "problems/problem1/test-py/wrong4.py",
+    "file": "problems/problem1/test-cpp/accepted.cpp",
     "async": false
 }

@@ -167,7 +167,7 @@ typedef struct Process {
     int status;
 } Process;
 
-static void* handler_daemon(void* vargp)
+static void* process_handler_daemon(void* vargp)
 {
     Process* process;
     int status;
@@ -175,14 +175,6 @@ static void* handler_daemon(void* vargp)
     waitpid(process->pid, &status, 0);
     process->status = WEXITSTATUS(status);
     return NULL;
-}
-
-void process_init(void)
-{
-    Process* process;
-    process = process_create("python3 problems/problem1/bin/team1-0.pyc", "problems/problem1/cases/0.in", "problems/problem1/runs/team1-0/0.output");
-    process_wait(process);
-    process_destroy(process);
 }
 
 Process* process_create(const char* command, const char* infile_path, const char* outfile_path)
@@ -220,7 +212,7 @@ Process* process_create(const char* command, const char* infile_path, const char
         execvp("/bin/bash", process->argv);
     }
     process->pid = pid;
-    pthread_create(&process->thread_id, NULL, handler_daemon, process);
+    pthread_create(&process->thread_id, NULL, process_handler_daemon, process);
 
     return process;
 
@@ -280,6 +272,7 @@ bool process_error(Process* process)
 
 void process_destroy(Process* process)
 {
+    kill(process->pid, SIGTERM);
     pthread_kill(process->thread_id, 69);
     free(process->argv);
     free(process);

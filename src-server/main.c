@@ -164,8 +164,13 @@ static void* handle_cli_client(void* vargp)
     packet_destroy(packet);
 
     run_packet = socket_recv(client_socket);
-    if (packet == NULL)
+    if (run_packet == NULL)
         goto fail;
+    if (run_packet->id != PACKET_CODE_SEND) {
+        packet_destroy(run_packet);
+        goto fail;
+    }
+    printf("%d %lu %p\n", run_packet->id, run_packet->length, run_packet->buffer);
 
     run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1, async);
     run_enqueue(run);
@@ -688,7 +693,9 @@ bool db_init(JsonObject* config)
         "    language_id INT,"
         "    testcase INT,"
         "    status INT,"
-        "    timestamp TEXT"
+        "    timestamp TEXT,"
+        "    time REAL,"
+        "    memory INT"
         ");"
         ""
         "CREATE TABLE teams ("
