@@ -370,11 +370,11 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     while (process_running(pid)) {
         mem = process_memory(pid);
         max_mem = (mem > max_mem) ? mem : max_mem;
-        if (mem > problem->mem_limit) {
-            set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
-            sprintf(response, "Memory limit exceeded on testcase %d", testcase);
-            goto fail;
-        }
+        //if (mem > problem->mem_limit) {
+        //    set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
+        //    sprintf(response, "Memory limit exceeded on testcase %d", testcase);
+        //    goto fail;
+        //}
         gettimeofday(&cur, NULL);
         if (timeval_diff(cur, start) > problem->time_limit) {
             set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);

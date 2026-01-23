@@ -1,10 +1,9 @@
 #include "networking.h"
-#define SHA_IMPLEMENTATION
-#include "sha.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <pthread.h>
 
 // compatible on linux and windows
 
@@ -41,6 +40,9 @@ void packet_destroy(Packet* packet)
 
 typedef struct {
     WSADATA wsa_data;
+    Socket* sockets;
+    pthread_mutex_t mutex;
+    int num_sockets;
 } NetworkingContext;
 
 typedef struct Socket {
@@ -53,13 +55,22 @@ static NetworkingContext ctx;
 
 bool networking_init(int max_num_conn)
 {
-    if (WSAStartup(MAKEWORD(2,2), &ctx.wsa_data))
-        return false;
-    return true;
+    pthread_mutex_init(&ctx.mutex, NULL);
+    ctx.sockets = calloc(max_num_conn, sizeof(Socket));
+    ctx.num_sockets = max_num_conn;
+    return !WSAStartup(MAKEWORD(2,2), &ctx.wsa_data);
+}
+
+void networking_shutdown_sockets(void)
+{
+    for (int i = 0; i < ctx.num_sockets; i++)
+        socket_destroy(&ctx.sockets[i]);
 }
 
 void networking_cleanup(void)
 {
+    pthread_mutex_destroy(&ctx.mutex);
+    free(ctx.sockets);
     WSACleanup();
 }
 
@@ -70,12 +81,33 @@ char* networking_hostname(void)
     return inet_ntoa(*(struct in_addr *)*local_host->h_addr_list);
 }
 
+static Socket* get_free_socket(void)
+{
+    Socket* sock = NULL;
+    int i;
+    pthread_mutex_lock(&ctx.mutex);
+    for (i = 0; i < ctx.num_sockets; i++)
+        if (!ctx.sockets[i].connected)
+            goto found;
+    goto fail;
+found:
+    sock = &ctx.sockets[i];
+    sock->connected = true;
+fail:
+    pthread_mutex_unlock(&ctx.mutex);
+    return sock;
+}
+
 Socket* socket_create(const char* ip, const char* port, int flags)
 {
     struct addrinfo* result = NULL;
     struct addrinfo hints;
     SOCKET* new_socket;
     Socket* res_socket;
+
+    res_socket = get_free_socket();
+    if (res_socket == NULL)
+        return NULL;
 
     int tcp = flags & 1;
     int will_bind = (flags>>1) & 1;
@@ -87,26 +119,16 @@ Socket* socket_create(const char* ip, const char* port, int flags)
     hints.ai_flags = (will_bind) ? AI_PASSIVE : 0;
     if (getaddrinfo(ip, port, &hints, &result))
         goto fail;
-
     new_socket = malloc(sizeof(SOCKET));
     *new_socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-
     if (*new_socket == INVALID_SOCKET)
         goto fail_free_addr_info;
 
-    res_socket = malloc(sizeof(Socket));
-    if (res_socket == NULL)
-        goto fail_close_socket;
-
     res_socket->sock = new_socket;
     res_socket->info = result;
-    res_socket->connected = true;
 
     return res_socket;
 
-fail_close_socket:
-    closesocket(*new_socket);
-    free(new_socket);
 fail_free_addr_info:
     freeaddrinfo(result);
 fail:
@@ -115,16 +137,12 @@ fail:
 
 bool socket_bind(Socket* sock)
 {
-    if (bind(*sock->sock, sock->info->ai_addr, (int)sock->info->ai_addrlen) == SOCKET_ERROR)
-        return false; 
-    return true;
+    return bind(*sock->sock, sock->info->ai_addr, (int)sock->info->ai_addrlen) != SOCKET_ERROR;
 }
 
 bool socket_listen(Socket* sock)
 {
-    if (listen(*sock->sock, SOMAXCONN) == SOCKET_ERROR)
-        return false;
-    return true;
+    return listen(*sock->sock, SOMAXCONN) != SOCKET_ERROR;
 }
 
 Socket* socket_accept(Socket* sock)
@@ -132,11 +150,12 @@ Socket* socket_accept(Socket* sock)
     Socket* client_socket;
     SOCKET* new_socket;
 
-    client_socket = malloc(sizeof(Socket));
+    client_socket = get_free_socket();
+    if (client_socket == NULL)
+        return NULL;
     new_socket = malloc(sizeof(SOCKET));
     *new_socket = accept(*sock->sock, NULL, NULL);
     if (*new_socket == INVALID_SOCKET) {
-        free(client_socket);
         free(new_socket);
         return NULL;
     }
@@ -160,8 +179,16 @@ bool socket_connect(Socket* sock)
 
 void socket_destroy(Socket* sock)
 {
-    freeaddrinfo(sock->info);
-    closesocket(*sock->sock);
+    if (!sock->connected) return;
+    pthread_mutex_lock(&ctx.mutex);
+    if (sock->info != NULL)
+        freeaddrinfo(sock->info);
+    if (sock->sock != NULL)
+        closesocket(*sock->sock);
+    sock->connected = false;
+    sock->sock = NULL;
+    sock->info = NULL;
+    pthread_mutex_unlock(&ctx.mutex);
 }
 
 bool socket_send(Socket* sock, Packet* packet)
@@ -177,10 +204,10 @@ bool socket_send_web(Socket* socket, Packet* packet)
 Packet* socket_recv(Socket* sock)
 {
     Packet* packet;
-    int length, buf_len;
+    int length;
     unsigned char* buffer;
-    buffer = malloc(6 * sizeof(char));
-    length = recv(*sock->sock, buffer, 6, 0);
+    buffer = malloc(6 * sizeof(unsigned char));
+    length = recv(*sock->sock, (char*)buffer, 6, 0);
     if (length == SOCKET_ERROR || length == 0) {
         sock->connected = false;
         free(buffer);
@@ -189,16 +216,27 @@ Packet* socket_recv(Socket* sock)
     packet = malloc(sizeof(Packet));
     packet->id = (buffer[4]<<8) + buffer[5];
     packet->length = (buffer[0]<<24)+(buffer[1]<<16)+(buffer[2]<<8)+buffer[3];
+    if (packet->length == 0) {
+        packet->buffer = NULL;
+        free(packet->buffer);
+        return packet;
+    }
     packet->buffer = malloc(packet->length * sizeof(char));
     length = recv(*sock->sock, packet->buffer, packet->length, 0);
+    if ((size_t)length != packet->length) {
+        printf("Unexpected packet length %u vs %llu\n", length, packet->length);
+        free(packet->buffer);
+        free(packet);
+        free(buffer);
+        return NULL;
+    }
     free(buffer);
     return packet;
 }
 
 Packet* socket_recv_web(Socket* socket)
 {
-    Packet* packet;
-    unsigned long long data;
+    puts("Web server not supported on windows");
     return NULL;
 }
 
@@ -212,8 +250,16 @@ int socket_get_last_error(void)
     return WSAGetLastError();
 }
 
+bool socket_web_handshake(Socket* socket)
+{
+    puts("Web server not supported on windows");
+    return false;
+}
+
 #else
 
+#define SHA_IMPLEMENTATION
+#include "sha.h"
 #include <netinet/ip.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -449,6 +495,11 @@ Packet* socket_recv(Socket* sock)
     packet = malloc(sizeof(Packet));
     packet->id = (buffer[4]<<8) + buffer[5];
     packet->length = (buffer[0]<<24)+(buffer[1]<<16)+(buffer[2]<<8)+buffer[3];
+    if (packet->length == 0) {
+        packet->buffer = NULL;
+        free(buffer);
+        return packet;
+    }
     packet->buffer = malloc(packet->length * sizeof(char));
     length = read(sock->fd, packet->buffer, packet->length);
     if (length != packet->length) {

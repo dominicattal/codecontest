@@ -253,7 +253,7 @@ found_basename:
         goto fail_config;
     }
 
-    networking_init(1);
+    networking_init(2);
     
     server_socket = socket_create(ip_str, port_str, BIT_TCP);
     if (!socket_connect(server_socket)) {
@@ -271,6 +271,8 @@ found_basename:
     packet_destroy(packet);
 
     packet = socket_recv(server_socket);
+    if (packet == NULL)
+        goto fail_destroy_socket;
     contest_running = packet->id == PACKET_CONTEST;
     if (packet->id == PACKET_CONTEST)
         puts("contest is running");

@@ -83,8 +83,10 @@ static void* handle_cli_client(void* vargp)
     packet_destroy(packet);
 
     packet = packet_create((contest_is_running()) ? PACKET_CONTEST : PACKET_NO_CONTEST, strlen(buf)+1, buf);
-    if (packet == NULL)
+    if (packet == NULL) {
+        puts("Could not get contest packet");
         goto fail;
+    }
     socket_send(client_socket, packet);
     packet_destroy(packet);
 
@@ -170,7 +172,7 @@ static void* handle_cli_client(void* vargp)
         packet_destroy(run_packet);
         goto fail;
     }
-    printf("%d %lu %p\n", run_packet->id, run_packet->length, run_packet->buffer);
+    printf("%d %lu %p\n", run_packet->id, (long unsigned int)run_packet->length, run_packet->buffer);
 
     run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1, async);
     run_enqueue(run);
@@ -204,14 +206,14 @@ static void* handle_cli_client(void* vargp)
 
 success:
     socket_destroy(client_socket);
-    pthread_exit(NULL);
+    return NULL;
 
 fail_packet:
     packet_destroy(packet);
 fail:
     puts("Lost connection to client");
     socket_destroy(client_socket);
-    pthread_exit(NULL);
+    return NULL;
 }
 
 static Socket* cli_create_listen_socket(JsonObject* config)
@@ -258,6 +260,7 @@ static void* cli_server_daemon(void* vargp)
             break;
         }
         client_socket = socket_accept(listen_socket);
+        printf("%p\n", client_socket);
         socket_destroy(listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
