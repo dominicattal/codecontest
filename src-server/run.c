@@ -297,6 +297,8 @@ static bool create_file(const char* path, const char* code, int code_length)
 
 static void set_run_response(Run* run, const char* response)
 {
+    if (run->response != NULL)
+        free(run->response);
     int n = strlen(response);
     run->response_length = n+1;
     run->response = malloc((n+1) * sizeof(char));

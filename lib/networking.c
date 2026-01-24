@@ -53,11 +53,11 @@ typedef struct Socket {
 
 static NetworkingContext ctx;
 
-bool networking_init(int max_num_conn)
+bool networking_init(void)
 {
     pthread_mutex_init(&ctx.mutex, NULL);
-    ctx.sockets = calloc(max_num_conn, sizeof(Socket));
-    ctx.num_sockets = max_num_conn;
+    ctx.sockets = calloc(20, sizeof(Socket));
+    ctx.num_sockets = 20;
     return !WSAStartup(MAKEWORD(2,2), &ctx.wsa_data);
 }
 
@@ -272,43 +272,46 @@ bool socket_web_handshake(Socket* socket)
 #include <pthread.h>
 
 typedef struct Socket {
-    int fd;
+    struct Socket* prev;
+    struct Socket* next;
     struct sockaddr_in addr;
+    int fd;
     bool connected;
     bool in_use;
 } Socket;
 
 static struct {
    pthread_mutex_t mutex;
-   Socket* sockets;
-   int num_sockets;
-   sem_t num_sockets_available;
+   Socket* head;
+   Socket* tail;
+   bool active;
 } net_ctx;
 
-bool networking_init(int max_num_conn)
+bool networking_init(void)
 {
-    net_ctx.num_sockets = max_num_conn;
-    net_ctx.sockets = calloc(max_num_conn, sizeof(Socket));
-    for (int i = 0; i < max_num_conn; i++) {
-        net_ctx.sockets[i].fd = -1;
-        net_ctx.sockets[i].connected = false;
-        net_ctx.sockets[i].in_use = false;
-    }
-    sem_init(&net_ctx.num_sockets_available, 0, max_num_conn);
+    net_ctx.head = net_ctx.tail = NULL;
     pthread_mutex_init(&net_ctx.mutex, NULL);
+    net_ctx.active = true;
     return true;
 }
 
 void networking_shutdown_sockets(void)
 {
-    for (int i = 0; i < net_ctx.num_sockets; i++)
-        socket_destroy(&net_ctx.sockets[i]);
+    Socket* sock;
+    pthread_mutex_lock(&net_ctx.mutex);
+    sock = net_ctx.head;
+    while (sock != NULL) {
+        if (sock->fd != -1)
+            shutdown(sock->fd, SHUT_RDWR);
+        sock->fd = -1;
+        sock = sock->next;
+    }
+    net_ctx.active = false;
+    pthread_mutex_unlock(&net_ctx.mutex);
 }
 
 void networking_cleanup(void)
 {
-    free(net_ctx.sockets);
-    sem_destroy(&net_ctx.num_sockets_available);
     pthread_mutex_destroy(&net_ctx.mutex);
 }
 
@@ -320,19 +323,18 @@ char* networking_hostname(void)
 static Socket* get_free_socket(void)
 {
     Socket* sock = NULL;
-    int i;
-    sem_wait(&net_ctx.num_sockets_available);
     pthread_mutex_lock(&net_ctx.mutex);
-    for (i = 0; i < net_ctx.num_sockets; i++) {
-        if (!net_ctx.sockets[i].in_use) {
-            sock = &net_ctx.sockets[i];
-            break;
-        }
+    if (!net_ctx.active) goto unlock;
+    sock = malloc(sizeof(Socket));
+    sock->next = NULL;
+    sock->prev = net_ctx.tail;
+    if (net_ctx.head == NULL) {
+        net_ctx.head = sock;
+    } else {
+        net_ctx.tail->next = sock;
     }
-    if (sock == NULL)
-        puts("Could not find free socket");
-    else 
-        sock->in_use = true;
+    net_ctx.tail = sock;
+unlock:
     pthread_mutex_unlock(&net_ctx.mutex);
     return sock;
 }
@@ -383,6 +385,10 @@ Socket* socket_accept(Socket* sock)
     if (fd == -1)
         return NULL;
     new_sock = get_free_socket();
+    if (new_sock == NULL) {
+        shutdown(fd, SHUT_RDWR);
+        return NULL;
+    }
     new_sock->fd = fd;
     return new_sock;
 }
@@ -401,14 +407,17 @@ bool socket_connected(Socket* socket)
 void socket_destroy(Socket* sock)
 {
     pthread_mutex_lock(&net_ctx.mutex);
-    if (!sock->in_use) goto unlock;
     if (sock->fd != -1)
         shutdown(sock->fd, SHUT_RDWR);
-    sock->connected = false;
-    sock->in_use = false;
-    sock->fd = -1;
-    sem_post(&net_ctx.num_sockets_available);
-unlock:
+    if (sock == net_ctx.head)
+        net_ctx.head = sock->next;
+    else
+        sock->prev->next = sock->next;
+    if (sock == net_ctx.tail)
+        net_ctx.tail = sock->prev;
+    else
+        sock->next->prev = sock->prev;
+    free(sock);
     pthread_mutex_unlock(&net_ctx.mutex);
 }
 

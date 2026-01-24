@@ -260,7 +260,6 @@ static void* cli_server_daemon(void* vargp)
             break;
         }
         client_socket = socket_accept(listen_socket);
-        printf("%p\n", client_socket);
         socket_destroy(listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
@@ -354,6 +353,7 @@ static Socket* web_create_listen_socket(JsonObject* config)
 
 static void* web_server_daemon(void* vargp)
 {
+    return NULL;
     Socket* listen_socket;
     Socket* client_socket;
     JsonObject* config = vargp;
@@ -773,8 +773,6 @@ int main(int argc, char** argv)
     pthread_t web_server_thread_id;
     int code;
 
-    const int max_num_conn = 10;
-
     if (argc == 1) {
         puts("Must supply config file");
         return 1;
@@ -797,7 +795,7 @@ int main(int argc, char** argv)
         goto fail_context;
     }
 
-    if (!networking_init(max_num_conn)) {
+    if (!networking_init()) {
         ctx.kill = true;
         goto fail_db;
     }

@@ -253,7 +253,7 @@ found_basename:
         goto fail_config;
     }
 
-    networking_init(2);
+    networking_init();
     
     server_socket = socket_create(ip_str, port_str, BIT_TCP);
     if (!socket_connect(server_socket)) {

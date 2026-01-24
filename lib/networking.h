@@ -46,7 +46,7 @@ typedef struct {
 typedef struct Socket Socket;
 
 // returns true if successful
-bool    networking_init(int max_num_conn);
+bool    networking_init(void);
 void    networking_shutdown_sockets(void);
 void    networking_cleanup(void);
 char*   networking_hostname(void);
