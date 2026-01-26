@@ -1,10 +1,10 @@
 {
     "ip": "127.0.0.1",
-    "port": "27105",
+    "port": "27107",
     "username": "team1",
     "password": "shape-untrue",
     "language": "python3",
     "problem": "A",
-    "file": "problems/problem1/test-py/accepted.py",
+    "file": "problems/problem1/test-py/runtime2.py",
     "async": false
 }

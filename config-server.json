@@ -1,6 +1,6 @@
 {
-    "ip": "127.0.0.1",
-    "cli_port": "27105",
+    "ip": null,
+    "cli_port": "27107",
     "web_port": "27106",
     "num_threads": 1,
     "contest": true,
@@ -43,7 +43,7 @@
             "name": "Super Easy Problem",
             "dir": "problems/problem1",
             "html": "problems/problem1.html",
-            "validate": "problems/problem1/validate [TESTCASE] [OUTPUT_PATH]",
+            "validate": "problems/problem1/validate [TESTCASE]",
             "testcases": 3,
             "time_limit": 2,
             "mem_limit": 256

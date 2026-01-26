@@ -270,6 +270,7 @@ bool socket_web_handshake(Socket* socket)
 #include <arpa/inet.h>
 #include <semaphore.h>
 #include <pthread.h>
+#include <fcntl.h>
 
 typedef struct Socket {
     struct Socket* prev;

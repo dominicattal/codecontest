@@ -6,10 +6,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <stdbool.h>
+#include <wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <pthread.h>
-#include <process.h>
 #include <stdarg.h>
 #include <dirent.h>
 #include <errno.h>
@@ -76,6 +78,13 @@ static char* tok_map[NUM_COMMAND_TOKENS] = {
     "VALIDATE_COMMAND"
 };
 
+typedef enum {
+    PROCESS_SUCCESS  = 0,
+    PROCESS_WRONG    = 1,
+    PROCESS_ERROR    = 2,
+    PROCESS_RUNNING  = 3
+} ProcessEnum;
+
 typedef struct {
     char buffers[NUM_COMMAND_TOKENS][TOKEN_BUFFER_LENGTH+1];
 } TokenBuffers;
@@ -86,6 +95,20 @@ typedef struct {
     pthread_mutex_t mutex;
 } RunQueue;
 
+typedef struct Process {
+    char** argv;
+    pthread_t wait_thread;
+    pid_t pid;
+    ProcessEnum exit_status;
+    int status;
+    int fd_in, fd_out;
+} Process;
+
+typedef struct {
+    Process* process1;
+    Process* process2;
+} ProcessPair;
+
 static RunQueue run_queue = {
     .head = NULL,
     .tail = NULL,
@@ -93,6 +116,184 @@ static RunQueue run_queue = {
 };
 
 static pthread_mutex_t num_runs_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void* process_handler_daemon(void* vargp)
+{
+    Process* process;
+    int status;
+    process = vargp;
+    waitpid(process->pid, &status, 0);
+    process->status = status;
+    process->exit_status = WEXITSTATUS(status);
+    return NULL;
+}
+
+static Process* process_create(const char* command, const char* infile_path, const char* outfile_path)
+{
+    Process* process;
+    pid_t pid;
+    int fd_in, fd_out;
+
+    process = malloc(sizeof(Process));
+    process->argv = malloc(4 * sizeof(char*));
+    process->argv[0] = "/bin/bash";
+    process->argv[1] = "-c";
+    process->argv[2] = (char*)command;
+    process->argv[3] = NULL;
+    process->exit_status = PROCESS_RUNNING;
+    process->fd_in = process->fd_out = -1;
+    pid = fork();
+    if (pid == -1) {
+        goto fail;
+    } else if (pid == 0) {
+        if (infile_path != NULL) {
+            fd_in = open(infile_path, O_RDONLY, S_IRUSR);
+            if (fd_in < 0)
+                goto fail;
+            dup2(fd_in, 0);
+            close(fd_in);
+        }
+        if (outfile_path != NULL) {
+            fd_out = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+            if (fd_out < 0)
+                goto fail;
+            dup2(fd_out, 1);
+            dup2(fd_out, 2);
+            close(fd_out);
+        }
+        execvp("/bin/bash", process->argv);
+    }
+    process->pid = pid;
+    pthread_create(&process->wait_thread, NULL, process_handler_daemon, process);
+
+    return process;
+
+fail:
+    puts("Something went horribly wrong");
+    return NULL;
+}
+
+ProcessPair process_pair_create(const char* command1, const char* command2)
+{
+    // add error messages here
+    ProcessPair res = (ProcessPair) { NULL, NULL };
+    Process* p1;
+    Process* p2;
+    pid_t pid;
+    int pipe_p1_p2[2];
+    int pipe_p2_p1[2];
+
+    if (pipe(pipe_p1_p2) == -1) {
+        puts("Failed to create process1 to process2 pipe");
+        return res;
+    }
+    if (pipe(pipe_p2_p1) == -1) {
+        puts("Failed to create process2 to process1 pipe");
+        return res;
+    }
+
+    p1 = malloc(sizeof(Process));
+    p1->argv = malloc(4 * sizeof(char*));
+    p1->argv[0] = "/bin/bash";
+    p1->argv[1] = "-c";
+    p1->argv[2] = (char*)command1;
+    p1->argv[3] = NULL;
+    p1->exit_status = PROCESS_RUNNING;
+    pid = fork();
+    if (pid == -1) {
+        free(p1->argv);
+        free(p1);
+        return res;
+    } else if (pid == 0) {
+        dup2(pipe_p1_p2[1], STDOUT_FILENO);
+        dup2(pipe_p2_p1[0], STDIN_FILENO);
+        //close(STDERR_FILENO);
+        execvp("/bin/bash", p1->argv);
+    }
+    p1->pid = pid;
+    pthread_create(&p1->wait_thread, NULL, process_handler_daemon, p1);
+
+    p2 = malloc(sizeof(Process));
+    p2->argv = malloc(4 * sizeof(char*));
+    p2->argv[0] = "/bin/bash";
+    p2->argv[1] = "-c";
+    p2->argv[2] = (char*)command2;
+    p2->argv[3] = NULL;
+    p2->exit_status = PROCESS_RUNNING;
+    pid = fork();
+    if (pid == -1) {
+        close(pipe_p1_p2[1]);
+        close(pipe_p2_p1[0]);
+        free(p2->argv);
+        free(p2);
+        kill(p1->pid, SIGTERM);
+        free(p1->argv);
+        free(p1);
+        return res;
+    } else if (pid == 0) {
+        dup2(pipe_p2_p1[1], STDOUT_FILENO);
+        dup2(pipe_p1_p2[0], STDIN_FILENO);
+        //close(STDERR_FILENO);
+        execvp("/bin/bash", p2->argv);
+    }
+    p2->pid = pid;
+    pthread_create(&p2->wait_thread, NULL, process_handler_daemon, p2);
+
+    res.process1 = p1;
+    res.process2 = p2;
+    p1->fd_in = pipe_p2_p1[0];
+    p1->fd_out = pipe_p1_p2[1];
+    p2->fd_in = pipe_p1_p2[0];
+    p2->fd_out = pipe_p2_p1[1];
+
+    return res;
+}
+
+static void process_wait(Process* process)
+{
+    pthread_join(process->wait_thread, 0);
+}
+
+static size_t process_memory(Process* process)
+{
+    pid_t mem_pid;
+    int status;
+    int pipe_fd[2];
+    char pid[16];
+    char* output;
+    char vsz[16];
+    size_t res = 0;
+    pipe(pipe_fd);
+    sprintf(pid, "%d", process->pid);
+    mem_pid = fork();
+    if (mem_pid == -1)
+        return 0;
+    else if (mem_pid == 0) {
+        dup2(pipe_fd[1], 1);
+        dup2(pipe_fd[1], 2);
+        execl("/bin/ps", "/bin/ps", "-p", pid, "-o", "vsz", NULL);
+    }
+    waitpid(mem_pid, &status, 0);
+    output = calloc(256, sizeof(char));
+    read(pipe_fd[0], output, 256);
+    sscanf(output, "%s %lu", vsz, &res);
+    free(output);
+    close(pipe_fd[0]);
+    close(pipe_fd[1]);
+    return res;
+}
+
+void process_destroy(Process* process)
+{
+    if (process->fd_out != -1)
+        close(process->fd_out);
+    if (process->fd_in != -1)
+        close(process->fd_in);
+    kill(process->pid, SIGTERM);
+    pthread_kill(process->wait_thread, 69);
+    free(process->argv);
+    free(process);
+}
 
 static TokenBuffers* create_token_buffers(void)
 {
@@ -327,14 +528,14 @@ static bool set_run_stats(Run* run, double time, double time_limit, int memory, 
 static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
     bool success;
-    Process* pid;
+    Process* process;
 
     puts("Compiling");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
-    pid = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, get_token_value(tb, COMPILE_PATH));
-    process_wait(pid);
-    success = process_success(pid);
-    process_destroy(pid);
+    process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, get_token_value(tb, COMPILE_PATH));
+    process_wait(process);
+    success = process->exit_status == PROCESS_SUCCESS;
+    process_destroy(process);
 
     if (success)
         return true;
@@ -356,27 +557,30 @@ static double timeval_diff(struct timeval tv1, struct timeval tv2)
 
 static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
 {
-    Process* pid;
+    ProcessPair process_pair;
+    Process* validate;
+    Process* execute;
     char response[512];
     size_t mem, max_mem;
-    struct timeval start, cur;
+    struct timeval start, cur, extra;
 
     puts("Executing");
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
-    pid = process_create(get_token_value(tb, EXECUTE_COMMAND), 
-            get_token_value(tb, CASE_PATH), 
-            get_token_value(tb, OUTPUT_PATH));
+    set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
+    process_pair = process_pair_create(get_token_value(tb, VALIDATE_COMMAND), get_token_value(tb, EXECUTE_COMMAND));
+    validate = process_pair.process1;
+    execute = process_pair.process2;
     gettimeofday(&start, NULL);
     cur = start;
     max_mem = mem = 0;
-    while (process_running(pid)) {
-        mem = process_memory(pid);
+    while (execute->exit_status == PROCESS_RUNNING && validate->exit_status == PROCESS_RUNNING) {
+        mem = process_memory(execute);
         max_mem = (mem > max_mem) ? mem : max_mem;
-        //if (mem > problem->mem_limit) {
-        //    set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
-        //    sprintf(response, "Memory limit exceeded on testcase %d", testcase);
-        //    goto fail;
-        //}
+        if (mem > problem->mem_limit) {
+            set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
+            sprintf(response, "Memory limit exceeded on testcase %d", testcase);
+            goto fail;
+        }
         gettimeofday(&cur, NULL);
         if (timeval_diff(cur, start) > problem->time_limit) {
             set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
@@ -384,34 +588,61 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
             goto fail;
         }
     }
-    if (!process_success(pid)) {
-        if (process_error(pid))
-            return VALIDATE_ERROR;
+
+    printf("%d %d\n", execute->exit_status, validate->exit_status);
+
+    if (validate->exit_status != PROCESS_RUNNING) {
+        while (execute->exit_status == PROCESS_RUNNING) {
+            mem = process_memory(execute);
+            max_mem = (mem > max_mem) ? mem : max_mem;
+            if (mem > problem->mem_limit) {
+                set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
+                sprintf(response, "Memory limit exceeded on testcase %d", testcase);
+                goto fail;
+            }
+            gettimeofday(&extra, NULL);
+            if (timeval_diff(extra, start) > problem->time_limit) {
+                cur = extra;
+                set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
+                sprintf(response, "Time limit exceeded on testcase %d", testcase);
+                goto fail;
+            }
+        }
+    }
+
+    if (WSTOPSIG(execute->status)) {
         set_run_status(run, RUN_RUNTIME_ERROR);
         sprintf(response, "Runtime error on testcase %d", testcase);
         goto fail;
     }
-    process_destroy(pid);
 
-    puts("Validating");
-    set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
-    pid = process_create(get_token_value(tb, VALIDATE_COMMAND), NULL, NULL);
-    process_wait(pid);
-    if (!process_success(pid)) {
-        if (process_error(pid))
+    while (validate->exit_status == PROCESS_RUNNING) {
+        gettimeofday(&cur, NULL);
+        if (timeval_diff(cur, start) > problem->time_limit) {
+            set_run_status(run, RUN_WRONG_ANSWER);
+            sprintf(response, "Wrong answer on testcase %d", testcase);
+            goto fail;
+        }
+    }
+
+    if (validate->exit_status != PROCESS_SUCCESS) {
+        if (validate->exit_status == PROCESS_ERROR)
             return VALIDATE_ERROR;
         set_run_status(run, RUN_WRONG_ANSWER);
         sprintf(response, "Wrong answer on testcase %d", testcase);
         goto fail;
     }
-    process_destroy(pid);
+
+    process_destroy(execute);
+    process_destroy(validate);
     set_run_stats(run, timeval_diff(cur, start), problem->time_limit, max_mem, problem->mem_limit);
     return VALIDATE_SUCCESS;
 
 fail:
     set_run_stats(run, timeval_diff(cur, start), problem->time_limit, mem, problem->mem_limit);
     set_run_response(run, response);
-    process_destroy(pid);
+    process_destroy(execute);
+    process_destroy(validate);
     return VALIDATE_FAILED;
 }
 

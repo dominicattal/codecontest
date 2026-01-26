@@ -7,7 +7,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <json.h>
-#include <process.h>
 #include "state.h"
 #include "run.h"
 
@@ -619,7 +618,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         ctx.problems[i].num_testcases = json_get_int(value);
-        ctx.problems[i].time_limit = 2.0;
+        ctx.problems[i].time_limit = 0.2;
         ctx.problems[i].mem_limit = 1<<20;
     }
 }

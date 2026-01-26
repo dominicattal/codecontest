@@ -242,8 +242,6 @@ found_basename:
         file_name[i] = file_basename[i];
     file_name[i] = '\0';
 
-    puts(file_name);
-
     if (config != NULL && json_get_value(config, async_key) != NULL)
         async = json_get_type(json_get_value(config, async_key)) == JTYPE_TRUE;
 
@@ -274,10 +272,10 @@ found_basename:
     if (packet == NULL)
         goto fail_destroy_socket;
     contest_running = packet->id == PACKET_CONTEST;
-    if (packet->id == PACKET_CONTEST)
-        puts("contest is running");
-    else
-        puts("contest is not running");
+    //if (packet->id == PACKET_CONTEST)
+    //    puts("contest is running");
+    //else
+    //    puts("contest is not running");
     max_file_size = atoi(packet->buffer);
     packet_destroy(packet);
     if (max_file_size <= 0) {
@@ -357,7 +355,6 @@ found_basename:
         puts("unsuccessful");
         goto fail_destroy_packet;
     }
-    puts("sent code");
     packet_destroy(packet);
 
     if (async) goto success;

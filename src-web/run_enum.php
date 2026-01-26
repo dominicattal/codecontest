@@ -21,7 +21,7 @@ function run_status_str($run)
     case $RUN_RUNNING: return "Running on testcase $testcase";
     case $RUN_SUCCESS: return "Accepted";
     case $RUN_COMPILATION_ERROR: return "Compilation failed";
-    case $RUN_RUNTIME_ERROR: return "Runtime error";
+    case $RUN_RUNTIME_ERROR: return "Runtime error on testcase $testcase";
     case $RUN_TIME_LIMIT_EXCEEDED: return "Time limit exceeded on testcase $testcase";
     case $RUN_MEM_LIMIT_EXCEEDED: return "Memory limit exceeded testcase $testcase";
     case $RUN_WRONG_ANSWER: return "Wrong answer on testcase $testcase";

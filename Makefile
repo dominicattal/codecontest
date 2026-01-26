@@ -14,7 +14,7 @@ else
 	BUILD_SUFFIX=l
 endif
 
-SRC_LIB = lib/json.c lib/networking.c lib/process.c
+SRC_LIB = lib/json.c lib/networking.c 
 SRC_SERVER = src-server/main.c src-server/run.c
 SRC_CLIENT = src-client/main.c
 SRC_GUI = src-gui/main.c
@@ -26,7 +26,7 @@ OBJ_DEV_GUI = $(SRC_GUI:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 all: dev
 	@rm -rf problems/problem1/bin problems/problem1/runs problems/runs.db problems/runs.db-shm problems/runs.db-wal
 
-dev: build dev-server dev-client
+dev: build dev-server dev-client validators
 client: dev-client
 server: dev-server
 
@@ -38,14 +38,13 @@ dev-client: $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT)
 	@mkdir -p bin/dev
 	@gcc $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT) $(LINKER_FLAGS) -o bin/dev/$(NAME_CLIENT)
 
-dev-gui: $(OBJ_DEV_LIB) $(OBJ_DEV_GUI)
-	@mkdir -p bin/dev
-	@gcc $(OBJ_DEV_LIB) $(OBJ_DEV_GUI) $(LINKER_FLAGS) -o bin/dev/$(NAME_GUI)
-
 build/dev$(BUILD_SUFFIX)/%.o: %.c
 	@echo $<
 	@mkdir -p $(dir $@)
 	@gcc $(CFLAGS_ALL) -g3 -c -o $@ $<
+
+validators:
+	make -C problems/problem1
 
 build:
 	@mkdir -p build
