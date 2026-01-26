@@ -30,7 +30,7 @@ typedef struct {
     const char* validate;
     char letter;
     size_t mem_limit;
-    double time_limit;
+    int time_limit;
     int num_testcases;
     int id;
 } Problem;

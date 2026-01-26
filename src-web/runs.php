@@ -33,7 +33,7 @@
         echo "<td>{$langs[$run['language_id']]}</td>";
         $status_str = run_status_str($run);
         echo "<td>$status_str</td>";
-        echo "<td>$run[time]</td>";
+        echo "<td>$run[time] ms</td>";
         echo "<td>$run[memory]</td>";
         echo "</tr>";
         $run = $res->fetchArray(SQLITE3_ASSOC);

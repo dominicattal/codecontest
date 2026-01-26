@@ -517,9 +517,9 @@ static bool set_run_testcase(Run* run, int testcase)
     return db_exec("UPDATE runs SET testcase=%d WHERE id=%d", testcase, run->id);
 }
 
-static bool set_run_stats(Run* run, double time, double time_limit, int memory, int memory_limit)
+static bool set_run_stats(Run* run, int time, int time_limit, int memory, int memory_limit)
 {
-    return db_exec("UPDATE runs SET time=%f, memory=%d WHERE id=%d", 
+    return db_exec("UPDATE runs SET time=%d, memory=%d WHERE id=%d", 
                     (time < time_limit) ? time : time_limit, 
                     (memory < memory_limit) ? memory : memory_limit, 
                     run->id);
@@ -546,9 +546,9 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     return false;
 }
 
-static double timeval_diff(struct timeval tv1, struct timeval tv2)
+static int timeval_diff(struct timeval tv1, struct timeval tv2)
 {
-    return tv1.tv_sec - tv2.tv_sec + (double)(tv1.tv_usec-tv2.tv_usec)/1000000;
+    return (tv1.tv_sec - tv2.tv_sec) * 1000 + (tv1.tv_usec - tv2.tv_usec) / 1000;
 }
 
 #define VALIDATE_SUCCESS    0
@@ -589,8 +589,6 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
         }
     }
 
-    printf("%d %d\n", execute->exit_status, validate->exit_status);
-
     if (validate->exit_status != PROCESS_RUNNING) {
         while (execute->exit_status == PROCESS_RUNNING) {
             mem = process_memory(execute);
@@ -617,8 +615,8 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     }
 
     while (validate->exit_status == PROCESS_RUNNING) {
-        gettimeofday(&cur, NULL);
-        if (timeval_diff(cur, start) > problem->time_limit) {
+        gettimeofday(&extra, NULL);
+        if (timeval_diff(extra, start) > problem->time_limit) {
             set_run_status(run, RUN_WRONG_ANSWER);
             sprintf(response, "Wrong answer on testcase %d", testcase);
             goto fail;

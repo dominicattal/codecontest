@@ -618,7 +618,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         ctx.problems[i].num_testcases = json_get_int(value);
-        ctx.problems[i].time_limit = 0.2;
+        ctx.problems[i].time_limit = 300;
         ctx.problems[i].mem_limit = 1<<20;
     }
 }
@@ -696,7 +696,7 @@ bool db_init(JsonObject* config)
         "    testcase INT,"
         "    status INT,"
         "    timestamp TEXT,"
-        "    time REAL,"
+        "    time INT,"
         "    memory INT"
         ");"
         ""
@@ -716,7 +716,7 @@ bool db_init(JsonObject* config)
         "    letter TEXT,"
         "    name TEXT,"
         "    html_path TEXT,"
-        "    time_limit REAL,"
+        "    time_limit INT,"
         "    mem_limit INT"
         ");");
     db_exec( "DELETE FROM runs;DELETE FROM teams;DELETE FROM languages;DELETE FROM problems;");
@@ -727,7 +727,7 @@ bool db_init(JsonObject* config)
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
         puts(problem->html);
-        query_fmt = "INSERT INTO problems (id, letter, name, html_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', %f, %d);";
+        query_fmt = "INSERT INTO problems (id, letter, name, html_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', %d, %d);";
         db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->html, problem->time_limit, problem->mem_limit);
     }
     for (i = 0; i < ctx.num_teams; i++) {
