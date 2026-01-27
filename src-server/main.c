@@ -204,14 +204,14 @@ static void* handle_cli_client(void* vargp)
     packet_destroy(packet);
 
 success:
-    socket_destroy(ctx.cli_net_ctx, client_socket);
+    socket_destroy(client_socket);
     return NULL;
 
 fail_packet:
     packet_destroy(packet);
 fail:
     puts("Lost connection to client");
-    socket_destroy(ctx.cli_net_ctx, client_socket);
+    socket_destroy(client_socket);
     return NULL;
 }
 
@@ -257,8 +257,8 @@ static void* cli_server_daemon(void* vargp)
             ctx.kill = true;
             break;
         }
-        client_socket = socket_accept(ctx.cli_net_ctx, listen_socket);
-        socket_destroy(ctx.cli_net_ctx, listen_socket);
+        client_socket = socket_accept(listen_socket);
+        socket_destroy(listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
                 puts("Client socket is null");
@@ -282,7 +282,7 @@ static void* handle_web_client(void* vargp)
 
     msg = "hello from server";
     packet = packet_create(WEB_PACKET_TEXT, strlen(msg), msg);
-    socket_send_web(client_socket, packet);
+    socket_send_web_all(ctx.web_net_ctx, packet);
     packet_destroy(packet);
 
     while (!ctx.kill && !closed) {
@@ -322,6 +322,7 @@ static void* handle_web_client(void* vargp)
         }
         packet_destroy(packet);
     }
+    socket_destroy(client_socket);
     return NULL;
 }
 
@@ -368,8 +369,8 @@ static void* web_server_daemon(void* vargp)
             ctx.kill = true;
             break;
         }
-        client_socket = socket_accept(ctx.web_net_ctx, listen_socket);
-        socket_destroy(ctx.web_net_ctx, listen_socket);
+        client_socket = socket_accept(listen_socket);
+        socket_destroy(listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
                 puts("Client socket is null");

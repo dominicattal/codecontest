@@ -59,13 +59,13 @@ bool    socket_bind(Socket* socket);
 bool    socket_listen(Socket* socket);
 
 // Accept a connection request. Returns the socket if successful, NULL otherwise
-Socket* socket_accept(NetContext* ctx, Socket* socket);
+Socket* socket_accept(Socket* socket);
 
 // Connect to a socket. Returns true if successful
 bool    socket_connect(Socket* socket);
 
 // Destroy socket and all related information
-void    socket_destroy(NetContext* ctx, Socket* socket);
+void    socket_destroy(Socket* socket);
 
 // Check if socket still connected. Returns true if successful
 bool    socket_connected(Socket* socket);

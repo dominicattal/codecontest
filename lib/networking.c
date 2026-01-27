@@ -275,12 +275,12 @@ bool socket_web_handshake(Socket* socket)
 #include <fcntl.h>
 
 typedef struct Socket {
+    NetContext* ctx;
     struct Socket* prev;
     struct Socket* next;
     struct sockaddr_in addr;
     int fd;
     bool connected;
-    bool in_use;
 } Socket;
 
 typedef struct NetContext {
@@ -326,6 +326,7 @@ static Socket* get_free_socket(NetContext* ctx)
     pthread_mutex_lock(&ctx->mutex);
     if (!ctx->active) goto unlock;
     sock = malloc(sizeof(Socket));
+    sock->connected = false;
     sock->next = NULL;
     sock->prev = ctx->tail;
     if (ctx->head == NULL) {
@@ -350,6 +351,7 @@ Socket* socket_create(NetContext* ctx, const char* ip, const char* port_str, int
         goto fail;
 
     sock->fd = socket(AF_INET, SOCK_STREAM, 0);
+    sock->ctx = ctx;
     sock->addr.sin_family = AF_INET;
     if (ip == NULL)
         ip = "0.0.0.0";
@@ -375,7 +377,7 @@ bool socket_listen(Socket* sock)
     return listen(sock->fd, 2) == 0;
 }
 
-Socket* socket_accept(NetContext* ctx, Socket* sock)
+Socket* socket_accept(Socket* sock)
 {
     Socket* new_sock;
     socklen_t addrlen;
@@ -384,31 +386,38 @@ Socket* socket_accept(NetContext* ctx, Socket* sock)
     fd = accept(sock->fd, (struct sockaddr*)&sock->addr, &addrlen);
     if (fd == -1)
         return NULL;
-    new_sock = get_free_socket(ctx);
+    new_sock = get_free_socket(sock->ctx);
     if (new_sock == NULL) {
         shutdown(fd, SHUT_RDWR);
         return NULL;
     }
     new_sock->fd = fd;
+    new_sock->ctx = sock->ctx;
+    new_sock->connected = true;
     return new_sock;
 }
 
 bool socket_connect(Socket* sock)
 {
-    sock->connected = connect(sock->fd, (struct sockaddr*)&sock->addr, sizeof(sock->addr)) == 0;
-    return sock->connected;
+    //sock->connected = connect(sock->fd, (struct sockaddr*)&sock->addr, sizeof(sock->addr)) == 0;
+    //return sock->connected;
+    return false;
 }
 
 bool socket_connected(Socket* socket)
 {
-    return true;
+    return socket->connected;
 }
 
-void socket_destroy(NetContext* ctx, Socket* sock)
+void socket_destroy(Socket* sock)
 {
+    NetContext* ctx;
+    ctx = sock->ctx;
     pthread_mutex_lock(&ctx->mutex);
-    if (sock->fd != -1)
+    if (sock->fd != -1) {
         shutdown(sock->fd, SHUT_RDWR);
+        close(sock->fd);
+    }
     if (sock == ctx->head)
         ctx->head = sock->next;
     else
@@ -432,7 +441,8 @@ void socket_send_all(NetContext* ctx, Packet* packet)
     pthread_mutex_lock(&ctx->mutex);
     cur = ctx->head;
     while (cur != NULL) {
-        socket_send(cur, packet);
+        if (cur->connected)
+            socket_send(cur, packet);
         cur = cur->next;
     }
     pthread_mutex_unlock(&ctx->mutex);
@@ -497,6 +507,7 @@ bool socket_send_web(Socket* sock, Packet* packet)
         buffer[idx++] = (ext_payload_len>>56) & 0xFF;
     }
     memcpy(buffer+idx, packet->buffer+PACKET_HEADER_BYTES, packet_buffer_length);
+    printf("pipe: %d\n", sock->fd);
     res = send(sock->fd, buffer, buffer_len, 0);
     free(buffer);
     return res != 0;
@@ -509,7 +520,8 @@ void socket_send_web_all(NetContext* ctx, Packet* packet)
     pthread_mutex_lock(&ctx->mutex);
     cur = ctx->head;
     while (cur != NULL) {
-        socket_send_web(cur, packet);
+        if (cur->connected)
+            socket_send_web(cur, packet);
         cur = cur->next;
     }
     pthread_mutex_unlock(&ctx->mutex);

@@ -383,7 +383,7 @@ found_basename:
     packet_destroy(packet);
 
 success:
-    socket_destroy(net_ctx, server_socket);
+    socket_destroy(server_socket);
     networking_cleanup(net_ctx);
     free(code);
     free(file_name);
@@ -394,7 +394,7 @@ success:
 fail_destroy_packet:
     packet_destroy(packet);
 fail_destroy_socket:
-    socket_destroy(net_ctx, server_socket);
+    socket_destroy(server_socket);
     networking_cleanup(net_ctx);
     free(code);
     free(file_name);
