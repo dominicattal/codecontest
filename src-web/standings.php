@@ -17,3 +17,4 @@
     }
     echo "</tbody></table>";
 ?>
+<script src="websocket.js"></script>

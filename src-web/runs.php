@@ -24,17 +24,17 @@
     echo "<tbody>";
     while ($run) {
         echo "<tr>";
-        echo "<td>$run[id]</td>";
+        echo "<td id='id-$run[id]'>$run[id]</td>";
         echo "<td>TDB</td>";
-        echo "<td>{$teams[$run['team_id']]}</td>";
+        echo "<td id='team-$run[id]'>{$teams[$run['team_id']]}</td>";
         $problem_letter = $problems[$run['problem_id']]["letter"];
         $problem_name = $problems[$run['problem_id']]["name"];
-        echo "<td>$problem_letter - $problem_name</td>";
-        echo "<td>{$langs[$run['language_id']]}</td>";
+        echo "<td id='problem-$run[id]'>$problem_letter - $problem_name</td>";
+        echo "<td id='lang-$run[id]'>{$langs[$run['language_id']]}</td>";
         $status_str = run_status_str($run);
-        echo "<td>$status_str</td>";
-        echo "<td>$run[time] ms</td>";
-        echo "<td>$run[memory]</td>";
+        echo "<td id='verdict-$run[id]'>$status_str</td>";
+        echo "<td id='time-$run[id]'>$run[time] ms</td>";
+        echo "<td id='mem-$run[id]'>$run[memory]</td>";
         echo "</tr>";
         $run = $res->fetchArray(SQLITE3_ASSOC);
     }
@@ -44,3 +44,4 @@
 
     $db->close();
 ?>
+<script src="websocket.js"></script>

@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <pthread.h>
 
+#define PACKET_HEADER_BYTES 6
+
 // compatible on linux and windows
 
 Packet* packet_create(PacketEnum id, int length, const char* buffer)
@@ -14,7 +16,7 @@ Packet* packet_create(PacketEnum id, int length, const char* buffer)
         return NULL;
     packet = malloc(sizeof(Packet));
     packet->id = id;
-    packet->length = length+6;
+    packet->length = length + PACKET_HEADER_BYTES;
     packet->buffer = malloc(packet->length * sizeof(char));
     packet->buffer[0] = (length>>24) & 0xFF;
     packet->buffer[1] = (length>>16) & 0xFF;
@@ -22,7 +24,7 @@ Packet* packet_create(PacketEnum id, int length, const char* buffer)
     packet->buffer[3] = length & 0xFF;
     packet->buffer[4] = (id>>8) & 0xFF;
     packet->buffer[5] = id & 0xFF;
-    memcpy(packet->buffer+6, buffer, length);
+    memcpy(packet->buffer+PACKET_HEADER_BYTES, buffer, length);
     return packet;
 }
 
@@ -281,72 +283,69 @@ typedef struct Socket {
     bool in_use;
 } Socket;
 
-static struct {
+typedef struct NetContext {
    pthread_mutex_t mutex;
    Socket* head;
    Socket* tail;
    bool active;
-} net_ctx;
+} NetContext;
 
-bool networking_init(void)
+NetContext* networking_init(void)
 {
-    net_ctx.head = net_ctx.tail = NULL;
-    pthread_mutex_init(&net_ctx.mutex, NULL);
-    net_ctx.active = true;
-    return true;
+    NetContext* ctx = malloc(sizeof(NetContext));
+    ctx->head = ctx->tail = NULL;
+    pthread_mutex_init(&ctx->mutex, NULL);
+    ctx->active = true;
+    return ctx;
 }
 
-void networking_shutdown_sockets(void)
+void networking_shutdown_sockets(NetContext* ctx)
 {
     Socket* sock;
-    pthread_mutex_lock(&net_ctx.mutex);
-    sock = net_ctx.head;
+    pthread_mutex_lock(&ctx->mutex);
+    sock = ctx->head;
     while (sock != NULL) {
         if (sock->fd != -1)
             shutdown(sock->fd, SHUT_RDWR);
         sock->fd = -1;
         sock = sock->next;
     }
-    net_ctx.active = false;
-    pthread_mutex_unlock(&net_ctx.mutex);
+    ctx->active = false;
+    pthread_mutex_unlock(&ctx->mutex);
 }
 
-void networking_cleanup(void)
+void networking_cleanup(NetContext* ctx)
 {
-    pthread_mutex_destroy(&net_ctx.mutex);
+    // free socket memory here
+    pthread_mutex_destroy(&ctx->mutex);
 }
 
-char* networking_hostname(void)
-{
-    return NULL;
-}
-
-static Socket* get_free_socket(void)
+static Socket* get_free_socket(NetContext* ctx)
 {
     Socket* sock = NULL;
-    pthread_mutex_lock(&net_ctx.mutex);
-    if (!net_ctx.active) goto unlock;
+    pthread_mutex_lock(&ctx->mutex);
+    if (!ctx->active) goto unlock;
     sock = malloc(sizeof(Socket));
     sock->next = NULL;
-    sock->prev = net_ctx.tail;
-    if (net_ctx.head == NULL) {
-        net_ctx.head = sock;
+    sock->prev = ctx->tail;
+    if (ctx->head == NULL) {
+        ctx->head = sock;
     } else {
-        net_ctx.tail->next = sock;
+        ctx->tail->next = sock;
     }
-    net_ctx.tail = sock;
+    ctx->tail = sock;
 unlock:
-    pthread_mutex_unlock(&net_ctx.mutex);
+    pthread_mutex_unlock(&ctx->mutex);
     return sock;
 }
 
-Socket* socket_create(const char* ip, const char* port_str, int flags)
+Socket* socket_create(NetContext* ctx, const char* ip, const char* port_str, int flags)
 {
     Socket* sock;
     int port;
     port = atoi(port_str);
 
-    sock = get_free_socket();
+    sock = get_free_socket(ctx);
     if (sock == NULL)
         goto fail;
 
@@ -376,7 +375,7 @@ bool socket_listen(Socket* sock)
     return listen(sock->fd, 2) == 0;
 }
 
-Socket* socket_accept(Socket* sock)
+Socket* socket_accept(NetContext* ctx, Socket* sock)
 {
     Socket* new_sock;
     socklen_t addrlen;
@@ -385,7 +384,7 @@ Socket* socket_accept(Socket* sock)
     fd = accept(sock->fd, (struct sockaddr*)&sock->addr, &addrlen);
     if (fd == -1)
         return NULL;
-    new_sock = get_free_socket();
+    new_sock = get_free_socket(ctx);
     if (new_sock == NULL) {
         shutdown(fd, SHUT_RDWR);
         return NULL;
@@ -405,21 +404,21 @@ bool socket_connected(Socket* socket)
     return true;
 }
 
-void socket_destroy(Socket* sock)
+void socket_destroy(NetContext* ctx, Socket* sock)
 {
-    pthread_mutex_lock(&net_ctx.mutex);
+    pthread_mutex_lock(&ctx->mutex);
     if (sock->fd != -1)
         shutdown(sock->fd, SHUT_RDWR);
-    if (sock == net_ctx.head)
-        net_ctx.head = sock->next;
+    if (sock == ctx->head)
+        ctx->head = sock->next;
     else
         sock->prev->next = sock->next;
-    if (sock == net_ctx.tail)
-        net_ctx.tail = sock->prev;
+    if (sock == ctx->tail)
+        ctx->tail = sock->prev;
     else
         sock->next->prev = sock->prev;
     free(sock);
-    pthread_mutex_unlock(&net_ctx.mutex);
+    pthread_mutex_unlock(&ctx->mutex);
 }
 
 bool socket_send(Socket* sock, Packet* packet)
@@ -427,13 +426,30 @@ bool socket_send(Socket* sock, Packet* packet)
     return send(sock->fd, packet->buffer, packet->length, 0) != -1;
 }
 
+void socket_send_all(NetContext* ctx, Packet* packet)
+{
+    Socket* cur;
+    pthread_mutex_lock(&ctx->mutex);
+    cur = ctx->head;
+    while (cur != NULL) {
+        socket_send(cur, packet);
+        cur = cur->next;
+    }
+    pthread_mutex_unlock(&ctx->mutex);
+}
+
 bool socket_send_web(Socket* sock, Packet* packet)
 {
     bool res;
+    int packet_buffer_length;
     int opcode, payload_len, buffer_len, idx;
     unsigned long long ext_payload_len = 0;
     unsigned char* buffer;
+    packet_buffer_length = packet->length - PACKET_HEADER_BYTES;
     switch (packet->id) {
+        case WEB_PACKET_TEXT:
+            opcode = 0x1;
+            break;
         case WEB_PACKET_PING:
             opcode = 0x9;
             break;
@@ -447,20 +463,20 @@ bool socket_send_web(Socket* sock, Packet* packet)
             opcode = 0x0;
             break;
     }
-    if (packet->length < 126) {
-        buffer_len = 2 + 4 + packet->length;
-        payload_len = packet->length;
-    } else if (packet->length < 0xFFFF) {
+    if (packet_buffer_length < 126) {
+        buffer_len = 2 + packet_buffer_length;
+        payload_len = packet_buffer_length;
+    } else if (packet_buffer_length < 127) {
         assert(opcode != 0x9);
         assert(opcode != 0xA);
-        buffer_len = 2 + 4 + 2 + packet->length;
-        ext_payload_len = packet->length;
+        buffer_len = 2 + 2 + packet_buffer_length;
+        ext_payload_len = packet_buffer_length;
         payload_len = 126;
     } else {
         assert(opcode != 0x9);
         assert(opcode != 0xA);
-        buffer_len = 2 + 4 + 8 + packet->length;
-        ext_payload_len = packet->length;
+        buffer_len = 2 + 8 + packet_buffer_length;
+        ext_payload_len = packet_buffer_length;
         payload_len = 127;
     }
     buffer = malloc(buffer_len * sizeof(char));
@@ -480,14 +496,23 @@ bool socket_send_web(Socket* sock, Packet* packet)
         buffer[idx++] = (ext_payload_len>>48) & 0xFF;
         buffer[idx++] = (ext_payload_len>>56) & 0xFF;
     }
-    buffer[idx++] = 0;
-    buffer[idx++] = 0;
-    buffer[idx++] = 0;
-    buffer[idx++] = 0;
-    memcpy(buffer+idx, packet->buffer, packet->length);
+    memcpy(buffer+idx, packet->buffer+PACKET_HEADER_BYTES, packet_buffer_length);
     res = send(sock->fd, buffer, buffer_len, 0);
     free(buffer);
     return res != 0;
+}
+
+void socket_send_web_all(NetContext* ctx, Packet* packet)
+{
+    // can optimize by constructing one web packet instead of calling func for all of them
+    Socket* cur;
+    pthread_mutex_lock(&ctx->mutex);
+    cur = ctx->head;
+    while (cur != NULL) {
+        socket_send_web(cur, packet);
+        cur = cur->next;
+    }
+    pthread_mutex_unlock(&ctx->mutex);
 }
 
 Packet* socket_recv(Socket* sock)

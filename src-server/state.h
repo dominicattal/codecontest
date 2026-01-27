@@ -6,6 +6,7 @@
 #include <json.h>
 #include <pthread.h>
 #include <sqlite3.h>
+#include <networking.h>
 
 typedef struct {
     const char* username;
@@ -41,6 +42,8 @@ typedef struct {
     Language* languages;
     Problem* problems;
     pthread_t* run_threads;
+    NetContext* cli_net_ctx;
+    NetContext* web_net_ctx;
     int num_teams;
     int num_languages;
     int num_problems;

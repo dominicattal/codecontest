@@ -204,14 +204,14 @@ static void* handle_cli_client(void* vargp)
     packet_destroy(packet);
 
 success:
-    socket_destroy(client_socket);
+    socket_destroy(ctx.cli_net_ctx, client_socket);
     return NULL;
 
 fail_packet:
     packet_destroy(packet);
 fail:
     puts("Lost connection to client");
-    socket_destroy(client_socket);
+    socket_destroy(ctx.cli_net_ctx, client_socket);
     return NULL;
 }
 
@@ -227,7 +227,7 @@ static Socket* cli_create_listen_socket(JsonObject* config)
         puts("Could not read port from config file");
         return NULL;
     }
-    listen_socket = socket_create(ip_str, port_str, BIT_TCP);
+    listen_socket = socket_create(ctx.cli_net_ctx, ip_str, port_str, BIT_TCP);
     if (listen_socket == NULL) {
         puts("Could not create socket");
         return NULL;
@@ -235,7 +235,6 @@ static Socket* cli_create_listen_socket(JsonObject* config)
 
     if (!socket_bind(listen_socket)) {
         puts("Couldn't bind socket");
-        printf("%d\n", socket_get_last_error());
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
@@ -258,8 +257,8 @@ static void* cli_server_daemon(void* vargp)
             ctx.kill = true;
             break;
         }
-        client_socket = socket_accept(listen_socket);
-        socket_destroy(listen_socket);
+        client_socket = socket_accept(ctx.cli_net_ctx, listen_socket);
+        socket_destroy(ctx.cli_net_ctx, listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
                 puts("Client socket is null");
@@ -280,6 +279,12 @@ static void* handle_web_client(void* vargp)
     client_socket = vargp;
 
     puts("Connected to web client");
+
+    msg = "hello from server";
+    packet = packet_create(WEB_PACKET_TEXT, strlen(msg), msg);
+    socket_send_web(client_socket, packet);
+    packet_destroy(packet);
+
     while (!ctx.kill && !closed) {
         packet = socket_recv_web(client_socket);
         if (packet == NULL) {
@@ -332,7 +337,7 @@ static Socket* web_create_listen_socket(JsonObject* config)
         puts("Could not read port from config file");
         return NULL;
     }
-    listen_socket = socket_create(ip_str, port_str, BIT_TCP);
+    listen_socket = socket_create(ctx.web_net_ctx, ip_str, port_str, BIT_TCP);
     if (listen_socket == NULL) {
         puts("Could not create socket");
         return NULL;
@@ -340,7 +345,6 @@ static Socket* web_create_listen_socket(JsonObject* config)
 
     if (!socket_bind(listen_socket)) {
         puts("Couldn't bind socket");
-        printf("%d\n", socket_get_last_error());
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
@@ -352,11 +356,11 @@ static Socket* web_create_listen_socket(JsonObject* config)
 
 static void* web_server_daemon(void* vargp)
 {
-    return NULL;
     Socket* listen_socket;
     Socket* client_socket;
     JsonObject* config = vargp;
     pthread_t thread_id;
+
     while (!ctx.kill) {
         listen_socket = web_create_listen_socket(config);
         if (listen_socket == NULL) {
@@ -364,8 +368,8 @@ static void* web_server_daemon(void* vargp)
             ctx.kill = true;
             break;
         }
-        client_socket = socket_accept(listen_socket);
-        socket_destroy(listen_socket);
+        client_socket = socket_accept(ctx.web_net_ctx, listen_socket);
+        socket_destroy(ctx.web_net_ctx, listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
                 puts("Client socket is null");
@@ -794,10 +798,8 @@ int main(int argc, char** argv)
         goto fail_context;
     }
 
-    if (!networking_init()) {
-        ctx.kill = true;
-        goto fail_db;
-    }
+    ctx.cli_net_ctx = networking_init();
+    ctx.web_net_ctx = networking_init();
 
     pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
@@ -809,15 +811,17 @@ int main(int argc, char** argv)
 
     ctx.kill = true;
 
-    networking_shutdown_sockets();
+    networking_shutdown_sockets(ctx.cli_net_ctx);
+    networking_shutdown_sockets(ctx.web_net_ctx);
 
     pthread_join(cli_server_thread_id, NULL);
     pthread_join(web_server_thread_id, NULL);
 
-    networking_cleanup();
+    networking_cleanup(ctx.cli_net_ctx);
+    networking_cleanup(ctx.web_net_ctx);
 
-fail_db:
     db_cleanup();
+
 fail_context:
     context_cleanup();
 fail_config:

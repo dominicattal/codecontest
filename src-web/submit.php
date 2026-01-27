@@ -21,28 +21,4 @@
     <button id="close-socket">Close</button>
 
     <script>
-        var host = "ws://127.0.0.1:27106";
-        var socket = new WebSocket(host);
-        socket.onopen = (e) => {
-            console.log(e);
-        }
-        socket.onmessage = (e) => {
-            console.log(e);
-        }
-        socket.onclose = (e) => {
-            console.log(e);
-        }
-        socket.onerror = (e) => {
-            console.log(e);
-        }
-
-        var ele = document.getElementById("close-socket");
-        ele.onclick = (e) => {
-            socket.close();
-        }
-
-        var ele = document.getElementById("send-socket");
-        ele.onclick = (e) => {
-            socket.send("Hello from client");
-        }
     </script>

@@ -61,6 +61,7 @@ fail:
 int main(int argc, char** argv)
 {
     JsonObject* config = NULL;
+    NetContext* net_ctx;
     Socket* server_socket;
     Packet* packet;
     int max_file_size;
@@ -251,9 +252,9 @@ found_basename:
         goto fail_config;
     }
 
-    networking_init();
+    net_ctx = networking_init();
     
-    server_socket = socket_create(ip_str, port_str, BIT_TCP);
+    server_socket = socket_create(net_ctx, ip_str, port_str, BIT_TCP);
     if (!socket_connect(server_socket)) {
         puts("Could not connect");
         goto fail_destroy_socket;
@@ -382,8 +383,8 @@ found_basename:
     packet_destroy(packet);
 
 success:
-    socket_destroy(server_socket);
-    networking_cleanup();
+    socket_destroy(net_ctx, server_socket);
+    networking_cleanup(net_ctx);
     free(code);
     free(file_name);
     if (config != NULL)
@@ -393,8 +394,8 @@ success:
 fail_destroy_packet:
     packet_destroy(packet);
 fail_destroy_socket:
-    socket_destroy(server_socket);
-    networking_cleanup();
+    socket_destroy(net_ctx, server_socket);
+    networking_cleanup(net_ctx);
     free(code);
     free(file_name);
 fail_config:

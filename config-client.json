@@ -5,6 +5,6 @@
     "password": "shape-untrue",
     "language": "python3",
     "problem": "A",
-    "file": "problems/problem1/test-py/runtime2.py",
+    "file": "problems/problem1/test-py/accepted.py",
     "async": false
 }
