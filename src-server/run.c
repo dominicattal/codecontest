@@ -1,5 +1,6 @@
 #include "run.h"
 #include "state.h"
+#include <networking.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -173,7 +174,7 @@ fail:
     return NULL;
 }
 
-ProcessPair process_pair_create(const char* command1, const char* command2)
+static ProcessPair process_pair_create(const char* command1, const char* command2)
 {
     // add error messages here
     ProcessPair res = (ProcessPair) { NULL, NULL };
@@ -283,7 +284,7 @@ static size_t process_memory(Process* process)
     return res;
 }
 
-void process_destroy(Process* process)
+static void process_destroy(Process* process)
 {
     if (process->fd_out != -1)
         close(process->fd_out);
@@ -372,6 +373,63 @@ static void delete_token_buffers(TokenBuffers* tb)
     free(tb);
 }
 
+static void send_run_to_web_clients(Run* run)
+{
+    Packet* packet;
+    Problem* problem;
+    int buf_len;
+    char* buffer;
+    char* fmt;
+
+    problem = &ctx.problems[run->problem_id];
+
+    fmt = "%d,%d,%d,%c,%s,%s,%s";
+    buf_len = snprintf(NULL, 0, fmt, run->id, run->status, run->testcase, problem->letter, problem->name, "NA", "NA"); 
+    buffer = malloc((buf_len+1) * sizeof(char));
+    snprintf(buffer, buf_len+1, fmt, run->id, run->status, run->testcase, problem->letter, problem->name, "NA", "NA");
+    packet = packet_create(WEB_PACKET_TEXT, buf_len, buffer);
+    socket_send_web_all(ctx.web_net_ctx, packet);
+    free(buffer);
+    packet_destroy(packet);
+
+}
+
+static void set_run_response(Run* run, const char* response)
+{
+    if (run->response != NULL)
+        free(run->response);
+    int n = strlen(response);
+    run->response_length = n+1;
+    run->response = malloc((n+1) * sizeof(char));
+    memcpy(run->response, response, n+1);
+}
+
+static bool set_run_status(Run* run, RunEnum status)
+{
+    bool res;
+    run->status = status;
+    res = db_exec("UPDATE runs SET status=%d WHERE id=%d", run->status, run->id);
+    send_run_to_web_clients(run);
+    return res;
+}
+
+static bool set_run_testcase(Run* run, int testcase)
+{
+    bool res;
+    run->testcase = testcase;
+    res = db_exec("UPDATE runs SET testcase=%d WHERE id=%d", testcase, run->id);
+    send_run_to_web_clients(run);
+    return res;
+}
+
+static bool set_run_stats(Run* run, int time, int time_limit, int memory, int memory_limit)
+{
+    return db_exec("UPDATE runs SET time=%d, memory=%d WHERE id=%d", 
+                    (time < time_limit) ? time : time_limit, 
+                    (memory < memory_limit) ? memory : memory_limit, 
+                    run->id);
+}
+
 Run* run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length, bool async)
 {
     Run* run = malloc(sizeof(Run));
@@ -384,6 +442,7 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->response = NULL;
     run->response_length = 0;
     run->problem_id = 0;
+    run->testcase = 0;
     run->status = RUN_IDLE;
     run->next = NULL;
     run->async = async;
@@ -494,35 +553,6 @@ static bool create_file(const char* path, const char* code, int code_length)
         status = false;
     fclose(file);
     return status;
-}
-
-static void set_run_response(Run* run, const char* response)
-{
-    if (run->response != NULL)
-        free(run->response);
-    int n = strlen(response);
-    run->response_length = n+1;
-    run->response = malloc((n+1) * sizeof(char));
-    memcpy(run->response, response, n+1);
-}
-
-static bool set_run_status(Run* run, RunEnum status)
-{
-    run->status = status;
-    return db_exec("UPDATE runs SET status=%d WHERE id=%d", run->status, run->id);
-}
-
-static bool set_run_testcase(Run* run, int testcase)
-{
-    return db_exec("UPDATE runs SET testcase=%d WHERE id=%d", testcase, run->id);
-}
-
-static bool set_run_stats(Run* run, int time, int time_limit, int memory, int memory_limit)
-{
-    return db_exec("UPDATE runs SET time=%d, memory=%d WHERE id=%d", 
-                    (time < time_limit) ? time : time_limit, 
-                    (memory < memory_limit) ? memory : memory_limit, 
-                    run->id);
 }
 
 static bool compile(TokenBuffers* tb, Language* language, Run* run)

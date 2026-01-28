@@ -280,11 +280,6 @@ static void* handle_web_client(void* vargp)
 
     puts("Connected to web client");
 
-    msg = "hello from server";
-    packet = packet_create(WEB_PACKET_TEXT, strlen(msg), msg);
-    socket_send_web_all(ctx.web_net_ctx, packet);
-    packet_destroy(packet);
-
     while (!ctx.kill && !closed) {
         packet = socket_recv_web(client_socket);
         if (packet == NULL) {
@@ -377,7 +372,7 @@ static void* web_server_daemon(void* vargp)
             continue;
         }
         socket_web_handshake(client_socket);
-        // check if client is already connected
+        // should check if client is already connected before creating thread
         pthread_create(&thread_id, NULL, handle_web_client, client_socket);
     }
     return NULL;

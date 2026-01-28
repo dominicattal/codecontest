@@ -399,9 +399,8 @@ Socket* socket_accept(Socket* sock)
 
 bool socket_connect(Socket* sock)
 {
-    //sock->connected = connect(sock->fd, (struct sockaddr*)&sock->addr, sizeof(sock->addr)) == 0;
-    //return sock->connected;
-    return false;
+    sock->connected = connect(sock->fd, (struct sockaddr*)&sock->addr, sizeof(sock->addr)) == 0;
+    return sock->connected;
 }
 
 bool socket_connected(Socket* socket)
@@ -507,7 +506,6 @@ bool socket_send_web(Socket* sock, Packet* packet)
         buffer[idx++] = (ext_payload_len>>56) & 0xFF;
     }
     memcpy(buffer+idx, packet->buffer+PACKET_HEADER_BYTES, packet_buffer_length);
-    printf("pipe: %d\n", sock->fd);
     res = send(sock->fd, buffer, buffer_len, 0);
     free(buffer);
     return res != 0;
