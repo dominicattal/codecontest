@@ -36,6 +36,8 @@ typedef struct Run {
     int response_length;
     int testcase;
     int id;
+    int time;
+    size_t memory;
     bool async;
 } Run;
 

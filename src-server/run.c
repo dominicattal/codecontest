@@ -376,17 +376,23 @@ static void delete_token_buffers(TokenBuffers* tb)
 static void send_run_to_web_clients(Run* run)
 {
     Packet* packet;
+    Team* team;
+    Language* lang;
     Problem* problem;
     int buf_len;
     char* buffer;
     char* fmt;
 
     problem = &ctx.problems[run->problem_id];
+    lang = &ctx.languages[run->language_id];
+    team = &ctx.teams[run->team_id];
 
-    fmt = "%d,%d,%d,%c,%s,%s,%s";
-    buf_len = snprintf(NULL, 0, fmt, run->id, run->status, run->testcase, problem->letter, problem->name, "NA", "NA"); 
+    fmt = "%d,%d,%d,%c,%s,%s,%s,%d,%d";
+    buf_len = snprintf(NULL, 0, fmt, run->id, run->status, run->testcase, problem->letter, 
+                       problem->name, lang->name, team->username, run->time, run->memory); 
     buffer = malloc((buf_len+1) * sizeof(char));
-    snprintf(buffer, buf_len+1, fmt, run->id, run->status, run->testcase, problem->letter, problem->name, "NA", "NA");
+    snprintf(buffer, buf_len+1, fmt, run->id, run->status, run->testcase, problem->letter, 
+             problem->name, lang->name, team->username, run->time, run->memory);
     packet = packet_create(WEB_PACKET_TEXT, buf_len, buffer);
     socket_send_web_all(ctx.web_net_ctx, packet);
     free(buffer);
@@ -417,17 +423,19 @@ static bool set_run_testcase(Run* run, int testcase)
 {
     bool res;
     run->testcase = testcase;
-    res = db_exec("UPDATE runs SET testcase=%d WHERE id=%d", testcase, run->id);
+    res = db_exec("UPDATE runs SET testcase=%d WHERE id=%d", run->testcase, run->id);
     send_run_to_web_clients(run);
     return res;
 }
 
 static bool set_run_stats(Run* run, int time, int time_limit, int memory, int memory_limit)
 {
-    return db_exec("UPDATE runs SET time=%d, memory=%d WHERE id=%d", 
-                    (time < time_limit) ? time : time_limit, 
-                    (memory < memory_limit) ? memory : memory_limit, 
-                    run->id);
+    bool res;
+    run->time = (time < time_limit) ? time : time_limit;
+    run->memory = (memory < memory_limit) ? memory : memory_limit;
+    res = db_exec("UPDATE runs SET time=%d, memory=%d WHERE id=%d", run->time, run->memory, run->id);
+    send_run_to_web_clients(run);
+    return res;
 }
 
 Run* run_create(const char* filename, int team_id, int language_id, int problem_id, const char* code, int code_length, bool async)
@@ -443,6 +451,8 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->response_length = 0;
     run->problem_id = 0;
     run->testcase = 0;
+    run->time = 0;
+    run->memory = 0;
     run->status = RUN_IDLE;
     run->next = NULL;
     run->async = async;
@@ -591,7 +601,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     Process* validate;
     Process* execute;
     char response[512];
-    size_t mem, max_mem;
+    size_t mem;
     struct timeval start, cur, extra;
 
     puts("Executing");
@@ -602,17 +612,18 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     execute = process_pair.process2;
     gettimeofday(&start, NULL);
     cur = start;
-    max_mem = mem = 0;
+    mem = 0;
     while (execute->exit_status == PROCESS_RUNNING && validate->exit_status == PROCESS_RUNNING) {
         mem = process_memory(execute);
-        max_mem = (mem > max_mem) ? mem : max_mem;
-        if (mem > problem->mem_limit) {
+        run->memory = (mem > run->memory) ? mem : run->memory;
+        if (run->memory > problem->mem_limit) {
             set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
             sprintf(response, "Memory limit exceeded on testcase %d", testcase);
             goto fail;
         }
         gettimeofday(&cur, NULL);
-        if (timeval_diff(cur, start) > problem->time_limit) {
+        run->time = timeval_diff(cur, start);
+        if (run->time > problem->time_limit) {
             set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
             sprintf(response, "Time limit exceeded on testcase %d", testcase);
             goto fail;
@@ -622,14 +633,15 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     if (validate->exit_status != PROCESS_RUNNING) {
         while (execute->exit_status == PROCESS_RUNNING) {
             mem = process_memory(execute);
-            max_mem = (mem > max_mem) ? mem : max_mem;
-            if (mem > problem->mem_limit) {
+            run->memory = (mem > run->memory) ? mem : run->memory;
+            if (run->memory > problem->mem_limit) {
                 set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
                 sprintf(response, "Memory limit exceeded on testcase %d", testcase);
                 goto fail;
             }
             gettimeofday(&extra, NULL);
-            if (timeval_diff(extra, start) > problem->time_limit) {
+            run->time = timeval_diff(extra, start);
+            if (run->time > problem->time_limit) {
                 cur = extra;
                 set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
                 sprintf(response, "Time limit exceeded on testcase %d", testcase);
@@ -663,11 +675,11 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
 
     process_destroy(execute);
     process_destroy(validate);
-    set_run_stats(run, timeval_diff(cur, start), problem->time_limit, max_mem, problem->mem_limit);
+    set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     return VALIDATE_SUCCESS;
 
 fail:
-    set_run_stats(run, timeval_diff(cur, start), problem->time_limit, mem, problem->mem_limit);
+    set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     set_run_response(run, response);
     process_destroy(execute);
     process_destroy(validate);

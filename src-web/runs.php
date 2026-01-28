@@ -68,7 +68,6 @@ function status_to_text(stat, testcase) {
     const RUN_WRONG_ANSWER = 9;
     const RUN_SERVER_ERROR = 10;
     const RUN_DEAD = 11;
-    console.log(stat, testcase);
     switch (parseInt(stat)) {
     case RUN_IDLE: return "Idle";
     case RUN_ENQUEUED: return "In queue";
@@ -86,10 +85,9 @@ function status_to_text(stat, testcase) {
     return "?";
 }
 
-function create_table_row(id, stat, testcase, letter, problem) {
+function create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory) {
     tr = document.createElement("tr");
     tr.setAttribute("id", id);
-    console.log(tr);
 
     td = document.createElement("td");
     td_text = document.createTextNode(id);
@@ -104,7 +102,7 @@ function create_table_row(id, stat, testcase, letter, problem) {
     tr.appendChild(td);
 
     td = document.createElement("td");
-    td_text = document.createTextNode("N/A");
+    td_text = document.createTextNode(team);
     td.appendChild(td_text);
     td.setAttribute("id", `team-${id}`);
     tr.appendChild(td);
@@ -116,7 +114,7 @@ function create_table_row(id, stat, testcase, letter, problem) {
     tr.appendChild(td);
 
     td = document.createElement("td");
-    td_text = document.createTextNode("N/A");
+    td_text = document.createTextNode(lang);
     td.appendChild(td_text);
     td.setAttribute("id", `lang-${id}`);
     tr.appendChild(td);
@@ -128,13 +126,13 @@ function create_table_row(id, stat, testcase, letter, problem) {
     tr.appendChild(td);
 
     td = document.createElement("td");
-    td_text = document.createTextNode("N/A");
+    td_text = document.createTextNode(`${time} ms`);
     td.appendChild(td_text);
     td.setAttribute("id", `time-${id}`);
     tr.appendChild(td);
 
     td = document.createElement("td");
-    td_text = document.createTextNode("N/A");
+    td_text = document.createTextNode(`${memory} ms`);
     td.appendChild(td_text);
     td.setAttribute("id", `mem-${id}`);
     tr.appendChild(td);
@@ -142,7 +140,7 @@ function create_table_row(id, stat, testcase, letter, problem) {
     return tr;
 }
 
-function update_table_row(tr, stat, testcase) {
+function update_table_row(tr, stat, testcase, time, memory) {
 
     //tr.children[0] = id;
     //tr.children[1] = when;
@@ -150,6 +148,8 @@ function update_table_row(tr, stat, testcase) {
     //tr.children[3] = problem;
     //tr.children[4] = language;
     tr.children[5].textContent = status_to_text(stat, testcase);
+    tr.children[6].textContent = `${time} ms`;
+    tr.children[7].textContent = `${memory}`;
 
 }
 
@@ -162,15 +162,15 @@ socket.onopen = (e) => {
 }
 
 socket.onmessage = (e) => {
-    //console.log(e);
     arr = e["data"].split(",");
-    [id, stat, testcase, letter, problem, ...rest] = arr;
+    [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
+    console.log(arr);
     tr = document.getElementById(`${id}`);
 
     if (tr) {
-        update_table_row(tr, stat, testcase);
+        update_table_row(tr, stat, testcase, time, memory);
     } else {
-        new_tr = create_table_row(id, stat, testcase, letter, problem);
+        new_tr = create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory);
         table_body.insertBefore(new_tr, table_body.children[0]);
         //table_body.children[0].insertBefore(new_tr, 0);
     }
