@@ -39,7 +39,7 @@
         $status_str = run_status_str($run);
         echo "<td id='verdict-$run[id]'>$status_str</td>";
         echo "<td id='time-$run[id]'>$run[time] ms</td>";
-        echo "<td id='mem-$run[id]'>$run[memory]</td>";
+        echo "<td id='mem-$run[id]'>$run[memory] KB</td>";
         echo "</tr>";
         $run = $res->fetchArray(SQLITE3_ASSOC);
     }
@@ -132,7 +132,7 @@ function create_table_row(id, stat, testcase, letter, problem, lang, team, time,
     tr.appendChild(td);
 
     td = document.createElement("td");
-    td_text = document.createTextNode(`${memory} ms`);
+    td_text = document.createTextNode(`${memory} KB`);
     td.appendChild(td_text);
     td.setAttribute("id", `mem-${id}`);
     tr.appendChild(td);
@@ -142,14 +142,9 @@ function create_table_row(id, stat, testcase, letter, problem, lang, team, time,
 
 function update_table_row(tr, stat, testcase, time, memory) {
 
-    //tr.children[0] = id;
-    //tr.children[1] = when;
-    //tr.children[2] = team;
-    //tr.children[3] = problem;
-    //tr.children[4] = language;
     tr.children[5].textContent = status_to_text(stat, testcase);
     tr.children[6].textContent = `${time} ms`;
-    tr.children[7].textContent = `${memory}`;
+    tr.children[7].textContent = `${memory} KB`;
 
 }
 

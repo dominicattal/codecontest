@@ -618,8 +618,8 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         ctx.problems[i].num_testcases = json_get_int(value);
-        ctx.problems[i].time_limit = 300;
-        ctx.problems[i].mem_limit = 1<<20;
+        ctx.problems[i].time_limit = 1000;
+        ctx.problems[i].mem_limit = 1000000;
     }
 }
 

@@ -255,33 +255,26 @@ static void process_wait(Process* process)
     pthread_join(process->wait_thread, 0);
 }
 
+// return process memory in kilobytes
 static size_t process_memory(Process* process)
 {
-    pid_t mem_pid;
-    int status;
-    int pipe_fd[2];
-    char pid[16];
-    char* output;
-    char vsz[16];
-    size_t res = 0;
-    pipe(pipe_fd);
-    sprintf(pid, "%d", process->pid);
-    mem_pid = fork();
-    if (mem_pid == -1)
-        return 0;
-    else if (mem_pid == 0) {
-        dup2(pipe_fd[1], 1);
-        dup2(pipe_fd[1], 2);
-        execl("/bin/ps", "/bin/ps", "-p", pid, "-o", "vsz", NULL);
+    pid_t pid = process->pid;
+    int num_pages = 0, dummy;
+    int path_len;
+    size_t page_size;
+    char* path;
+    char* fmt = "/proc/%d/statm";
+    path_len = snprintf(NULL, 0, fmt, pid);
+    path = malloc((path_len+1) * sizeof(char));
+    snprintf(path, path_len+1, fmt, pid);
+    FILE* fptr = fopen(path, "r");
+    if (fptr != NULL) {
+        fscanf(fptr, "%d %d", &dummy, &num_pages);
+        fclose(fptr);
     }
-    waitpid(mem_pid, &status, 0);
-    output = calloc(256, sizeof(char));
-    read(pipe_fd[0], output, 256);
-    sscanf(output, "%s %lu", vsz, &res);
-    free(output);
-    close(pipe_fd[0]);
-    close(pipe_fd[1]);
-    return res;
+    free(path);
+    page_size = getpagesize();
+    return num_pages * page_size / 1000;
 }
 
 static void process_destroy(Process* process)
