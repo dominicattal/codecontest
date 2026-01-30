@@ -3,19 +3,19 @@
 ?>
 <body>
 <table id='runs-table'>
-    <thead>
-        <tr>
-            <th scope='col'>ID</th>
-            <th scope='col'>When</th>
-            <th scope='col'>Team</th>
-            <th scope='col'>Problem</th>
-            <th scope='col'>Language</th>
-            <th scope='col'>Verdict</th>
-            <th scope='col'>Time</th>
-            <th scope='col'>Memory</th>
-        </tr>
-    </thead>
-    <tbody>
+  <thead>
+    <tr>
+      <th scope='col'>ID</th>
+      <th scope='col'>When</th>
+      <th scope='col'>Team</th>
+      <th scope='col'>Problem</th>
+      <th scope='col'>Language</th>
+      <th scope='col'>Verdict</th>
+      <th scope='col'>Time</th>
+      <th scope='col'>Memory</th>
+    </tr>
+  </thead>
+  <tbody>
 <?php
     include "create_arrays.php";
     require "run_enum.php";

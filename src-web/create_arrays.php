@@ -7,8 +7,10 @@
     $res = $stmt->execute();
     $arr = $res->fetchArray(SQLITE3_ASSOC);
     $teams = array();
+    $team_to_id = array();
     while ($arr) {
         $teams[$arr["id"]] = $arr["username"];
+        $team_to_id[$arr["username"]] = $arr["id"];
         $arr = $res->fetchArray(SQLITE3_ASSOC);
     }
     $res->finalize();

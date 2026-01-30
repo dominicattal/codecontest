@@ -1,6 +1,7 @@
 <?php
   include "header.php";
   include "create_arrays.php";
+  include "run_enum.php";
 ?>
 <div id='problems'>
   <div id='problems-left'>
@@ -19,20 +20,61 @@
           <tr>
             <th scope='col'>ID</th>
             <th scope='col'>Name</th>
-            <th scope='col'>Status</th>
             <th scope='col'>Num Solved</th>
           </tr>
         </thead>
         <tbody>
         <?php
-          foreach ($problems as $id => $problem) {
-            echo "<tr>";
+          $db = new SQLite3("../problems/runs.db");
+          $db->enableExceptions(true);
+          $db->busyTimeout(5000);
+          $db->exec('PRAGMA journal_mode = wal;');
+          $team_id = $team_to_id[$_SESSION["username"]];
+          foreach ($problems as $problem_id => $problem) {
+            $success = 0;
+            $failed = 0;
+            if (isset($team_id)) {
+              $stmt = $db->prepare("SELECT COUNT(*) success
+                                    FROM runs
+                                    WHERE problem_id=:problem_id
+                                      AND status=$RUN_SUCCESS
+                                      AND team_id=:team_id");
+              $stmt->bindParam(':problem_id', $problem_id);
+              $stmt->bindParam(':team_id', $team_id);
+              $res = $stmt->execute();
+              $success = $res->fetchArray(SQLITE3_ASSOC)["success"];
+              $res->finalize();
+              $stmt = $db->prepare("SELECT COUNT(*) failed
+                                    FROM runs
+                                    WHERE problem_id=:problem_id
+                                      AND team_id=:team_id
+                                      AND status BETWEEN $RUN_RUNTIME_ERROR AND $RUN_WRONG_ANSWER");
+              $stmt->bindParam(':problem_id', $problem_id);
+              $stmt->bindParam(':team_id', $team_id);
+              $res = $stmt->execute();
+              $failed = $res->fetchArray(SQLITE3_ASSOC)["failed"];
+              $res->finalize();
+            }
+            $stmt = $db->prepare("SELECT COUNT(DISTINCT team_id) solved
+                                  FROM runs
+                                  WHERE problem_id=:problem_id
+                                    AND status=$RUN_SUCCESS");
+            $stmt->bindParam(':problem_id', $problem_id);
+            $res = $stmt->execute();
+            $solved = $res->fetchArray(SQLITE3_ASSOC)["solved"];
+            $res->finalize();
+            $class = 'problem-not-attempted';
+            if ($success > 0)
+              $class = 'problem-success';
+            else if ($failed > 0)
+              $class = 'problem-failed';
+            echo "<tr id='problem-table-$problem[letter]' class='$class'>";
             echo "<td scope='col'>$problem[letter]</td>";
             echo "<td scope='col' class='td-click'><a onclick=showProblem('$problem[letter]')><button>$problem[name]</button></a></td>";
-            echo "<td scope='col'>----</td>";
-            echo "<td scope='col'>----</td>";
+            echo "<td scope='col'>$solved</td>";
             echo "</tr>";
           }
+          $db->close();
         ?>
         </tbody>
       </table>
@@ -82,7 +124,6 @@
       </form>
     </div>
     <?php
-      require "run_enum.php";
       if (!isset($_SESSION["username"]))
         goto done;
       echo "<table id='runs-table'>";
@@ -104,12 +145,12 @@
       $db->enableExceptions(true);
       $db->busyTimeout(5000);
       $db->exec('PRAGMA journal_mode = wal;');
-      $stmt = $db->prepare("SELECT R.id id, T.id team_id, problem_id, language_id, testcase, status, timestamp, time, memory
-                            FROM (runs R JOIN teams T ON R.team_id=T.id)
-                            WHERE username=:username
+      $stmt = $db->prepare("SELECT *
+                            FROM runs
+                            WHERE team_id=:team_id
                             ORDER BY id DESC
                             LIMIT 10");
-      $stmt->bindParam(':username', $_SESSION["username"]);
+      $stmt->bindParam(':team_id', $team_to_id[$_SESSION["username"]]);
       $res = $stmt->execute();
       $run = $res->fetchArray(SQLITE3_ASSOC);
       while ($run) {
@@ -156,19 +197,21 @@
     var table_body = runs_table.getElementsByTagName('tbody')[0];
   }
 
+  const RUN_IDLE = 0;
+  const RUN_ENQUEUED = 1;
+  const RUN_COMPILING = 2;
+  const RUN_RUNNING = 3;
+  const RUN_SUCCESS = 4;
+  const RUN_COMPILATION_ERROR = 5;
+  const RUN_RUNTIME_ERROR = 6;
+  const RUN_TIME_LIMIT_EXCEEDED = 7;
+  const RUN_MEM_LIMIT_EXCEEDED = 8;
+  const RUN_WRONG_ANSWER = 9;
+  const RUN_SERVER_ERROR = 10;
+  const RUN_DEAD = 11;
+
   function status_to_text(stat, testcase) {
-      const RUN_IDLE = 0;
-      const RUN_ENQUEUED = 1;
-      const RUN_COMPILING = 2;
-      const RUN_RUNNING = 3;
-      const RUN_SUCCESS = 4;
-      const RUN_COMPILATION_ERROR = 5;
-      const RUN_RUNTIME_ERROR = 6;
-      const RUN_TIME_LIMIT_EXCEEDED = 7;
-      const RUN_MEM_LIMIT_EXCEEDED = 8;
-      const RUN_WRONG_ANSWER = 9;
-      const RUN_SERVER_ERROR = 10;
-      const RUN_DEAD = 11;
+      
       switch (parseInt(stat)) {
       case RUN_IDLE: return "Idle";
       case RUN_ENQUEUED: return "In queue";
@@ -184,6 +227,10 @@
       case RUN_DEAD: return "How tf did this happen";
       }
       return "?";
+  }
+
+  function status_failed(stat) {
+    return stat >= RUN_COMPILATION_ERROR && stat <= RUN_WRONG_ANSWER;
   }
 
   function create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory) {
@@ -250,6 +297,35 @@
       if (td) td.textContent = `${memory} KB`;
   }
 
+  function update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory) {
+    tr = document.getElementById(`${id}`);
+      if (tr) {
+          update_table_row(tr, id, stat, testcase, time, memory);
+      } else {
+          new_tr = create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory);
+          table_body.insertBefore(new_tr, table_body.children[0]);
+          //table_body.children[0].insertBefore(new_tr, 0);
+          console.log(table_body.children.length);
+          if (table_body.children.length > 10) {
+            var child = table_body.children[table_body.children.length-1];
+            table_body.removeChild(child);
+            child.remove();
+          }
+      }
+  }
+
+  function update_problem_table(stat, letter) {
+    tr = document.getElementById(`problem-table-${letter}`);
+    if (tr.className == "problem-success")
+      return;
+    tr.removeAttribute("class");
+    if (stat == RUN_SUCCESS) {
+      tr.setAttribute("class", "problem-success");
+    } else if (status_failed(stat)) {
+      tr.setAttribute("class", "problem-failed");
+    }
+  }
+
   window.addEventListener('beforeunload', function() {
       socket.close();
   });
@@ -262,16 +338,9 @@
       arr = e["data"].split(",");
       [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
       if (team != TEAM) return;
-      if (!table_body) return;
-      tr = document.getElementById(`${id}`);
-      if (tr) {
-          update_table_row(tr, id, stat, testcase, time, memory);
-      } else {
-          new_tr = create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory);
-          table_body.insertBefore(new_tr, table_body.children[0]);
-          //table_body.children[0].insertBefore(new_tr, 0);
-      }
-
+      if (table_body) 
+        update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
+      update_problem_table(stat, letter);
   }
   socket.onclose = (e) => {
       console.log(e);

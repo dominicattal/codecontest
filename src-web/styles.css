@@ -1,6 +1,6 @@
 /* copied from table mdn docs */
 body {
-    font-family: sans-serif;
+    font-family: consolas;
 }
 
 #runs-table {
@@ -40,30 +40,35 @@ body {
 }
 
 #problems {
-    background: yellow;
     display: flex;
     justify-content: center;
     margin: 10px;
 }
 
 #problems-left {
-    background: red;
     width: 50%;
 }
 
 #problems-right {
-    background: orange;
     width: 50%;
-}
-
-#problems-list {
-    background: green;
 }
 
 #problems-table {
     margin-left: auto;
     margin-right: auto;
     justify-content: center;
+    border-collapse: collapse;
+    border: 2px solid rgb(140 140 140);
+    letter-spacing: 1px;
+}
+
+#problems-table thead {
+    background-color: rgb(228 240 245);
+}
+
+#problems-table th, td {
+    border: 1px solid rgb(160 160 160);
+    padding: 8px 10px;
 }
 
 #problems-submit {
@@ -71,23 +76,64 @@ body {
     display: flex;
     margin-left: auto;
     margin-right: auto;
-    background-color: #f0f0ff;
     justify-content: center;
 }
 
-#problems-submit tfoot {
+#problems-submit-table {
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse;
+    border: 2px solid rgb(140 140 140);
+    letter-spacing: 1px;
+}
+
+#problems-submit-table tfoot {
     text-align: center;
+}
+
+#standings-table {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 15px;
+    text-align: center;
+    border: 2px solid rgb(140 140 140);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+.success {
+    background-color: #00ff00;
+}
+
+.failed {
+    background-color: red;
+}
+
+.frozen {
+    background-color: #a0a0a0;
+}
+
+.problem-success {
+    background-color: #00af00;
+}
+
+.problem-failed {
+    background-color: #ff9999;
 }
 
 #header {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     background: #f0f0f0;
+}
+
+#header div {
+    padding: 20px;
+    color: blue;
 }
 
 #header a {
     padding: 20px;
-    color: blue;
 }
 
 .td-click {

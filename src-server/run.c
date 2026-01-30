@@ -643,7 +643,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     int s = execute->status;
     printf("%d\n", execute->status);
     printf("%d %d %d %d %d %d %d %d\n", WIFEXITED(s), WEXITSTATUS(s), WIFSIGNALED(s), WTERMSIG(s), WCOREDUMP(s), WIFSTOPPED(s), WSTOPSIG(s), WIFCONTINUED(s));
-    if (WSTOPSIG(execute->status) || ()) {
+    if (WSTOPSIG(execute->status)) {
         set_run_status(run, RUN_RUNTIME_ERROR);
         sprintf(response, "Runtime error on testcase %d", testcase);
         goto fail;
@@ -764,10 +764,10 @@ static void handle_run(TokenBuffers* tb, Run* run)
         printf("[%d] Couldn't create bin directory\n", run->id);
         goto server_error;
     }
-    if (!create_dir(get_token_value(tb, OUTPUT_DIR))) {
-        printf("[%d] Couldn't create output directory\n", run->id);
-        goto server_error;
-    }
+    //if (!create_dir(get_token_value(tb, OUTPUT_DIR))) {
+    //    printf("[%d] Couldn't create output directory\n", run->id);
+    //    goto server_error;
+    //}
     if (!create_dir(get_token_value(tb, CODE_DIR))) {
         printf("[%d] Couldn't create code directory\n", run->id);
         goto server_error;
