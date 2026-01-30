@@ -171,7 +171,6 @@ static void* handle_cli_client(void* vargp)
         packet_destroy(run_packet);
         goto fail;
     }
-    printf("%d %lu %p\n", run_packet->id, (long unsigned int)run_packet->length, run_packet->buffer);
 
     run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1, async);
     run_enqueue(run);
@@ -686,7 +685,7 @@ bool db_init(JsonObject* config)
         puts("Opening database failed");
         return false;
     }
-    puts(db_file_path);
+    printf("Creating db file at %s\n", db_file_path);
     db_exec(
         "CREATE TABLE runs ("
         "    id INT PRIMARY KEY,"
@@ -757,7 +756,7 @@ bool db_exec(char* query_fmt, ...)
     va_start(ap, query_fmt);
     vsnprintf(query, query_length+1, query_fmt, ap);
     va_end(ap);
-    puts(query);
+    //puts(query);
     res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
     if (res) printf("sqlite3 command failed: %s\n", error);
     sqlite3_free(error);

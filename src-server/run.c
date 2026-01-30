@@ -390,7 +390,6 @@ static void send_run_to_web_clients(Run* run)
     socket_send_web_all(ctx.web_net_ctx, packet);
     free(buffer);
     packet_destroy(packet);
-
 }
 
 static void set_run_response(Run* run, const char* response)
@@ -563,7 +562,6 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     bool success;
     Process* process;
 
-    puts("Compiling");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
     process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, get_token_value(tb, COMPILE_PATH));
     process_wait(process);
@@ -597,7 +595,6 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     size_t mem;
     struct timeval start, cur, extra;
 
-    puts("Executing");
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
     process_pair = process_pair_create(get_token_value(tb, VALIDATE_COMMAND), get_token_value(tb, EXECUTE_COMMAND));
@@ -643,7 +640,10 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
         }
     }
 
-    if (WSTOPSIG(execute->status)) {
+    int s = execute->status;
+    printf("%d\n", execute->status);
+    printf("%d %d %d %d %d %d %d %d\n", WIFEXITED(s), WEXITSTATUS(s), WIFSIGNALED(s), WTERMSIG(s), WCOREDUMP(s), WIFSTOPPED(s), WSTOPSIG(s), WIFCONTINUED(s));
+    if (WSTOPSIG(execute->status) || ()) {
         set_run_status(run, RUN_RUNTIME_ERROR);
         sprintf(response, "Runtime error on testcase %d", testcase);
         goto fail;
@@ -776,7 +776,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
         printf("[%d] Couldn't create code file\n", run->id);
         goto server_error;
     }
-    set_run_response(run, "Compiling");
     set_run_status(run, RUN_COMPILING);
     if (!compile(tb, language, run))
         goto fail;

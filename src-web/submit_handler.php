@@ -22,6 +22,6 @@
     $res = shell_exec("../bin/dev/client -i $ip -t $port -u $username -p $password -l $lang -b $problem -f $file -n $org_name -a");
 
 done:
-    header("Location: runs.php");
+    header("Location: problems.php");
     die();
 ?>

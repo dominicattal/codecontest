@@ -3,7 +3,7 @@ body {
     font-family: sans-serif;
 }
 
-table {
+#runs-table {
     margin-left: auto;
     margin-right: auto;
     margin-top: 15px;
@@ -14,28 +14,20 @@ table {
     letter-spacing: 1px;
 }
 
-thead, tfoot {
+#runs-table thead {
     background-color: rgb(228 240 245);
 }
 
-th, td {
+#runs-table th, td {
     border: 1px solid rgb(160 160 160);
     padding: 8px 10px;
 }
 
-tbody > tr:nth-of-type(even) {
+#runs-table tbody > tr:nth-of-type(even) {
     background-color: rgb(237 238 242);
 }
-tbody > tr:nth-of-type(odd) {
+#runs-table tbody > tr:nth-of-type(odd) {
     background-color: rgb(255 255 255);
-}
-
-tfoot th {
-  text-align: right;
-}
-
-tfoot td {
-  font-weight: bold;
 }
 
 #problem-header {
@@ -56,20 +48,35 @@ tfoot td {
 
 #problems-left {
     background: red;
-    width: 60%;
+    width: 50%;
 }
 
 #problems-right {
     background: orange;
-    width: 40%;
+    width: 50%;
 }
 
 #problems-list {
     background: green;
 }
 
+#problems-table {
+    margin-left: auto;
+    margin-right: auto;
+    justify-content: center;
+}
+
 #problems-submit {
-    background: blue;
+    margin-top: 10px;
+    display: flex;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: #f0f0ff;
+    justify-content: center;
+}
+
+#problems-submit tfoot {
+    text-align: center;
 }
 
 #header {
@@ -77,6 +84,7 @@ tfoot td {
     justify-content: center;
     background: #f0f0f0;
 }
+
 #header a {
     padding: 20px;
     color: blue;
@@ -86,12 +94,6 @@ tfoot td {
     cursor: pointer;
 }
 
-#problems-submit {
-    justify-content: center;
-    background-color: #ff0080;
-}
-
 form {
-    background-color: #fff080;
     display: inline-grid;
 }

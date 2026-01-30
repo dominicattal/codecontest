@@ -8,3 +8,4 @@ src-web/uploads/*
 *validate*
 *.db*
 todo.txt
+netsh.txt

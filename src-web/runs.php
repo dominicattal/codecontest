@@ -140,12 +140,13 @@ function create_table_row(id, stat, testcase, letter, problem, lang, team, time,
     return tr;
 }
 
-function update_table_row(tr, stat, testcase, time, memory) {
-
-    tr.children[5].textContent = status_to_text(stat, testcase);
-    tr.children[6].textContent = `${time} ms`;
-    tr.children[7].textContent = `${memory} KB`;
-
+function update_table_row(tr, id, stat, testcase, time, memory) {
+    td = tr.querySelector(`#verdict-${id}`);
+    if (td) td.textContent = status_to_text(stat, testcase);
+    td = tr.querySelector(`#time-${id}`);
+    if (td) td.textContent = `${time} ms`;
+    td = tr.querySelector(`#mem-${id}`);
+    if (td) td.textContent = `${memory} KB`;
 }
 
 window.addEventListener('beforeunload', function() {
@@ -159,11 +160,9 @@ socket.onopen = (e) => {
 socket.onmessage = (e) => {
     arr = e["data"].split(",");
     [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
-    console.log(arr);
     tr = document.getElementById(`${id}`);
-
     if (tr) {
-        update_table_row(tr, stat, testcase, time, memory);
+        update_table_row(tr, id, stat, testcase, time, memory);
     } else {
         new_tr = create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory);
         table_body.insertBefore(new_tr, table_body.children[0]);
