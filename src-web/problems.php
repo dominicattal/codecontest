@@ -210,6 +210,27 @@
   const RUN_SERVER_ERROR = 10;
   const RUN_DEAD = 11;
 
+  var teams_solved = new Map();
+  <?php
+    $db = new SQLite3("../problems/runs.db");
+    $db->enableExceptions(true);
+    $db->busyTimeout(5000);
+    $db->exec('PRAGMA journal_mode = wal;');
+    foreach ($teams as $team_id => $team) { 
+      foreach ($problems as $problem_id => $problem) {
+        $stmt = $db->prepare("SELECT COUNT(DISTINCT team_id) count FROM runs WHERE team_id=:team_id AND problem_id=:problem_id");
+        $stmt->bindParam(':team_id', $team_id);
+        $stmt->bindParam(':problem_id', $problem_id);
+        $res = $stmt->execute();
+        $solved = ($res->fetchArray(SQLITE3_ASSOC)["count"] != 0) ? "true" : "false";
+        echo "teams_solved.set('$team-$problem[letter]', $solved);\n";
+        $res->finalize();
+      }
+    }
+    $db->close(); 
+  ?>
+  console.log(teams_solved);
+
   function status_to_text(stat, testcase) {
       
       switch (parseInt(stat)) {
@@ -314,8 +335,16 @@
       }
   }
 
-  function update_problem_table(stat, letter) {
+  function update_problem_table(stat, letter, team) {
     tr = document.getElementById(`problem-table-${letter}`);
+    if (stat == RUN_SUCCESS) {
+      key = `${team}-${letter}`;
+      if (!teams_solved[key]) {
+        teams_solved[key] = true;
+        td = tr.children[2];
+        td.textContent = parseInt(td.textContent)+1;
+      }
+    }
     if (tr.className == "problem-success")
       return;
     tr.removeAttribute("class");
@@ -337,10 +366,9 @@
   socket.onmessage = (e) => {
       arr = e["data"].split(",");
       [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
-      if (team != TEAM) return;
-      if (table_body) 
+      if (table_body && team == TEAM) 
         update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
-      update_problem_table(stat, letter);
+      update_problem_table(stat, letter, team);
   }
   socket.onclose = (e) => {
       console.log(e);

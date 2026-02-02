@@ -351,6 +351,24 @@ found_basename:
     }
     packet_destroy(packet);
 
+    packet = packet_create(PACKET_PROBLEM_VALIDATE, strlen(problem)+1, problem);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (!socket_send(server_socket, packet)) {
+        puts("Could not validate problem");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
+
+    packet = socket_recv(server_socket);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (packet->id != PACKET_PROBLEM_VALIDATION_SUCCESS) {
+        puts("Problem validation failed");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
+
     packet = packet_create(PACKET_CODE_SEND, strlen(code)+1, code);
     if (!socket_send(server_socket, packet)) {
         puts("unsuccessful");
@@ -369,10 +387,16 @@ found_basename:
                 puts("Accepted");
                 break;
             case PACKET_CODE_FAILED:
-                printf("Failed: %s\n", packet->buffer);
+                if (packet->buffer != NULL)
+                    printf("Failed: %s\n", packet->buffer);
+                else
+                    puts("IDK HOW THIS HAPPENED");
                 break;
             case PACKET_CODE_NOTIFICATION:
-                puts(packet->buffer);
+                if (packet->buffer != NULL)
+                    puts(packet->buffer);
+                else
+                    puts("IDK HOW THIS HAPPENED");
                 break;
             default:
                 puts("Unexpected packet received, ignoring it");

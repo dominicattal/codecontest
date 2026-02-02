@@ -46,6 +46,7 @@ typedef enum {
     COMPILE_COMMAND,
     EXECUTE_COMMAND,
     VALIDATE_COMMAND,
+    LETTER,
     NUM_COMMAND_TOKENS,
     INVALID_COMMAND_TOKEN
 } CommandToken;
@@ -76,7 +77,8 @@ static char* tok_map[NUM_COMMAND_TOKENS] = {
     "TESTCASE",
     "COMPILE_COMMAND",
     "EXECUTE_COMMAND",
-    "VALIDATE_COMMAND"
+    "VALIDATE_COMMAND",
+    "LETTER"
 };
 
 typedef enum {
@@ -441,7 +443,7 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     run->code_length = code_length;
     run->response = NULL;
     run->response_length = 0;
-    run->problem_id = 0;
+    run->problem_id = problem_id;
     run->testcase = 0;
     run->time = 0;
     run->memory = 0;
@@ -586,7 +588,7 @@ static int timeval_diff(struct timeval tv1, struct timeval tv2)
 #define VALIDATE_FAILED     1
 #define VALIDATE_ERROR      2
 
-static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
+static int validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
 {
     ProcessPair process_pair;
     Process* validate;
@@ -597,6 +599,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
 
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
+    puts(get_token_value(tb, VALIDATE_COMMAND));
     process_pair = process_pair_create(get_token_value(tb, VALIDATE_COMMAND), get_token_value(tb, EXECUTE_COMMAND));
     validate = process_pair.process1;
     execute = process_pair.process2;
@@ -621,6 +624,8 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
     }
 
     if (validate->exit_status != PROCESS_RUNNING) {
+        if (validate->exit_status == PROCESS_ERROR)
+            goto error;
         while (execute->exit_status == PROCESS_RUNNING) {
             mem = process_memory(execute);
             run->memory = (mem > run->memory) ? mem : run->memory;
@@ -660,7 +665,7 @@ static bool validate(TokenBuffers* tb, Language* language, Problem* problem, Run
 
     if (validate->exit_status != PROCESS_SUCCESS) {
         if (validate->exit_status == PROCESS_ERROR)
-            return VALIDATE_ERROR;
+            goto error;
         set_run_status(run, RUN_WRONG_ANSWER);
         sprintf(response, "Wrong answer on testcase %d", testcase);
         goto fail;
@@ -677,6 +682,12 @@ fail:
     process_destroy(execute);
     process_destroy(validate);
     return VALIDATE_FAILED;
+    
+error:
+    set_run_stats(run, 0, 0, 0, 0);
+    process_destroy(execute);
+    process_destroy(validate);
+    return VALIDATE_ERROR;
 }
 
 static void try_override(JsonObject* object, TokenBuffers* tb, CommandToken tok)
@@ -743,6 +754,8 @@ static void handle_run(TokenBuffers* tb, Run* run)
     set_token_value(tb, OUTPUT_DIR, "%s/%s",
         get_token_value(tb, RUN_DIR),
         get_token_value(tb, BASENAME));
+    printf("!!!%c\n", ctx.problems[run->problem_id].letter);
+    set_token_value(tb, LETTER, "%c", ctx.problems[run->problem_id].letter);
 
     // override
     try_override(language->object, tb, CODE_DIR);
@@ -804,7 +817,7 @@ fail:
     goto deconstruct_run;
 
 server_error:
-    puts("");
+    puts("server error");
     print_all_tokens(tb);
     set_run_status(run, RUN_SERVER_ERROR);
     set_run_response(run, "server error");

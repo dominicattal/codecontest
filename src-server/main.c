@@ -54,6 +54,14 @@ static Language* validate_language(const char* str)
     return NULL;
 }
 
+static Problem* validate_problem(char c)
+{
+    for (int i = 0; i < ctx.num_problems; i++)
+        if (c == ctx.problems[i].letter)
+            return &ctx.problems[i];
+    return NULL;
+}
+
 static void* handle_cli_client(void* vargp)
 {
     Packet* packet;
@@ -63,6 +71,7 @@ static void* handle_cli_client(void* vargp)
     PacketEnum result;
     const Team* team;
     const Language* language;
+    const Problem* problem;
     char buf[BUFFER_LENGTH];
     bool async = false;
 
@@ -164,6 +173,28 @@ static void* handle_cli_client(void* vargp)
     socket_send(client_socket, packet);
     packet_destroy(packet);
 
+    packet = socket_recv(client_socket);
+    if (packet == NULL)
+        goto fail;
+    if (packet->id != PACKET_PROBLEM_VALIDATE)
+        goto fail_packet;
+    if (packet->buffer == NULL)
+        goto fail_packet;
+    problem = validate_problem(packet->buffer[0]);
+    if (language == NULL) {
+        packet_destroy(packet);
+        packet = packet_create(PACKET_PROBLEM_VALIDATION_FAILED, 0, NULL);
+        socket_send(client_socket, packet);
+        goto fail_packet;
+    }
+    packet_destroy(packet);
+
+    packet = packet_create(PACKET_PROBLEM_VALIDATION_SUCCESS, 0, NULL);
+    if (packet == NULL)
+        goto fail;
+    socket_send(client_socket, packet);
+    packet_destroy(packet);
+
     run_packet = socket_recv(client_socket);
     if (run_packet == NULL)
         goto fail;
@@ -172,11 +203,12 @@ static void* handle_cli_client(void* vargp)
         goto fail;
     }
 
-    run = run_create(buf, team->id, language->id, 0, run_packet->buffer, run_packet->length-1, async);
+    run = run_create(buf, team->id, language->id, problem->id, run_packet->buffer, run_packet->length-1, async);
     run_enqueue(run);
     if (async)
         goto success;
     run_wait(run);
+    printf("%d\n", run->status);
     switch (run->status) {
         case RUN_SUCCESS:
             result = PACKET_CODE_ACCEPTED;

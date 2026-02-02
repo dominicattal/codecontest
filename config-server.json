@@ -2,7 +2,7 @@
     "ip": "127.0.0.1",
     "cli_port": "27107",
     "web_port": "27106",
-    "database": "problems/runs.db",
+    "database": "example/runs.db",
     "num_threads": 1,
     "contest": true,
     "_contest": {
@@ -55,9 +55,10 @@
         {
             "letter": "A",
             "name": "Super Easy Problem",
-            "dir": "problems/problem1",
-            "html": "problems/problem1.html",
-            "validate": "problems/problem1/validate [TESTCASE]",
+            "dir": "example/problem1",
+            "html": "example/problem1.html",
+            "validate": "example/problem1/validate [TESTCASE]",
+            "_pipe": true,
             "testcases": 3,
             "time_limit": 2,
             "mem_limit": 256
@@ -65,9 +66,10 @@
         {
             "letter": "B",
             "name": "Floats",
-            "dir": "problems/problem2",
-            "html": "problems/problem2.html",
-            "validate": "problems/problem2/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "dir": "example/problem2",
+            "html": "example/problem2.html",
+            "validate": "example/problem2/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "_pipe": false,
             "testcases": 3,
             "time_limit": 2,
             "mem_limit": 256
@@ -75,10 +77,10 @@
         {
             "letter": "C",
             "name": "Square?",
-            "dir": "problems/problem3",
-            "html": "problems/problem3.html",
-            "validate": "problems/problem3/validate.exe [TESTCASE] [OUTPUT_PATH]",
-            "link": "https://codeforces.com/contest/2167/problem/A",
+            "dir": "example/problem3",
+            "html": "example/problem3.html",
+            "validate": "example/problem3/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "link": "https://codeforces.com/conexample/2167/problem/A",
             "testcases": 3,
             "time_limit": 2,
             "mem_limit": 256
@@ -86,9 +88,9 @@
         {
             "letter": "D",
             "name": "Cyclic Array",
-            "dir": "problems/problem4",
-            "html": "problems/problem4.html",
-            "validate": "problems/problem4/validate.exe [TESTCASE] [OUTPUT_PATH]",
+            "dir": "example/problem4",
+            "html": "example/problem4.html",
+            "validate": "example/problem4/validate.exe [TESTCASE] [OUTPUT_PATH]",
             "testcases": 3,
             "time_limit": 2,
             "mem_limit": 256

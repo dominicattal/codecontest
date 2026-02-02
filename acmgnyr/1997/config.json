@@ -1,0 +1,126 @@
+{
+    "ip": "127.0.0.1",
+    "cli_port": "27107",
+    "web_port": "27106",
+    "database": "acmgnyr/1997/runs.db",
+    "num_threads": 1,
+    "contest": true,
+    "_contest": {
+        "active": true,
+        "name": "NJIT Programming Team",
+        "duration": "5:00:00",
+        "freeze": "1:00:00",
+        "start_time": "2026-04-01 12:12Z"
+    },
+    "_web": {
+        "show_all_runs": true,
+        "show_problem_statements": true,
+        "allow_run_downloads": true,
+        "allow_case_downloads": true,
+        "title": "NJIT Programming Team"
+    },
+    "teams": [
+        {
+            "username": "team1",
+            "password": "shape-untrue"
+        },
+        {
+            "username": "team2",
+            "password": "ugly-bacon"
+        }
+    ],
+    "languages": [
+        {
+            "language": "python3",
+            "extension": "py",
+            "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
+            "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
+        },
+        {
+            "language": "cpp",
+            "extension": "cpp",
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME].exe",
+            "execute": "[BIN_DIR]/[BASENAME].exe"
+        },
+        {
+            "CODE_DIR": "[RUN_DIR]/[BASENAME]",
+            "CODE_PATH": "[RUN_DIR]/[BASENAME]/[CODE_FILENAME].java",
+            "language": "java",
+            "extension": "java",
+            "compile": "javac [CODE_PATH]",
+            "execute": "java -cp [CODE_DIR] [CODE_FILENAME]"
+        }
+    ],
+    "problems": [
+        {
+            "letter": "A",
+            "name": "One Little, Two Little, Three Little Endians",
+            "dir": "acmgnyr/1997/a",
+            "html": "acmgnyr/1997/a.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 1,
+            "time_limit": 1,
+            "mem_limit": 256
+        },
+        {
+            "letter": "B",
+            "name": "A Major Problem",
+            "dir": "acmgnyr/1997/b",
+            "html": "acmgnyr/1997/b.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 1,
+            "time_limit": 1,
+            "mem_limit": 256
+        },
+        {
+            "letter": "C",
+            "name": "The Incredible Hull",
+            "dir": "acmgnyr/1997/c",
+            "html": "acmgnyr/1997/c.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 1,
+            "time_limit": 1,
+            "mem_limit": 256
+        },
+        {
+            "letter": "D",
+            "name": "Last Name First, Please",
+            "dir": "acmgnyr/1997/d",
+            "html": "acmgnyr/1997/d.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 2,
+            "time_limit": 1,
+            "mem_limit": 256
+        },
+        {
+            "letter": "E",
+            "name": "Bundling Newspapers",
+            "dir": "acmgnyr/1997/e",
+            "html": "acmgnyr/1997/e.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 1,
+            "time_limit": 1,
+            "mem_limit": 256
+        },
+        {
+            "letter": "F",
+            "name": "The Forest for the Trees",
+            "dir": "acmgnyr/1997/f",
+            "html": "acmgnyr/1997/f.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 1,
+            "time_limit": 1,
+            "mem_limit": 256
+        },
+        {
+            "letter": "G",
+            "name": "Amazing Similarities",
+            "dir": "acmgnyr/1997/g",
+            "html": "acmgnyr/1997/g.html",
+            "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
+            "testcases": 1,
+            "time_limit": 1,
+            "mem_limit": 256
+        }
+    ]
+}

@@ -50,6 +50,7 @@ If any of the following tokens appear in the command, they will be expanded: \
 - [CASE_PATH]           -> file that contains current testcase. equivalent to [CASE_DIR]/[TESTCASE].in
 - [OUTPUT_DIR]          -> path to the dir that contains the output files. Equivalent to [RUN_DIR]/[BASENAME]
 - [OUTPUT_PATH]         -> path to the textfile generated after executing. This is equivalent to [OUTPUT_DIR]/[TESTCASE].output.
+- [LETTER]              -> letter as specified in the config file (case sensitive)
 
 When a run is submitted from a client, the server places it in the run queue. When a run is processed, \
 it creates a file with the code called [CODE_PATH]. The code is then compiled based on the language's execute command, \

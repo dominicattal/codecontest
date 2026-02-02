@@ -1,0 +1,23 @@
+4 4 Sample 1, Maze 1
+XX..
+...X
+XX..
+...X
+4 4 Sample 1, Maze 2
+.X.X
+....
+X.X.
+X.X.
+1 4 Sample 2, Maze 1
+....
+2 3 Sample 2, Maze 2
+...
+XX.
+2 2 Sample 3, Maze 1
+X.
+..
+2 2 Sample 3, Maze 2
+..
+XX
+0 0 End
+
