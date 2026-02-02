@@ -1,6 +1,6 @@
 <?php
     session_start();
-    $db = new SQLite3("../problems/runs.db");
+    $db = new SQLite3("../runs.db");
     $db->enableExceptions(true);
     $db->exec('PRAGMA journal_mode = wal;');
     $username = htmlspecialchars($_POST["username"]);

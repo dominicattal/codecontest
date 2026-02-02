@@ -1,0 +1,59 @@
+<div id='problem-header'>
+  <h1>Problem F:</h1>
+  <h2>The Forest for the Trees</h2>
+</div>
+<div id='problem-body'>
+  <p>a graph g is a set of points v(g), together with a set of edges e(g), where each element of e(g) is an unordered pair of distinct points of v(g).</p>
+  <p>example: let g be a graph where v(g) = {a, b, c, d} and </p>
+  <p>e(g) = { (a, b), ( b, c ), ( c, d), ( d, b) }</p>
+  <p>notice that g contains the “cycle” , { ( b, c ), ( c, d), ( d, b) }.  a graph devoid of cycles is called a tree.  a path in a graph g is an alternating sequence of points and edges, (beginning and ending with a point) such that all the points of the path are distinct.  in the graph of example 1, {a, (a, b), b, (b, c),  c, ( c, d), d) is a path.</p>
+  <p>fact:  every two points of a tree are joined by a unique path.</p>
+  <p>A graph is called connected if every pair of points are joined by a path. The graph of example 1 is connected. If a graph is not connected then it is made up of “subgraphs” which are. Each one of these subgraphs is called a connected component of the graph g.</p>
+  <p>A graph for which each connected component is a tree is called a forest, see figure 2.</p>
+  <p>one extreme case worth mentioning is the case when one of the component trees has one point but no edges joined to it. this tree looks like an isolated dot. we will call this an acorn.  we are ready to define the problem.</p>
+  <p>problem: given a forest you are to write a program that counts the number of trees and acorns.</p>
+
+</div>
+<h3>Input Specification:</h3>
+<div id='problem-input'>
+  <p>a list of edges of the tree, ( one per line, given as an unordered pair of capital letters and terminated by a row with only a single asterisk.)</p>
+  <p>a comma-delimited list of points in the tree, ( these will be given on one line with a maximum of 26 points represented by the capital letters, a - z).</p>
+</div>
+<h3>Output Specification:</h3>
+<div id='problem-output'>
+  <p>the number of trees and the number of acorns, as a sentence. for example, “there are x tree(s) and y acorn(s)”, where x and y are the numbers of trees and acorns, respectively.</p>
+</div>
+<div id='problem-examples'>
+<h3>Sample Input</h3>
+  <pre><code>
+13
+(A,B)
+(B,C)
+(B,D)
+(D,E)
+(E,F)
+(B,G)
+(G,H)
+(G,I)
+(J,K)
+(K,L)
+(K,M)
+*
+A,B,C,D,E,F,G,H,I,J,K,L,M,N
+  </code></pre>
+<h3>Sample Output</h3>
+  <pre><code>
+Size 2
+Times, Herald-Tribune
+Times, Post
+Times, New Advocate
+Herald-Tribune, Post
+Herald-Tribune, New Advocate
+Post, New Advocate
+
+Size 3
+Times, Herald-Tribune, Post
+Times, Herald-Tribune, New Advocate
+Herald-Tribune, Post, New Advocate
+  </code></pre>
+</div>

@@ -40,17 +40,17 @@ body {
 }
 
 #problems {
-    display: flex;
+    display: block;
     justify-content: center;
     margin: 10px;
 }
 
 #problems-left {
-    width: 50%;
+    width: 40%;
 }
 
 #problems-right {
-    width: 50%;
+    width: 40%;
 }
 
 #problems-table {

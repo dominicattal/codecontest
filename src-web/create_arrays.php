@@ -1,5 +1,5 @@
 <?php
-    $db = new SQLite3("../problems/runs.db");
+    $db = new SQLite3("../runs.db");
     $db->enableExceptions(true);
     $db->exec('PRAGMA journal_mode = wal;');
 

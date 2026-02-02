@@ -1,0 +1,57 @@
+<div id='problem-header'>
+  <h1>Problem G:</h1>
+  <h2>Amazing Similarities </h2>
+</div>
+<div id='problem-body'>
+  <p>A maze is called simple if there is one and only one path from any location in the maze to any other location.  For example, the maze on the left in the figure below is simple because it is possible to find only one path between any two chosen locations in the maze.  The maze on the right, however, is not simple as it is possible to select two locations between which more than one path exists.</p>
+<img src="img1.png" />
+  <p>For this problem we will consider only mazes designed as those above, being constructed from a rectangular array of square locations, with each location being either open or closed.  Movement is allowed into an open location but not a closed location.  Two simple mazes so constructed are said to be homogeneous if the open locations of each maze can be labeled with the same set of letters such that each letter is adjacent to the same set of letters in both mazes.  For example, the four mazes shown below are homogeneous.</p>
+<img src="img2.png" />
+  <p>Labels have been added to the mazes above to help verify that they are indeed homogeneous.  The notation A-{B,E} reads “A is adjacent to B and E”.  Using this notation, the identical set of adjacencies of all four mazes above is as follows:  A-{B,E}, B-{A}, C-{D}, D-{C,E}, E-{A,D,F}, F-{E,G,J}, G-{F}, H-{I}, I-{H,J}, and J-{F,I}.</p>
+  <p>The problem to be solved is that of determining whether two simple mazes are homogeneous.  The input file will contain several sets of mazes to be tested.  A single line will be written to the output file for each pair of input mazes.</p>
+</div>
+<h3>Input Specification:</h3>
+<div id='problem-input'>
+  <p>The first line of the input file will contain two integers separated by a space, followed by another space and then a character string which extends to the end of the line.  The first integer is the number of rows in the first maze, and the second integer is the number of columns.  The maximum dimensions for a maze are 10 by 10 locations.  The character string is the “name” of the maze and is to be used when referencing the maze in the output.  The lines that follow will contain the rows and columns of the maze, with period ‘.’ characters representing open locations and uppercase ‘X’ characters representing closed locations.   Immediately following the data for the first maze is a line containing the dimensions and name of the second maze, which is then followed by the rows and columns of the second maze.</p>
+
+  <p>The input file will contain an unspecified number of maze pairs formatted as above; at least one maze pair is guaranteed to be present.  The second maze pair begins on the line immediately following the end of the input for the first pair and so on.  A maze with dimensions of zero by zero marks the end of the input file.  The program should read the pairs of mazes from the input file and report to the output file whether or not each pair is homogeneous.</p>
+
+</div>
+<h3>Output Specification:</h3>
+<div id='problem-output'>
+  <p>A single line should be output for each pair of mazes.    If the mazes are homogenous then the line should read “Name1 and Name2 ARE homogeneous”, where “Name1” and “Name2” are the names of the mazes as specified in the input file.  If the mazes are not homogeneous then the output line should read “Name1 and Name2 ARE NOT homogeneous”.</p>
+</div>
+<div id='problem-examples'>
+<h3>Sample Input</h3>
+  <pre><code>
+22
+4 4 Sample 1, Maze 1
+XX..
+...X
+XX..
+...X
+4 4 Sample 1, Maze 2
+.X.X
+....
+X.X.
+X.X.
+1 4 Sample 2, Maze 1
+....
+2 3 Sample 2, Maze 2
+...
+XX.
+2 2 Sample 3, Maze 1
+X.
+..
+2 2 Sample 3, Maze 2
+..
+XX
+0 0 End
+  </code></pre>
+<h3>Sample Output</h3>
+  <pre><code>
+Sample 1, Maze 1 and Sample 1, Maze 2 ARE homogeneous
+Sample 2, Maze 1 and Sample 2, Maze 2 ARE homogeneous
+Sample 3, Maze 1 and Sample 3, Maze 2 ARE NOT homogeneous
+  </code></pre>
+</div>

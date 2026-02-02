@@ -12,7 +12,7 @@
                   WHERE problem_id=:problem_id 
                     AND team_id=:team_id 
                     AND status BETWEEN $RUN_RUNTIME_ERROR AND $RUN_WRONG_ANSWER";
-  $db = new SQLite3("../problems/runs.db");
+  $db = new SQLite3("../runs.db");
   $db->enableExceptions(true);
   $db->exec('PRAGMA journal_mode = wal;');
   $standings = array();

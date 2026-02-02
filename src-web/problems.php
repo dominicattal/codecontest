@@ -25,7 +25,7 @@
         </thead>
         <tbody>
         <?php
-          $db = new SQLite3("../problems/runs.db");
+          $db = new SQLite3("../runs.db");
           $db->enableExceptions(true);
           $db->busyTimeout(5000);
           $db->exec('PRAGMA journal_mode = wal;');
@@ -141,7 +141,7 @@
       echo "</thead>";
       echo "<tbody>";
 
-      $db = new SQLite3("../problems/runs.db");
+      $db = new SQLite3("../runs.db");
       $db->enableExceptions(true);
       $db->busyTimeout(5000);
       $db->exec('PRAGMA journal_mode = wal;');
@@ -212,7 +212,7 @@
 
   var teams_solved = new Map();
   <?php
-    $db = new SQLite3("../problems/runs.db");
+    $db = new SQLite3("../runs.db");
     $db->enableExceptions(true);
     $db->busyTimeout(5000);
     $db->exec('PRAGMA journal_mode = wal;');

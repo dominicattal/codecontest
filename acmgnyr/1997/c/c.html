@@ -1,0 +1,59 @@
+<div id='problem-header'>
+  <h1>Problem C:</h1>
+  <h2>The Incredible Hull</h2>
+</div>
+<div id='problem-body'>
+  <p>a simple polygon is a polygon that contains no self-intersecting lines. A convex polygon is a simple polygon with all internal angles less than 180 degrees. For a set of two-dimensional objects, their convex hull is the convex polygon of least area that completely encloses all of the objects. In the figure below, the three solid-lined objects on the left are enclosed in a dotted-line convex polygon, but that polygon is not their convex hull; on the right the same three objects are enclosed by their convex hull.</p>
+
+  <p>Determining the convex hull of a set of objects is a fundamental problem in both computer graphics and computational geometry. The object of this problem is to write a program that will report the convex hull of a set of simple polygons. An input file will define several such sets of polygons for which convex hulls should be reported in the output file.</p>
+
+</div>
+<h3>Input Specification:</h3>
+<div id='problem-input'>
+  <p>each line of the input file will begin with either the letter ‘s’, the letter ‘p’, or the word ‘end’.  lines starting with ‘s’ begin a new set of polygons.  lines starting with ‘p’ define a polygon in the current set.  the word ‘end’ will appear only as the last line of the input file.</p>
+
+  <p>each ‘s’ starting a line will be followed by a single space and then a character string which identifies the set of polygons.  each ‘p’ starting a line will be followed by a single space and then  a list of integers delimited by single spaces.  the first integer specifies the number of vertices in the polygon, and the remaining integers specify, in counterclockwise order, the (x,y) coordinates of each polygon vertex.</p>
+
+  <p>each set of polygons will contain from 1 to 20 simple polygons.  each polygon will contain from 3 to 20 distinct vertices.  each vertex will be an integer coordinate in the range (-1000,-1000) to (1000,1000).  no input polygon will have more than two adjacent collinear points. that is, a point will not occur on an edge between two other points.</p>
+
+  <p>It may be assumed that all input will be syntactically correct.</p>
+
+</div>
+<h3>Output Specification:</h3>
+<div id='problem-output'>
+  <p>Two lines should be output for each set of polygons.  The first line should start with the character string from the input file which identifies the polygon set, followed by the characters “ convex hull:”.  The second line should list the coordinates of the vertices in the convex hull, each vertex being preceded by a single space and in the format “(x,y)”, where x and y are the integer coordinates of the vertex.  The output of the convex hull vertices should begin with the vertex with the largest x-coordinate, ties being resolved by selecting the smaller y-coordinate.  The vertices of the convex hull should be output in counterclockwise order.</p>
+
+  <p>Any vertex that is part of an input polygon that is also part of the convex hull should appear in the output.  That is to say points should not be eliminated from the convex hull to prevent more than two adjacent points on the hull from being collinear.  For example, supposing that (10,1), (10,7) and (10,12) are consecutive points on the convex hull, the point (10,7) should not be removed but rather reported as part of the convex hull.</p>
+
+</div>
+<div id='problem-examples'>
+<h3>Sample Input</h3>
+  <pre><code>
+14
+S Sample 1
+P 5 8 0 8 8 0 8 5 6 2 3
+P 3 6 13 2 18 2 13
+P 4 15 6 15 14 10 14 10 6
+S Sample 2
+P 8 1 2 -3 5 1 8 -3 12 -7 8 -3 5 -7 2 -3 -2
+S Sample 3
+P 4 150 100 150 150 100 150 100 100
+P 4 180 130 180 180 130 180 130 130
+S Sample 4
+P 4 20 5 10 10 0 5 10 0
+P 4 20 20 10 25 0 20 10 15
+P 4 20 35 10 40 0 35 10 30
+END
+  </code></pre>
+<h3>Sample Output</h3>
+  <pre><code>
+Sample 1 convex hull:
+ (15,6) (15,14) (2,18) (0,8) (2,3) (8,0)
+Sample 2 convex hull:
+ (1,2) (1,8) (-3,12) (-7,8) (-7,2) (-3,-2)
+Sample 3 convex hull:
+ (180,130) (180,180) (130,180) (100,150) (100,100) (150,100)
+Sample 4 convex hull:
+ (20,5) (20,20) (20,35) (10,40) (0,35) (0,20) (0,5) (10,0)
+  </code></pre>
+</div>

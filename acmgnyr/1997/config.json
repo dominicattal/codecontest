@@ -2,7 +2,7 @@
     "ip": "127.0.0.1",
     "cli_port": "27107",
     "web_port": "27106",
-    "database": "acmgnyr/1997/runs.db",
+    "database": "runs.db",
     "num_threads": 1,
     "contest": true,
     "_contest": {
@@ -22,11 +22,47 @@
     "teams": [
         {
             "username": "team1",
-            "password": "shape-untrue"
+            "password": "team1"
         },
         {
             "username": "team2",
-            "password": "ugly-bacon"
+            "password": "team2"
+        },
+        {
+            "username": "team3",
+            "password": "team3"
+        },
+        {
+            "username": "team4",
+            "password": "team4"
+        },
+        {
+            "username": "team5",
+            "password": "team5"
+        },
+        {
+            "username": "team6",
+            "password": "team6"
+        },
+        {
+            "username": "team7",
+            "password": "team7"
+        },
+        {
+            "username": "team8",
+            "password": "team8"
+        },
+        {
+            "username": "team9",
+            "password": "team9"
+        },
+        {
+            "username": "team10",
+            "password": "team10"
+        },
+        {
+            "username": "team11",
+            "password": "team11"
         }
     ],
     "languages": [
@@ -56,7 +92,7 @@
             "letter": "A",
             "name": "One Little, Two Little, Three Little Endians",
             "dir": "acmgnyr/1997/a",
-            "html": "acmgnyr/1997/a.html",
+            "html": "acmgnyr/1997/a/a.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 1,
             "time_limit": 1,
@@ -66,7 +102,7 @@
             "letter": "B",
             "name": "A Major Problem",
             "dir": "acmgnyr/1997/b",
-            "html": "acmgnyr/1997/b.html",
+            "html": "acmgnyr/1997/b/b.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 1,
             "time_limit": 1,
@@ -76,7 +112,7 @@
             "letter": "C",
             "name": "The Incredible Hull",
             "dir": "acmgnyr/1997/c",
-            "html": "acmgnyr/1997/c.html",
+            "html": "acmgnyr/1997/c/c.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 1,
             "time_limit": 1,
@@ -86,7 +122,7 @@
             "letter": "D",
             "name": "Last Name First, Please",
             "dir": "acmgnyr/1997/d",
-            "html": "acmgnyr/1997/d.html",
+            "html": "acmgnyr/1997/d/d.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 2,
             "time_limit": 1,
@@ -96,7 +132,7 @@
             "letter": "E",
             "name": "Bundling Newspapers",
             "dir": "acmgnyr/1997/e",
-            "html": "acmgnyr/1997/e.html",
+            "html": "acmgnyr/1997/e/e.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 1,
             "time_limit": 1,
@@ -106,7 +142,7 @@
             "letter": "F",
             "name": "The Forest for the Trees",
             "dir": "acmgnyr/1997/f",
-            "html": "acmgnyr/1997/f.html",
+            "html": "acmgnyr/1997/f/f.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 1,
             "time_limit": 1,
@@ -116,7 +152,7 @@
             "letter": "G",
             "name": "Amazing Similarities",
             "dir": "acmgnyr/1997/g",
-            "html": "acmgnyr/1997/g.html",
+            "html": "acmgnyr/1997/g/g.html",
             "validate": "acmgnyr/1997/validate [LETTER] [TESTCASE]",
             "testcases": 1,
             "time_limit": 1,

@@ -2,7 +2,7 @@
     "ip": "127.0.0.1",
     "cli_port": "27107",
     "web_port": "27106",
-    "database": "example/runs.db",
+    "database": "runs.db",
     "num_threads": 1,
     "contest": true,
     "_contest": {
