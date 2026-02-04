@@ -2,6 +2,8 @@
     include "header.php";
 ?>
 <body>
+<style>
+</style>
 <table id='runs-table'>
   <thead>
     <tr>
@@ -30,7 +32,7 @@
     while ($run) {
         echo "<tr id='$run[id]'>";
         echo "<td id='id-$run[id]'>$run[id]</td>";
-        echo "<td>TDB</td>";
+        echo "<td>TBD</td>";
         echo "<td id='team-$run[id]'>{$teams[$run['team_id']]}</td>";
         $problem_letter = $problems[$run['problem_id']]["letter"];
         $problem_name = $problems[$run['problem_id']]["name"];
@@ -158,7 +160,7 @@ socket.onopen = (e) => {
 }
 
 socket.onmessage = (e) => {
-    arr = e["data"].split(",");
+    arr = e["data"].split("\r");
     [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
     tr = document.getElementById(`${id}`);
     if (tr) {

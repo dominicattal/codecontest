@@ -1,7 +1,8 @@
 .env
 ws2_32.dll
-build/*
-bin/*
+*build/*
+*bin*
+*runs*
 problems/problem1/runs/*
 problems/problem1/bin/*
 src-web/uploads/*

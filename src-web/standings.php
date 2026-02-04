@@ -1,3 +1,23 @@
+<style>
+#standings-table {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 15px;
+    text-align: center;
+    border: 2px solid rgb(140 140 140);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+.success {
+    background-color: #00ff00;
+}
+.failed {
+    background-color: red;
+}
+.frozen {
+    background-color: #a0a0a0;
+}
+</style>
 <?php
   include "header.php";
   include "create_arrays.php";

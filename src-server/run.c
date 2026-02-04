@@ -139,7 +139,7 @@ static Process* process_create(const char* command, const char* infile_path, con
 
     process = malloc(sizeof(Process));
     process->argv = malloc(4 * sizeof(char*));
-    process->argv[0] = "/bin/bash";
+    process->argv[0] = "/bin/bash/";
     process->argv[1] = "-c";
     process->argv[2] = (char*)command;
     process->argv[3] = NULL;
@@ -204,14 +204,12 @@ static ProcessPair process_pair_create(const char* command1, const char* command
     p1->exit_status = PROCESS_RUNNING;
     pid = fork();
     if (pid == -1) {
-        free(p1->argv);
-        free(p1);
-        return res;
+        goto fail;
     } else if (pid == 0) {
         dup2(pipe_p1_p2[1], STDOUT_FILENO);
         dup2(pipe_p2_p1[0], STDIN_FILENO);
-        //close(STDERR_FILENO);
-        execvp("/bin/bash", p1->argv);
+        if (execvp("/bin/bash", p1->argv))
+            goto fail;
     }
     p1->pid = pid;
     pthread_create(&p1->wait_thread, NULL, process_handler_daemon, p1);
@@ -225,19 +223,12 @@ static ProcessPair process_pair_create(const char* command1, const char* command
     p2->exit_status = PROCESS_RUNNING;
     pid = fork();
     if (pid == -1) {
-        close(pipe_p1_p2[1]);
-        close(pipe_p2_p1[0]);
-        free(p2->argv);
-        free(p2);
-        kill(p1->pid, SIGTERM);
-        free(p1->argv);
-        free(p1);
-        return res;
+        goto fail;
     } else if (pid == 0) {
         dup2(pipe_p2_p1[1], STDOUT_FILENO);
         dup2(pipe_p1_p2[0], STDIN_FILENO);
-        //close(STDERR_FILENO);
-        execvp("/bin/bash", p2->argv);
+        if (execvp("/bin/bash", p2->argv))
+            goto fail;
     }
     p2->pid = pid;
     pthread_create(&p2->wait_thread, NULL, process_handler_daemon, p2);
@@ -250,6 +241,25 @@ static ProcessPair process_pair_create(const char* command1, const char* command
     p2->fd_out = pipe_p2_p1[1];
 
     return res;
+
+fail:
+    puts("failed to create process pair");
+    if (p1) {
+        kill(p2->pid, SIGTERM);
+        free(p1->argv);
+        free(p1);
+    }
+    if (p2) {
+        kill(p2->pid, SIGTERM);
+        free(p2->argv);
+        free(p2);
+    }
+    close(pipe_p1_p2[0]);
+    close(pipe_p1_p2[1]);
+    close(pipe_p2_p1[0]);
+    close(pipe_p2_p1[1]);
+
+    return (ProcessPair) { NULL, NULL };
 }
 
 static void process_wait(Process* process)
@@ -382,7 +392,7 @@ static void send_run_to_web_clients(Run* run)
     lang = &ctx.languages[run->language_id];
     team = &ctx.teams[run->team_id];
 
-    fmt = "%d,%d,%d,%c,%s,%s,%s,%d,%d";
+    fmt = "%d\r%d\r%d\r%c\r%s\r%s\r%s\r%d\r%d";
     buf_len = snprintf(NULL, 0, fmt, run->id, run->status, run->testcase, problem->letter, 
                        problem->name, lang->name, team->username, run->time, run->memory); 
     buffer = malloc((buf_len+1) * sizeof(char));
@@ -601,6 +611,8 @@ static int validate(TokenBuffers* tb, Language* language, Problem* problem, Run*
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
     puts(get_token_value(tb, VALIDATE_COMMAND));
     process_pair = process_pair_create(get_token_value(tb, VALIDATE_COMMAND), get_token_value(tb, EXECUTE_COMMAND));
+    if (process_pair.process1 == NULL)
+        goto error;
     validate = process_pair.process1;
     execute = process_pair.process2;
     gettimeofday(&start, NULL);
@@ -646,7 +658,6 @@ static int validate(TokenBuffers* tb, Language* language, Problem* problem, Run*
     }
 
     int s = execute->status;
-    printf("%d\n", execute->status);
     printf("%d %d %d %d %d %d %d %d\n", WIFEXITED(s), WEXITSTATUS(s), WIFSIGNALED(s), WTERMSIG(s), WCOREDUMP(s), WIFSTOPPED(s), WSTOPSIG(s), WIFCONTINUED(s));
     if (WSTOPSIG(execute->status)) {
         set_run_status(run, RUN_RUNTIME_ERROR);
@@ -754,7 +765,6 @@ static void handle_run(TokenBuffers* tb, Run* run)
     set_token_value(tb, OUTPUT_DIR, "%s/%s",
         get_token_value(tb, RUN_DIR),
         get_token_value(tb, BASENAME));
-    printf("!!!%c\n", ctx.problems[run->problem_id].letter);
     set_token_value(tb, LETTER, "%c", ctx.problems[run->problem_id].letter);
 
     // override

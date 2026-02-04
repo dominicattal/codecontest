@@ -22,11 +22,11 @@
     "teams": [
         {
             "username": "team1",
-            "password": "shape-untrue"
+            "password": "team1"
         },
         {
             "username": "team2",
-            "password": "ugly-bacon"
+            "password": "team2"
         }
     ],
     "languages": [
