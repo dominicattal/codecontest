@@ -15,6 +15,11 @@
   --background-color: red;
 }
 
+#problems-left img {
+  display: block;
+  margin: auto;
+}
+
 #problems-right {
   width: 30%;
   --background-color: blue;
@@ -27,6 +32,7 @@
   border-collapse: collapse;
   border: 2px solid rgb(140 140 140);
   letter-spacing: 1px;
+  background-color: white;
 }
 
 #problems-table thead {
@@ -46,12 +52,24 @@
   justify-content: center;
 }
 
+#problem-header {
+  text-align: center;
+}
+
+@media only screen and (max-width: 1300px) {
+  #problems-submit-table {
+    display: none;
+  }
+}
+
 #problems-submit-table {
   margin-left: auto;
   margin-right: auto;
   border-collapse: collapse;
   border: 2px solid rgb(140 140 140);
   letter-spacing: 1px;
+  background-color: white;
+  max-width:
 }
 
 #problems-submit-table tfoot {

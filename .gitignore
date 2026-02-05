@@ -8,5 +8,6 @@ problems/problem1/bin/*
 src-web/uploads/*
 *validate*
 *.db*
+*tmp*
 todo.txt
 netsh.txt

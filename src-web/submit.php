@@ -124,14 +124,31 @@
   </div>
 </div>
 <script>
-  const TEAM = "<?php echo $_SESSION['username']; ?>";
-
   var host = "ws://127.0.0.1:27106";
   var socket = new WebSocket(host);
   var runs_table = document.getElementById('runs-table');
   if (runs_table) {
     var table_body = runs_table.getElementsByTagName('tbody')[0];
   }
+
+  socket.onopen = (e) => {
+      console.log(e);
+  }
+
+  socket.onmessage = (e) => {
+      arr = e["data"].split("\r");
+      [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
+      if (table_body && team == TEAM) 
+        update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
+  }
+  socket.onclose = (e) => {
+      console.log(e);
+  }
+  socket.onerror = (e) => {
+      console.log(e);
+  }
+
+  const TEAM = "<?php echo $_SESSION['username']; ?>";
 
   const RUN_IDLE = 0;
   const RUN_ENQUEUED = 1;
@@ -165,7 +182,6 @@
     }
     $db->close(); 
   ?>
-  console.log(teams_solved);
 
   function status_to_text(stat, testcase) {
       
@@ -269,27 +285,5 @@
             child.remove();
           }
       }
-  }
-
-  window.addEventListener('beforeunload', function() {
-      socket.close();
-  });
-
-  socket.onopen = (e) => {
-      console.log(e);
-  }
-
-  socket.onmessage = (e) => {
-      console.log(e);
-      arr = e["data"].split("\r");
-      [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
-      if (table_body && team == TEAM) 
-        update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
-  }
-  socket.onclose = (e) => {
-      console.log(e);
-  }
-  socket.onerror = (e) => {
-      console.log(e);
   }
 </script>

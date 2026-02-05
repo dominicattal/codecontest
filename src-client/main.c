@@ -390,7 +390,7 @@ found_basename:
                 if (packet->buffer != NULL)
                     printf("Failed: %s\n", packet->buffer);
                 else
-                    puts("IDK HOW THIS HAPPENED");
+                    puts("Failed: no message, this probably shouldnt have happened\n");
                 break;
             case PACKET_CODE_NOTIFICATION:
                 if (packet->buffer != NULL)

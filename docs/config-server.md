@@ -23,7 +23,8 @@ forgive me im not checking this in a md renderer right now
     "validate" -> command for validating a program's output \
     "testcases" -> number of testcases for this problem \
     "time_limit" -> time limit in seconds \
-    "mem_limit" -> memory limit in MB
+    "mem_limit" -> memory limit in MB \
+    "pipe" -> whether to set up pipes between the validation and execution processes, false by default
 
 A command is a string that is to be run in the system's shell. \
 If any of the following tokens appear in the command, they will be expanded: \
@@ -48,7 +49,8 @@ If any of the following tokens appear in the command, they will be expanded: \
 - [COMPILE_PATH]        -> path to the compile output file generated. This is equivalent to [COMPILE_DIR]/[BASENAME].compile
 - [TESTCASE]            -> current testcase number. equal to -1 if not used in the "validate" or the "execute" fields
 - [CASE_PATH]           -> file that contains current testcase. equivalent to [CASE_DIR]/[TESTCASE].in
-- [OUTPUT_DIR]          -> path to the dir that contains the output files. Equivalent to [RUN_DIR]/[BASENAME]
+- [ANSWER_PATH]         -> file that contains the answer for the current testcase. equivalent to [CASE_DIR]/[TESTCASE].ans
+- [OUTPUT_DIR]          -> path to the dir that contains the output files. Equivalent to [RUN_DIR]/tmp
 - [OUTPUT_PATH]         -> path to the textfile generated after executing. This is equivalent to [OUTPUT_DIR]/[TESTCASE].output.
 - [LETTER]              -> letter as specified in the config file (case sensitive)
 

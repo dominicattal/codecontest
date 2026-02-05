@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <json.h>
-#include "state.h"
+#include "main.h"
 #include "run.h"
 
 #define BUFFER_LENGTH 1024
@@ -208,7 +208,6 @@ static void* handle_cli_client(void* vargp)
     if (async)
         goto success;
     run_wait(run);
-    printf("%d\n", run->status);
     switch (run->status) {
         case RUN_SUCCESS:
             result = PACKET_CODE_ACCEPTED;
@@ -548,6 +547,7 @@ void read_problems(JsonObject* config)
     JsonObject* object;
     JsonValue* value;
     JsonArray* array;
+    Problem* problem;
     const char* string;
     int i;
 
@@ -568,7 +568,8 @@ void read_problems(JsonObject* config)
     }
     ctx.problems = malloc(ctx.num_problems * sizeof(Problem));
     for (i = 0; i < ctx.num_problems; i++) {
-        ctx.problems[i].id = i;
+        problem = &ctx.problems[i];
+        problem->id = i;
         value = json_array_get(array, i);
         if (json_get_type(value) != JTYPE_OBJECT) {
             puts("invalid problem");
@@ -579,7 +580,7 @@ void read_problems(JsonObject* config)
             puts("could not get object in problem");
             exit(1);
         }
-        ctx.problems[i].object = object;
+        problem->object = object;
         value = json_get_value(object, "letter");
         if (value == NULL) {
             puts("Missing problem letter");
@@ -594,7 +595,7 @@ void read_problems(JsonObject* config)
             puts("Invalid problem letter - too many letters");
             exit(1);
         }
-        ctx.problems[i].letter = string[0];
+        problem->letter = string[0];
         value = json_get_value(object, "name");
         if (value == NULL) {
             puts("Missing problem name");
@@ -605,7 +606,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        ctx.problems[i].name = string;
+        problem->name = string;
         value = json_get_value(object, "html");
         if (value == NULL) {
             puts("Missing problem html");
@@ -616,7 +617,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        ctx.problems[i].html = string;
+        problem->html = string;
         value = json_get_value(object, "dir");
         if (value == NULL) {
             puts("Missing dir path");
@@ -627,7 +628,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        ctx.problems[i].dir = string;
+        problem->dir = string;
         value = json_get_value(object, "validate");
         if (value == NULL) {
             puts("Missing validator path");
@@ -638,7 +639,7 @@ void read_problems(JsonObject* config)
             exit(1);
         }
         string = json_get_string(value);
-        ctx.problems[i].validate = string;
+        problem->validate = string;
         value = json_get_value(object, "testcases");
         if (value == NULL) {
             puts("Missing testcases");
@@ -648,9 +649,16 @@ void read_problems(JsonObject* config)
             puts("Invalid number of testcases");
             exit(1);
         }
-        ctx.problems[i].num_testcases = json_get_int(value);
-        ctx.problems[i].time_limit = 1000;
-        ctx.problems[i].mem_limit = 1000000;
+        problem->num_testcases = json_get_int(value);
+        value = json_get_value(object, "pipe");
+        if (value == NULL) {
+            printf("Missing pipe field, defaulting to no pipe for problem %c (%s)\n", problem->letter, problem->name);
+            problem->pipe = false;
+        } else {
+            problem->pipe = json_get_type(value) == JTYPE_TRUE;
+        }
+        problem->time_limit = 1000;
+        problem->mem_limit = 1000000;
     }
 }
 

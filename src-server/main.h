@@ -34,6 +34,7 @@ typedef struct {
     int time_limit;
     int num_testcases;
     int id;
+    bool pipe;
 } Problem;
 
 typedef struct {

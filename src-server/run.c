@@ -1,5 +1,5 @@
 #include "run.h"
-#include "state.h"
+#include "main.h"
 #include <networking.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +40,7 @@ typedef enum {
     CODE_PATH,
     COMPILE_PATH,
     CASE_PATH,
+    ANSWER_PATH,
     OUTPUT_DIR,
     OUTPUT_PATH,
     TESTCASE,
@@ -72,6 +73,7 @@ static char* tok_map[NUM_COMMAND_TOKENS] = {
     "CODE_PATH",
     "COMPILE_PATH",
     "CASE_PATH",
+    "ANSWER_PATH",
     "OUTPUT_DIR",
     "OUTPUT_PATH",
     "TESTCASE",
@@ -83,7 +85,7 @@ static char* tok_map[NUM_COMMAND_TOKENS] = {
 
 typedef enum {
     PROCESS_SUCCESS  = 0,
-    PROCESS_WRONG    = 1,
+    PROCESS_FAILED   = 1,
     PROCESS_ERROR    = 2,
     PROCESS_RUNNING  = 3
 } ProcessEnum;
@@ -131,7 +133,7 @@ static void* process_handler_daemon(void* vargp)
     return NULL;
 }
 
-static Process* process_create(const char* command, const char* infile_path, const char* outfile_path)
+static Process* process_create(const char* command, FILE* infile, FILE* outfile)
 {
     Process* process;
     pid_t pid;
@@ -149,22 +151,25 @@ static Process* process_create(const char* command, const char* infile_path, con
     if (pid == -1) {
         goto fail;
     } else if (pid == 0) {
-        if (infile_path != NULL) {
-            fd_in = open(infile_path, O_RDONLY, S_IRUSR);
+        if (infile != NULL) {
+            //fd_in = open(infile_path, O_RDONLY, S_IRUSR);
+            fd_in = fileno(infile);
             if (fd_in < 0)
                 goto fail;
-            dup2(fd_in, 0);
+            dup2(fd_in, STDIN_FILENO);
             close(fd_in);
         }
-        if (outfile_path != NULL) {
-            fd_out = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (outfile!= NULL) {
+            //fd_out = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+            fd_out = fileno(outfile);
             if (fd_out < 0)
                 goto fail;
-            dup2(fd_out, 1);
-            dup2(fd_out, 2);
+            dup2(fd_out, STDOUT_FILENO);
+            //dup2(fd_out, STDERR_FILENO);
             close(fd_out);
         }
-        execvp("/bin/bash", process->argv);
+        if (execvp("/bin/bash", process->argv))
+            goto fail;
     }
     process->pid = pid;
     pthread_create(&process->wait_thread, NULL, process_handler_daemon, process);
@@ -291,6 +296,8 @@ static size_t process_memory(Process* process)
 
 static void process_destroy(Process* process)
 {
+    if (process == NULL)
+        return;
     if (process->fd_out != -1)
         close(process->fd_out);
     if (process->fd_in != -1)
@@ -573,12 +580,15 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
     bool success;
     Process* process;
+    FILE* compile_file;
 
+    compile_file = fopen(get_token_value(tb, COMPILE_PATH), "w");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
-    process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, get_token_value(tb, COMPILE_PATH));
+    process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, compile_file);
     process_wait(process);
     success = process->exit_status == PROCESS_SUCCESS;
     process_destroy(process);
+    fclose(compile_file);
 
     if (success)
         return true;
@@ -598,7 +608,94 @@ static int timeval_diff(struct timeval tv1, struct timeval tv2)
 #define VALIDATE_FAILED     1
 #define VALIDATE_ERROR      2
 
-static int validate(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
+static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
+{
+    Process* validate = NULL;
+    Process* execute = NULL;
+    char response[512];
+    size_t mem;
+    struct timeval start, cur;
+    FILE* execute_stdin = NULL;
+    FILE* execute_stdout = NULL;
+
+    set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
+    execute_stdin = fopen(get_token_value(tb, CASE_PATH), "r");
+    if (execute_stdin == NULL)
+        goto error;
+    execute_stdout = fopen(get_token_value(tb, OUTPUT_PATH), "w");
+    if (execute_stdout == NULL)
+        goto error;
+    execute = process_create(get_token_value(tb, EXECUTE_COMMAND), execute_stdin, execute_stdout);
+    if (execute == NULL)
+        goto error;
+    gettimeofday(&start, NULL);
+    cur = start;
+    mem = 0;
+    while (execute->exit_status == PROCESS_RUNNING) {
+        mem = process_memory(execute);
+        run->memory = (mem > run->memory) ? mem : run->memory;
+        if (run->memory > problem->mem_limit) {
+            set_run_status(run, RUN_MEM_LIMIT_EXCEEDED);
+            sprintf(response, "Memory limit exceeded on testcase %d", testcase);
+            goto fail;
+        }
+        gettimeofday(&cur, NULL);
+        run->time = timeval_diff(cur, start);
+        if (run->time > problem->time_limit) {
+            set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
+            sprintf(response, "Time limit exceeded on testcase %d", testcase);
+            goto fail;
+        }
+    }
+    if (execute->exit_status == PROCESS_ERROR)
+        goto error;
+    if (execute->exit_status == PROCESS_FAILED) {
+        set_run_status(run, RUN_RUNTIME_ERROR);
+        sprintf(response, "Runtime error on testcase %d", testcase);
+        goto fail;
+    }
+    process_destroy(execute);
+    fclose(execute_stdout);
+    execute_stdout = NULL;
+    execute_stdout = fopen(get_token_value(tb, OUTPUT_PATH), "r");
+    if (execute_stdout == NULL)
+        goto error;
+
+    set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
+    validate = process_create(get_token_value(tb, VALIDATE_COMMAND), execute_stdout, NULL);
+    process_wait(validate);
+    if (validate->exit_status == PROCESS_ERROR)
+        goto error;
+    if (validate->exit_status == PROCESS_FAILED) {
+        set_run_status(run, RUN_WRONG_ANSWER);
+        sprintf(response, "Wrong answer on testcase %d", testcase);
+        goto fail;
+    }
+
+    fclose(execute_stdin);
+    fclose(execute_stdout);
+    set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
+    return VALIDATE_SUCCESS;
+
+fail:
+    set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
+    set_run_response(run, response);
+    if (execute_stdin != NULL) 
+        fclose(execute_stdin);
+    if (execute_stdout != NULL) 
+        fclose(execute_stdout);
+    return VALIDATE_FAILED;
+
+error:
+    set_run_stats(run, 0, 0, 0, 0);
+    if (execute_stdin != NULL) 
+        fclose(execute_stdin);
+    if (execute_stdout != NULL) 
+        fclose(execute_stdout);
+    return VALIDATE_ERROR;
+}
+
+static int validate_with_pipe(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)
 {
     ProcessPair process_pair;
     Process* validate;
@@ -609,12 +706,13 @@ static int validate(TokenBuffers* tb, Language* language, Problem* problem, Run*
 
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
-    puts(get_token_value(tb, VALIDATE_COMMAND));
     process_pair = process_pair_create(get_token_value(tb, VALIDATE_COMMAND), get_token_value(tb, EXECUTE_COMMAND));
-    if (process_pair.process1 == NULL)
-        goto error;
     validate = process_pair.process1;
     execute = process_pair.process2;
+    if (validate == NULL)
+        goto error;
+    if (execute == NULL)
+        goto error;
     gettimeofday(&start, NULL);
     cur = start;
     mem = 0;
@@ -762,9 +860,8 @@ static void handle_run(TokenBuffers* tb, Run* run)
     set_token_value(tb, COMPILE_PATH, "%s/%s.compile",
         get_token_value(tb, COMPILE_DIR),
         get_token_value(tb, BASENAME));
-    set_token_value(tb, OUTPUT_DIR, "%s/%s",
-        get_token_value(tb, RUN_DIR),
-        get_token_value(tb, BASENAME));
+    set_token_value(tb, OUTPUT_DIR, "%s/tmp",
+        get_token_value(tb, PROBLEM_DIR));
     set_token_value(tb, LETTER, "%c", ctx.problems[run->problem_id].letter);
 
     // override
@@ -787,10 +884,10 @@ static void handle_run(TokenBuffers* tb, Run* run)
         printf("[%d] Couldn't create bin directory\n", run->id);
         goto server_error;
     }
-    //if (!create_dir(get_token_value(tb, OUTPUT_DIR))) {
-    //    printf("[%d] Couldn't create output directory\n", run->id);
-    //    goto server_error;
-    //}
+    if (!create_dir(get_token_value(tb, OUTPUT_DIR))) {
+        printf("[%d] Couldn't create output directory\n", run->id);
+        goto server_error;
+    }
     if (!create_dir(get_token_value(tb, CODE_DIR))) {
         printf("[%d] Couldn't create code directory\n", run->id);
         goto server_error;
@@ -808,12 +905,20 @@ static void handle_run(TokenBuffers* tb, Run* run)
         set_token_value(tb, CASE_PATH, "%s/%s.in",
                 get_token_value(tb, CASE_DIR),
                 get_token_value(tb, TESTCASE));
-        set_token_value(tb, OUTPUT_PATH, "%s/%s.output",
+        set_token_value(tb, ANSWER_PATH, "%s/%s.ans",
+                get_token_value(tb, CASE_DIR),
+                get_token_value(tb, TESTCASE));
+        set_token_value(tb, OUTPUT_PATH, "%s/%s-%s-%s.output",
                 get_token_value(tb, OUTPUT_DIR),
+                get_token_value(tb, TEAM_NAME),
+                get_token_value(tb, RUN_ID),
                 get_token_value(tb, TESTCASE));
         set_run_testcase(run, testcase);
         db_exec("UPDATE runs SET status=3, testcase=%d WHERE id=%d", testcase, run->id);
-        validate_res = validate(tb, language, problem, run, testcase);
+        if (problem->pipe)
+            validate_res = validate_with_pipe(tb, language, problem, run, testcase);
+        else
+            validate_res = validate_without_pipe(tb, language, problem, run, testcase);
         if (validate_res == VALIDATE_FAILED)
             goto fail;
         else if (validate_res == VALIDATE_ERROR)

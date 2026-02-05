@@ -46,7 +46,7 @@ build:
 	@mkdir -p build
 
 clean:
-	rm -rf build bin example/problem1/runs example/problem1/bin example/runs.db example/runs.db-shm example/runs.db-wal
+	rm -rf build bin example/problem1/runs example/problem1/bin example/problem1/tmp example/runs.db example/runs.db-shm example/runs.db-wal
 	
 .PHONY: clean
 
