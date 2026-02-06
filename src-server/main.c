@@ -27,7 +27,7 @@ void _log(LogLevel level, const char* fmt, const char* file, int line, ...)
         "\033[35mDBQUERY\033[0m",
     };
     va_start(ap, line);
-    printf("%-s\t\033[38;2;220;220;220m%s:%d\033[0m ", level_strs[level], file, line);
+    printf("%-s \033[38;2;220;220;220m%s:%d\033[0m ", level_strs[level], file, line);
     vprintf(fmt, ap);
     printf("\n");
     va_end(ap);
@@ -48,9 +48,9 @@ bool _db_exec(char* query_fmt, const char* file, int line, ...)
     va_start(ap, line);
     vsnprintf(query, query_length+1, query_fmt, ap);
     va_end(ap);
-    _log(DBQUERY, query, file, line);
+    //_log(DBQUERY, query, file, line);
     res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-    if (res) printf("sqlite3 command failed: %s\n", error);
+    if (res) log(WARNING, "sqlite3 command failed: %s", error);
     sqlite3_free(error);
     free(query);
     return res;
@@ -786,7 +786,7 @@ bool db_init(JsonObject* config)
         log(ERROR, "Opening database failed");
         return false;
     }
-    printf("Creating db file at %s\n", db_file_path);
+    log(INFO, "Creating db file at %s", db_file_path);
     db_exec(
         "CREATE TABLE runs ("
         "    id INT PRIMARY KEY,"

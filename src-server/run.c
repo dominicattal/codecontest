@@ -44,6 +44,8 @@ typedef enum {
     ANSWER_PATH,
     OUTPUT_DIR,
     OUTPUT_PATH,
+    RUNTIME_DIR,
+    RUNTIME_PATH,
     TESTCASE,
     COMPILE_COMMAND,
     EXECUTE_COMMAND,
@@ -77,6 +79,8 @@ static char* tok_map[NUM_COMMAND_TOKENS] = {
     "ANSWER_PATH",
     "OUTPUT_DIR",
     "OUTPUT_PATH",
+    "RUNTIME_DIR",
+    "RUNTIME_PATH",
     "TESTCASE",
     "COMPILE_COMMAND",
     "EXECUTE_COMMAND",
@@ -165,7 +169,7 @@ static void set_token_value_parse(TokenBuffers* tb, CommandToken tok, const char
 
 static void print_token_value(TokenBuffers* tb, CommandToken tok)
 {
-    printf("%s=%s\n", tok_map[tok], tb->buffers[tok]);
+    log(INFO, "%s=%s", tok_map[tok], tb->buffers[tok]);
 }
 
 static void print_all_tokens(TokenBuffers* tb)
@@ -379,7 +383,7 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     outfile = fopen(get_token_value(tb, COMPILE_PATH), "w");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
     log(INFO, "compile run %d: %s", run->id, get_token_value(tb, COMPILE_COMMAND));
-    process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, outfile, NULL);
+    process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, outfile, outfile);
     process_wait(process);
     success = process_success(process);
     process_destroy(process);
@@ -412,16 +416,26 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     struct timeval start, cur;
     FILE* infile = NULL;
     FILE* outfile = NULL;
+    FILE* errfile = NULL;
 
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
     infile = fopen(get_token_value(tb, CASE_PATH), "r");
-    if (infile == NULL)
+    if (infile == NULL) {
+        log(ERROR, "Could not open infile %s", get_token_value(tb, OUTPUT_PATH));
         goto error;
+    }
     outfile = fopen(get_token_value(tb, OUTPUT_PATH), "w+");
-    if (outfile == NULL)
+    if (outfile == NULL) {
+        log(ERROR, "Could not open outfile %s", get_token_value(tb, OUTPUT_PATH));
         goto error;
-    execute = process_create(get_token_value(tb, EXECUTE_COMMAND), infile, outfile, NULL);
-    log(INFO, "execute run %d no pipe: %s infile=%s outfile=%s", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH));
+    }
+    errfile = fopen(get_token_value(tb, RUNTIME_PATH), "w");
+    if (errfile == NULL) {
+        log(ERROR, "Could not open errfile %s", get_token_value(tb, RUNTIME_PATH));
+        goto error;
+    }
+    execute = process_create(get_token_value(tb, EXECUTE_COMMAND), infile, outfile, errfile);
+    log(INFO, "execute run %d no pipe: %s infile=%s outfile=%s errfile=%s", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH), get_token_value(tb, RUNTIME_PATH));
     if (execute == NULL)
         goto error;
     gettimeofday(&start, NULL);
@@ -454,6 +468,8 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     execute = NULL;
     fclose(infile);
     infile = NULL;
+    fclose(errfile);
+    errfile = NULL;
     rewind(outfile);
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
@@ -469,6 +485,8 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     }
     process_destroy(validate);
     fclose(outfile);
+    if (remove(get_token_value(tb, OUTPUT_PATH)) == -1)
+        log(WARNING, "Could not remove output path %s: errno=%d", get_token_value(tb, OUTPUT_PATH), errno);
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     return VALIDATE_SUCCESS;
 
@@ -481,6 +499,10 @@ fail:
         fclose(infile);
     if (outfile != NULL)
         fclose(outfile);
+    if (errfile != NULL)
+        fclose(errfile);
+    if (remove(get_token_value(tb, OUTPUT_PATH)) == -1)
+        log(WARNING, "Could not remove output path %s: errno=%d", get_token_value(tb, OUTPUT_PATH), errno);
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     set_run_response(run, response);
     return VALIDATE_FAILED;
@@ -494,6 +516,11 @@ error:
         fclose(infile);
     if (outfile != NULL)
         fclose(outfile);
+    if (errfile != NULL)
+        fclose(errfile);
+    if (remove(get_token_value(tb, OUTPUT_PATH)) == -1)
+        log(WARNING, "Could not remove output path %s errno=%d", get_token_value(tb, OUTPUT_PATH), errno);
+    remove(get_token_value(tb, OUTPUT_PATH));
     set_run_stats(run, 0, 0, 0, 0);
     return VALIDATE_ERROR;
 }
@@ -665,6 +692,8 @@ static void handle_run(TokenBuffers* tb, Run* run)
         get_token_value(tb, BASENAME));
     set_token_value(tb, OUTPUT_DIR, "%s/tmp",
         get_token_value(tb, PROBLEM_DIR));
+    set_token_value(tb, RUNTIME_DIR, "%s",
+        get_token_value(tb, COMPILE_DIR));
     set_token_value(tb, LETTER, "%c", ctx.problems[run->problem_id].letter);
 
     // override
@@ -695,6 +724,10 @@ static void handle_run(TokenBuffers* tb, Run* run)
         log(ERROR, "[%d] Couldn't create code directory", run->id);
         goto server_error;
     }
+    if (!create_dir(get_token_value(tb, RUNTIME_DIR))) {
+        log(ERROR, "[%d] Couldn't create error directory", run->id);
+        goto server_error;
+    }
     if (!create_file(get_token_value(tb, CODE_PATH), run->code, run->code_length)) {
         log(ERROR, "[%d] Couldn't create code file", run->id);
         goto server_error;
@@ -716,6 +749,10 @@ static void handle_run(TokenBuffers* tb, Run* run)
                 get_token_value(tb, TEAM_NAME),
                 get_token_value(tb, RUN_ID),
                 get_token_value(tb, TESTCASE));
+        set_token_value(tb, RUNTIME_PATH, "%s/%s-%s.runtime",
+            get_token_value(tb, COMPILE_DIR),
+            get_token_value(tb, BASENAME),
+            get_token_value(tb, TESTCASE));
         set_run_testcase(run, testcase);
         db_exec("UPDATE runs SET status=3, testcase=%d WHERE id=%d", testcase, run->id);
         if (problem->pipe)
