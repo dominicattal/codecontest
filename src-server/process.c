@@ -75,25 +75,24 @@ Process* process_create(const char* command, const char* infile_path, const char
     si.cb = sizeof(si);
     si.dwFlags |= STARTF_USESTDHANDLES;
     if (infile_path != NULL) {
-        // this is aids
         CreatePipe(&process->infile_rd, &infile_wr, &saAttr, 0);
         SetHandleInformation(&infile_wr, HANDLE_FLAG_INHERIT, 0);
         text = read_file(infile_path, &size);
-        if (text == NULL)
+        if (text == NULL) {
+            puts("text is null");
             goto fail_really_bad;
+        }
         WriteFile(infile_wr, text, size, &written, NULL);
         free(text);
         CloseHandle(infile_wr);
         si.hStdInput = process->infile_rd;
     }
     if (outfile_path != NULL) {
-        outfile_handle = CreateFile(outfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 
-            &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        outfile_handle = CreateFile(outfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         si.hStdOutput = outfile_handle;
     }
     if (errfile_path != NULL) {
-        errfile_handle = CreateFile(errfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 
-            &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        errfile_handle = CreateFile(errfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         si.hStdError = errfile_handle;
     }
     if (!CreateProcess(NULL, (char*)command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &process->pi))
@@ -105,8 +104,8 @@ Process* process_create(const char* command, const char* infile_path, const char
     return process;
 
 fail_really_bad:
-    puts("Something went very wrong");
-    printf("%lu\n", GetLastError());
+    printf("Something went very wrong error: %ld %s:%d", GetLastError(), __FILE__, __LINE__);
+    printf("Process pid: %ld\n", process->pi.dwProcessId);
     exit(1);
     return NULL;
 }

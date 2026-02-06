@@ -449,6 +449,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
         goto fail;
     }
     process_destroy(execute);
+    execute = NULL;
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
     validate = process_create(get_token_value(tb, VALIDATE_COMMAND), 
@@ -465,6 +466,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
         sprintf(response, "Wrong answer on testcase %d", testcase);
         goto fail;
     }
+    process_destroy(validate);
 
     // remove output path
     remove(get_token_value(tb, OUTPUT_PATH));
@@ -472,12 +474,23 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     return VALIDATE_SUCCESS;
 
 fail:
+    if (execute != NULL) {
+        process_destroy(execute);
+        execute = NULL;
+    } if (validate != NULL) {
+        process_destroy(validate);
+        validate = NULL;
+    }
     remove(get_token_value(tb, OUTPUT_PATH));
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     set_run_response(run, response);
     return VALIDATE_FAILED;
 
 error:
+    if (execute != NULL)
+        process_destroy(execute);
+    if (validate != NULL)
+        process_destroy(validate);
     remove(get_token_value(tb, OUTPUT_PATH));
     set_run_stats(run, 0, 0, 0, 0);
     return VALIDATE_ERROR;

@@ -234,15 +234,28 @@ bool socket_connect(Socket* sock)
 
 void socket_destroy(Socket* sock)
 {
+    NetContext* ctx;
+    ctx = sock->ctx;
     pthread_mutex_lock(&sock->ctx->mutex);
     if (sock->info != NULL)
         freeaddrinfo(sock->info);
-    if (sock->sock != NULL)
+    if (sock->sock != NULL) {
+        shutdown(*sock->sock, SD_BOTH);
         closesocket(*sock->sock);
+    }
     sock->connected = false;
     sock->sock = NULL;
     sock->info = NULL;
+    if (sock == ctx->head)
+        ctx->head = sock->next;
+    else
+        sock->prev->next = sock->next;
+    if (sock == ctx->tail)
+        ctx->tail = sock->prev;
+    else
+        sock->next->prev = sock->prev;
     pthread_mutex_unlock(&sock->ctx->mutex);
+    free(sock);
 }
 
 bool socket_send(Socket* sock, Packet* packet)

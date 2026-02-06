@@ -250,7 +250,6 @@ static Socket* cli_create_listen_socket(JsonObject* config)
     Socket* listen_socket;
     char* ip_str;
     char* port_str;
-    
     ip_str = get_string(config, "ip");
     port_str = get_string(config, "cli_port");
     if (port_str == NULL) {
@@ -262,13 +261,14 @@ static Socket* cli_create_listen_socket(JsonObject* config)
         puts("Could not create socket");
         return NULL;
     }
-
     if (!socket_bind(listen_socket)) {
         printf("Couldn't bind socket: %d\n", networking_get_last_error());
+        socket_destroy(listen_socket);
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
-        puts("Couldn't listen");
+        printf("Couldn't listen: %d\n", networking_get_last_error());
+        socket_destroy(listen_socket);
         return NULL;
     }
     return listen_socket;
@@ -295,7 +295,7 @@ static void* cli_server_daemon(void* vargp)
             continue;
         }
         pthread_create(&thread_id, NULL, handle_cli_client, client_socket);
-        pthread_join(thread_id, NULL);
+        //pthread_join(thread_id, NULL);
     }
     return NULL;
 }
@@ -658,7 +658,7 @@ void read_problems(JsonObject* config)
         } else {
             problem->pipe = json_get_type(value) == JTYPE_TRUE;
         }
-        problem->time_limit = 1000;
+        problem->time_limit = 2000;
         problem->mem_limit = 1000000;
     }
 }
@@ -809,7 +809,7 @@ int main(int argc, char** argv)
 {
     JsonObject* config;
     pthread_t cli_server_thread_id;
-    //pthread_t web_server_thread_id;
+    pthread_t web_server_thread_id;
     int code;
 
     if (argc == 1) {

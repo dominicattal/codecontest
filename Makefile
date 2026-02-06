@@ -3,7 +3,7 @@ NAME_SERVER=server.exe
 NAME_CLIENT=client.exe
 LINKER_FLAGS= -pthread -lsqlite3
 CFLAGS_ALL = -Ilib -MMD -Wall -Wextra -Werror -Wfatal-errors -Wno-unused-parameter -pthread -mshstk -Wno-implicit-fallthrough
-CFLAGS_TMP = -Wno-unused-function -Wno-unused-variable
+CFLAGS_TMP = -Wno-unused-function -Wno-unused-variable -Wno-deprecated-declarations
 
 ifeq ($(OS),Windows_NT)
 	LINKER_FLAGS += -lws2_32

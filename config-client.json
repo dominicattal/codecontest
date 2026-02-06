@@ -1,10 +1,10 @@
 {
     "ip": "127.0.0.1",
-    "port": "27114",
+    "port": "27120",
     "username": "team1",
     "password": "team1",
     "language": "python3",
     "problem": "A",
-    "file": "example/problem1/test-py/accepted.py",
+    "file": "example/problem1/test-py/mle.py",
     "async": false
 }
