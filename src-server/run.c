@@ -351,7 +351,7 @@ static bool create_dir(const char* path)
     // TODO: figure out why EBADF occurs here
     if (result == 0 || errno == EEXIST || errno == EBADF)
         return true;
-    printf("Creted dir failed: %s %d\n", path, errno);
+    log(ERROR, "Creted dir failed: %s %d", path, errno);
     return false;
 }
 
@@ -378,7 +378,7 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
 
     outfile = fopen(get_token_value(tb, COMPILE_PATH), "w");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
-    printf("compile run %d: %s\n", run->id, get_token_value(tb, COMPILE_COMMAND));
+    log(INFO, "compile run %d: %s", run->id, get_token_value(tb, COMPILE_COMMAND));
     process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, outfile, NULL);
     process_wait(process);
     success = process_success(process);
@@ -421,7 +421,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     if (outfile == NULL)
         goto error;
     execute = process_create(get_token_value(tb, EXECUTE_COMMAND), infile, outfile, NULL);
-    printf("execute run %d no pipe: %s infile=%s\n outfile=%s\n", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH));
+    log(INFO, "execute run %d no pipe: %s infile=%s outfile=%s", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH));
     if (execute == NULL)
         goto error;
     gettimeofday(&start, NULL);
@@ -458,7 +458,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
     validate = process_create(get_token_value(tb, VALIDATE_COMMAND), outfile, NULL, NULL);
-    printf("validate run %d no pipe: %s\n", run->id, get_token_value(tb, VALIDATE_COMMAND));
+    log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
     process_wait(validate);
     if (process_error(validate))
         goto error;
@@ -672,31 +672,31 @@ static void handle_run(TokenBuffers* tb, Run* run)
     try_override(language->object, tb, CODE_PATH);
 
     if (!find_dir(get_token_value(tb, CASE_DIR))) {
-        printf("[%d] Couldn't find case directory\n", run->id);
+        log(ERROR, "[%d] Couldn't find case directory", run->id);
         goto server_error;
     }
     if (!create_dir(get_token_value(tb, RUN_DIR))) {
-        printf("[%d] Couldn't create run directory\n", run->id);
+        log(ERROR, "[%d] Couldn't create run directory", run->id);
         goto server_error;
     }
     if (!create_dir(get_token_value(tb, COMPILE_DIR))) {
-        printf("[%d] Couldn't create compile directory\n", run->id);
+        log(ERROR, "[%d] Couldn't create compile directory", run->id);
         goto server_error;
     }
     if (!create_dir(get_token_value(tb, BIN_DIR))) {
-        printf("[%d] Couldn't create bin directory\n", run->id);
+        log(ERROR, "[%d] Couldn't create bin directory", run->id);
         goto server_error;
     }
     if (!create_dir(get_token_value(tb, OUTPUT_DIR))) {
-        printf("[%d] Couldn't create output directory\n", run->id);
+        log(ERROR, "[%d] Couldn't create output directory", run->id);
         goto server_error;
     }
     if (!create_dir(get_token_value(tb, CODE_DIR))) {
-        printf("[%d] Couldn't create code directory\n", run->id);
+        log(ERROR, "[%d] Couldn't create code directory", run->id);
         goto server_error;
     }
     if (!create_file(get_token_value(tb, CODE_PATH), run->code, run->code_length)) {
-        printf("[%d] Couldn't create code file\n", run->id);
+        log(ERROR, "[%d] Couldn't create code file", run->id);
         goto server_error;
     }
     set_run_status(run, RUN_COMPILING);
@@ -735,7 +735,7 @@ fail:
     goto deconstruct_run;
 
 server_error:
-    puts("server error");
+    log(ERROR, "server error");
     print_all_tokens(tb);
     set_run_status(run, RUN_SERVER_ERROR);
     set_run_response(run, "server error");

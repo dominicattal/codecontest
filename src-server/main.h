@@ -7,6 +7,17 @@
 #include <pthread.h>
 #include <sqlite3.h>
 #include <networking.h>
+#include <stdarg.h>
+
+typedef enum {
+    FATAL,
+    ERROR,
+    WARNING,
+    INFO,
+    DEBUG,
+    DBQUERY,
+    NUM_LOG_LEVELS
+} LogLevel;
 
 typedef struct {
     const char* username;
@@ -55,6 +66,10 @@ typedef struct {
 
 extern GlobalContext ctx;
 
-bool db_exec(char* query_fmt, ...);
+void _log(LogLevel level, const char* fmt, const char* file, int line, ...);
+#define log(level, fmt, ...) _log(level, fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+
+bool _db_exec(char* query_fmt, const char* file, int line, ...);
+#define db_exec(query_fmt, ...) _db_exec(query_fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
 #endif

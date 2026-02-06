@@ -15,6 +15,47 @@
 
 GlobalContext ctx;
 
+void _log(LogLevel level, const char* fmt, const char* file, int line, ...) 
+{
+    va_list ap;
+    static char* level_strs[NUM_LOG_LEVELS] = {
+        "\033[31mFATAL\033[0m",
+        "\033[38;2;255;165;0mCRITICAL\033[0m",
+        "\033[33mWARNING\033[0m",
+        "\033[32mINFO\033[0m",
+        "\033[34mDEBUG\033[0m",
+        "\033[35mDBQUERY\033[0m",
+    };
+    va_start(ap, line);
+    printf("%-s\t\033[38;2;220;220;220m%s:%d\033[0m ", level_strs[level], file, line);
+    vprintf(fmt, ap);
+    printf("\n");
+    va_end(ap);
+}
+
+bool _db_exec(char* query_fmt, const char* file, int line, ...)
+{
+    char* query;
+    char* error;
+    int query_length;
+    bool res;
+    va_list ap;
+    va_start(ap, line);
+    query_length = vsnprintf(NULL, 0, query_fmt, ap);
+    va_end(ap);
+    if (query_length < 0) return false;
+    query = malloc((query_length+1) * sizeof(char));
+    va_start(ap, line);
+    vsnprintf(query, query_length+1, query_fmt, ap);
+    va_end(ap);
+    _log(DBQUERY, query, file, line);
+    res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
+    if (res) printf("sqlite3 command failed: %s\n", error);
+    sqlite3_free(error);
+    free(query);
+    return res;
+}
+
 static char* get_string(JsonObject* object, char* key)
 {
     JsonValue* value;
@@ -81,18 +122,18 @@ static void* handle_cli_client(void* vargp)
 
     packet = socket_recv(client_socket);
     if (packet == NULL) {
-        puts("Could not get client header");
+        log(ERROR, "Could not get client header");
         goto fail;
     }
     if (packet->id != PACKET_CLI_CLIENT && packet->id != PACKET_WEB_CLIENT) {
-        puts("Client header is invalid");
+        log(ERROR, "Client header is invalid");
         goto fail;
     }
     packet_destroy(packet);
 
     packet = packet_create((contest_is_running()) ? PACKET_CONTEST : PACKET_NO_CONTEST, strlen(buf)+1, buf);
     if (packet == NULL) {
-        puts("Could not get contest packet");
+        log(ERROR, "Could not get contest packet");
         goto fail;
     }
     socket_send(client_socket, packet);
@@ -240,7 +281,7 @@ success:
 fail_packet:
     packet_destroy(packet);
 fail:
-    puts("Lost connection to client");
+    log(INFO, "Lost connection to client");
     socket_destroy(client_socket);
     return NULL;
 }
@@ -253,21 +294,21 @@ static Socket* cli_create_listen_socket(JsonObject* config)
     ip_str = get_string(config, "ip");
     port_str = get_string(config, "cli_port");
     if (port_str == NULL) {
-        puts("Could not read port from config file");
+        log(ERROR, "Could not read cli_port from config file");
         return NULL;
     }
     listen_socket = socket_create(ctx.cli_net_ctx, ip_str, port_str, BIT_TCP);
     if (listen_socket == NULL) {
-        puts("Could not create socket");
+        log(ERROR, "Could not create cli listen socket");
         return NULL;
     }
     if (!socket_bind(listen_socket)) {
-        printf("Couldn't bind socket: %d\n", networking_get_last_error());
+        log(ERROR, "Couldn't bind cli socket");
         socket_destroy(listen_socket);
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
-        printf("Couldn't listen: %d\n", networking_get_last_error());
+        log(ERROR, "Couldn't listen on cli socket");
         socket_destroy(listen_socket);
         return NULL;
     }
@@ -283,7 +324,7 @@ static void* cli_server_daemon(void* vargp)
     while (!ctx.kill) {
         listen_socket = cli_create_listen_socket(config);
         if (listen_socket == NULL) {
-            puts("Listen socket is null");
+            log(FATAL, "Listen socket is null");
             ctx.kill = true;
             break;
         }
@@ -291,7 +332,7 @@ static void* cli_server_daemon(void* vargp)
         socket_destroy(listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
-                puts("Client socket is null");
+                log(WARNING, "Client socket is null");
             continue;
         }
         pthread_create(&thread_id, NULL, handle_cli_client, client_socket);
@@ -309,7 +350,7 @@ static void* handle_web_client(void* vargp)
     bool closed = false;
     client_socket = vargp;
 
-    puts("Connected to web client");
+    log(INFO, "Connected to web client");
 
     while (!ctx.kill && !closed) {
         packet = socket_recv_web(client_socket);
@@ -318,24 +359,26 @@ static void* handle_web_client(void* vargp)
         }
         switch (packet->id) {
             case WEB_PACKET_TEXT:
-                puts("Received text");
-                puts(packet->buffer);
+                if (packet->buffer)
+                    log(INFO, "Received text packet: %s", packet->buffer);
+                else
+                    log(WARNING, "Received text packet, but packet buffer null");
                 break;
             case WEB_PACKET_PING:
                 if (packet->length > 125) {
-                    puts("Invalid ping packet, ignoring");
+                    log(WARNING, "Invalid ping packet, ignoring");
                     break;
                 }
-                puts("Received ping");
+                log(INFO, "Received ping");
                 send_packet = packet_create(WEB_PACKET_PONG, packet->length, packet->buffer);
                 socket_send_web(client_socket, send_packet);
                 packet_destroy(send_packet);
                 break;
             case WEB_PACKET_PONG:
-                puts("Received pong");
+                log(INFO, "Received pong");
                 break;
             case WEB_PACKET_CLOSE:
-                puts("Closing web socket connection");
+                log(INFO, "Closing web socket connection");
                 msg = "received close packet";
                 send_packet = packet_create(WEB_PACKET_CLOSE, strlen(msg), msg); 
                 socket_send_web(client_socket, send_packet);
@@ -343,7 +386,7 @@ static void* handle_web_client(void* vargp)
                 closed = true;
                 break;
             default:
-                puts("Recveied weird web packet, ignoring");
+                log(WARNING, "Recveied weird web packet, ignoring");
                 break;
         }
         packet_destroy(packet);
@@ -361,21 +404,21 @@ static Socket* web_create_listen_socket(JsonObject* config)
     ip_str = get_string(config, "ip");
     port_str = get_string(config, "web_port");
     if (port_str == NULL) {
-        puts("Could not read port from config file");
+        log(ERROR, "Could not read web_port from config file");
         return NULL;
     }
     listen_socket = socket_create(ctx.web_net_ctx, ip_str, port_str, BIT_TCP);
     if (listen_socket == NULL) {
-        puts("Could not create socket");
+        log(ERROR, "Could not create web socket");
         return NULL;
     }
 
     if (!socket_bind(listen_socket)) {
-        puts("Couldn't bind socket");
+        log(ERROR, "Couldn't bind socket");
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
-        puts("Couldn't listen");
+        log(ERROR, "Couldn't listen");
         return NULL;
     }
     return listen_socket;
@@ -391,7 +434,7 @@ static void* web_server_daemon(void* vargp)
     while (!ctx.kill) {
         listen_socket = web_create_listen_socket(config);
         if (listen_socket == NULL) {
-            puts("Listen socket is null");
+            log(FATAL, "Listen socket is null");
             ctx.kill = true;
             break;
         }
@@ -399,7 +442,7 @@ static void* web_server_daemon(void* vargp)
         socket_destroy(listen_socket);
         if (client_socket == NULL) {
             if (!ctx.kill)
-                puts("Client socket is null");
+                log(WARNING, "Client socket is null");
             continue;
         }
         socket_web_handshake(client_socket);
@@ -409,7 +452,7 @@ static void* web_server_daemon(void* vargp)
     return NULL;
 }
 
-void read_teams(JsonObject* config)
+bool read_teams(JsonObject* config)
 {
     JsonObject* object;
     JsonValue* value;
@@ -419,55 +462,56 @@ void read_teams(JsonObject* config)
 
     value = json_get_value(config, "teams");
     if (value == NULL)
-        return;
-    if (json_get_type(value) != JTYPE_ARRAY)
-        return;
+        return false;
+    if (json_get_type(value) != JTYPE_ARRAY) {
+        return false;
+    }
     array = json_get_array(value);
     ctx.num_teams = json_array_length(array);
-    if (ctx.num_teams == 0)
-        return;
-    ctx.teams = malloc((ctx.num_teams+1) * sizeof(Team));
-    ctx.teams[ctx.num_teams].id = 0;
-    ctx.teams[ctx.num_teams].username = "no-team";
-    ctx.teams[ctx.num_teams].password = "";
+    if (ctx.num_teams == 0) {
+        log(ERROR, "There are no teams");
+        return false;
+    }
+    ctx.teams = malloc(ctx.num_teams * sizeof(Team));
     for (i = 0; i < ctx.num_teams; i++) {
         ctx.teams[i].id = i;
         value = json_array_get(array, i);
         if (json_get_type(value) != JTYPE_OBJECT) {
-            puts("invalid teamname");
-            exit(1);
+            log(ERROR, "invalid teamname");
+            return false;
         }
         object = json_get_object(value);
         if (object == NULL) {
-            puts("could not get object in team");
-            exit(1);
+            log(ERROR, "could not get object in team");
+            return false;
         }
         value = json_get_value(object, "username");
         if (value == NULL) {
-            puts("Missing team username");
-            exit(1);
+            log(ERROR, "Missing team username");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid teamname");
-            exit(1);
+            log(ERROR, "Invalid teamname");
+            return false;
         }
         string = json_get_string(value);
         ctx.teams[i].username = string;
         value = json_get_value(object, "password");
         if (value == NULL) {
-            puts("Missing team password");
-            exit(1);
+            log(ERROR, "Missing team password");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid teamname");
-            exit(1);
+            log(ERROR, "Invalid teamname");
+            return false;
         }
         string = json_get_string(value);
         ctx.teams[i].password = string;
     }
+    return true;
 }
 
-void read_languages(JsonObject* config)
+bool read_languages(JsonObject* config)
 {
     JsonObject* object;
     JsonValue* value;
@@ -477,41 +521,41 @@ void read_languages(JsonObject* config)
 
     value = json_get_value(config, "languages");
     if (value == NULL)
-        return;
+        return false;
     if (json_get_type(value) != JTYPE_ARRAY)
-        return;
+        return false;
     array = json_get_array(value);
     ctx.num_languages = json_array_length(array);
     if (ctx.num_languages == 0)
-        return;
+        return false;
     ctx.languages = malloc(ctx.num_languages * sizeof(Language));
     for (i = 0; i < ctx.num_languages; i++) {
         ctx.languages[i].id = i;
         value = json_array_get(array, i);
         if (json_get_type(value) != JTYPE_OBJECT) {
-            puts("invalid language");
-            exit(1);
+            log(ERROR, "invalid language");
+            return false;
         }
         object = json_get_object(value);
         if (object == NULL) {
-            puts("could not get object in language");
-            exit(1);
+            log(ERROR, "could not get object in language");
+            return false;
         }
         ctx.languages[i].object = object;
         value = json_get_value(object, "language");
         if (value == NULL) {
-            puts("Missing language name");
-            exit(1);
+            log(ERROR, "Missing language name");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid language");
-            exit(1);
+            log(ERROR, "Invalid language");
+            return false;
         }
         string = json_get_string(value);
         ctx.languages[i].name = string;
         value = json_get_value(object, "extension");
         if (value == NULL || json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid language extension, defaulting to .txt");
+            log(ERROR, "Invalid language extension, defaulting to .txt");
             string = ".txt";
         }
         else {
@@ -520,30 +564,31 @@ void read_languages(JsonObject* config)
         ctx.languages[i].extension = string;
         value = json_get_value(object, "compile");
         if (value == NULL) {
-            puts("Missing compile instruction");
-            exit(1);
+            log(ERROR, "Missing compile instruction");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid compile instruction");
-            exit(1);
+            log(ERROR, "Invalid compile instruction");
+            return false;
         }
         string = json_get_string(value);
         ctx.languages[i].compile = string;
         value = json_get_value(object, "execute");
         if (value == NULL) {
-            puts("Missing execution instruction");
-            exit(1);
+            log(ERROR, "Missing execution instruction");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid execution instruction");
-            exit(1);
+            log(ERROR, "Invalid execution instruction");
+            return false;
         }
         string = json_get_string(value);
         ctx.languages[i].execute = string;
     }
+    return true;
 }
 
-void read_problems(JsonObject* config)
+bool read_problems(JsonObject* config)
 {
     JsonObject* object;
     JsonValue* value;
@@ -554,18 +599,18 @@ void read_problems(JsonObject* config)
 
     value = json_get_value(config, "problems");
     if (value == NULL) {
-        puts("Could not find problemset");
-        exit(1);
+        log(ERROR, "Could not find problemset");
+        return false;
     }
     if (json_get_type(value) != JTYPE_ARRAY) {
-        puts("Invalid type for problemset");
-        exit(1);
+        log(ERROR, "Invalid type for problemset");
+        return false;
     }
     array = json_get_array(value);
     ctx.num_problems = json_array_length(array);
     if (ctx.num_problems == 0) {
-        puts("Empty problemset");
-        exit(1);
+        log(ERROR, "Empty problemset");
+        return false;
     }
     ctx.problems = malloc(ctx.num_problems * sizeof(Problem));
     for (i = 0; i < ctx.num_problems; i++) {
@@ -573,82 +618,82 @@ void read_problems(JsonObject* config)
         problem->id = i;
         value = json_array_get(array, i);
         if (json_get_type(value) != JTYPE_OBJECT) {
-            puts("invalid problem");
-            exit(1);
+            log(ERROR, "invalid problem");
+            return false;
         }
         object = json_get_object(value);
         if (object == NULL) {
-            puts("could not get object in problem");
-            exit(1);
+            log(ERROR, "could not get object in problem");
+            return false;
         }
         problem->object = object;
         value = json_get_value(object, "letter");
         if (value == NULL) {
-            puts("Missing problem letter");
-            exit(1);
+            log(ERROR, "Missing problem letter");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid problem letter - invalid type");
-            exit(1);
+            log(ERROR, "Invalid problem letter - invalid type");
+            return false;
         }
         string = json_get_string(value);
         if (strlen(string) != 1) {
-            puts("Invalid problem letter - too many letters");
-            exit(1);
+            log(ERROR, "Invalid problem letter - too many letters");
+            return false;
         }
         problem->letter = string[0];
         value = json_get_value(object, "name");
         if (value == NULL) {
-            puts("Missing problem name");
-            exit(1);
+            log(ERROR, "Missing problem name");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid problem name");
-            exit(1);
+            log(ERROR, "Invalid problem name");
+            return false;
         }
         string = json_get_string(value);
         problem->name = string;
         value = json_get_value(object, "html");
         if (value == NULL) {
-            puts("Missing problem html");
-            exit(1);
+            log(ERROR, "Missing problem html");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid problem html");
-            exit(1);
+            log(ERROR, "Invalid problem html");
+            return false;
         }
         string = json_get_string(value);
         problem->html = string;
         value = json_get_value(object, "dir");
         if (value == NULL) {
-            puts("Missing dir path");
-            exit(1);
+            log(ERROR, "Missing dir path");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid dir path");
-            exit(1);
+            log(ERROR, "Invalid dir path");
+            return false;
         }
         string = json_get_string(value);
         problem->dir = string;
         value = json_get_value(object, "validate");
         if (value == NULL) {
-            puts("Missing validator path");
-            exit(1);
+            log(ERROR, "Missing validator path");
+            return false;
         }
         if (json_get_type(value) != JTYPE_STRING) {
-            puts("Invalid validator path");
-            exit(1);
+            log(ERROR, "Invalid validator path");
+            return false;
         }
         string = json_get_string(value);
         problem->validate = string;
         value = json_get_value(object, "testcases");
         if (value == NULL) {
-            puts("Missing testcases");
-            exit(1);
+            log(ERROR, "Missing testcases");
+            return false;
         }
         if (json_get_type(value) != JTYPE_INT) {
-            puts("Invalid number of testcases");
-            exit(1);
+            log(ERROR, "Invalid number of testcases");
+            return false;
         }
         problem->num_testcases = json_get_int(value);
         value = json_get_value(object, "pipe");
@@ -661,20 +706,21 @@ void read_problems(JsonObject* config)
         problem->time_limit = 2000;
         problem->mem_limit = 1000000;
     }
+    return true;
 }
 
-void read_num_run_threads(JsonObject* config)
+bool read_num_run_threads(JsonObject* config)
 {
     JsonValue* value;
     int i;
     value = json_get_value(config, "num_threads");
     ctx.num_run_threads = 1;
     if (value == NULL) {
-        puts("Number of run threads missing, defaulting to 1");
+        log(WARNING, "Number of run threads missing, defaulting to 1");
         goto setup;
     }
     if (json_get_type(value) != JTYPE_INT) {
-        puts("Invalid type for number of run threads");
+        log(WARNING, "Invalid type for number of run threads");
         goto setup;
     }
     ctx.num_run_threads = json_get_int(value);
@@ -683,16 +729,30 @@ setup:
     ctx.run_threads = calloc(ctx.num_run_threads, sizeof(pthread_t));
     for (i = 0; i < ctx.num_run_threads; i++)
         pthread_create(&ctx.run_threads[i], NULL, run_daemon, NULL);
+
+    return true;
 }
 
 bool context_init(JsonObject* config)
 {
-    read_teams(config);
-    read_languages(config);
-    read_problems(config);
-    read_num_run_threads(config);
+    if (!read_teams(config)) {
+        log(ERROR, "Could not read teams");
+        return false;
+    }
+    if (!read_languages(config)) {
+        log(ERROR, "Could not read languages");
+        return false;
+    }
+    if (!read_problems(config)) {
+        log(ERROR, "Could not read problems");
+        return false;
+    }
+    if (!read_num_run_threads(config)) {
+        log(ERROR, "Could not read num threads");
+        return false;
+    }
     ctx.num_runs = 0;
-    puts("Successfully initialized");
+    log(INFO, "Successfully initialized config");
     return true;
 }
 
@@ -713,17 +773,17 @@ bool db_init(JsonObject* config)
     char* query_fmt;
     int i, res;
     if (!sqlite3_threadsafe()) {
-        puts("sqlite3 must be threadsafe");
+        log(ERROR, "sqlite3 must be threadsafe");
         return false;
     }
     db_file_path = get_string(config, "database");
     if (db_file_path == NULL) {
-        puts("Missing database file in config");
+        log(ERROR, "Missing database file in config");
         return false;
     }
     res = sqlite3_open(db_file_path, &ctx.db);
     if (res) {
-        puts("Opening database failed");
+        log(ERROR, "Opening database failed");
         return false;
     }
     printf("Creating db file at %s\n", db_file_path);
@@ -766,7 +826,7 @@ bool db_init(JsonObject* config)
     }
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
-        puts(problem->html);
+        log(INFO, problem->html);
         query_fmt = "INSERT INTO problems (id, letter, name, html_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', %d, %d);";
         db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->html, problem->time_limit, problem->mem_limit);
     }
@@ -782,29 +842,6 @@ void db_cleanup(void)
     sqlite3_close(ctx.db);
 }
 
-bool db_exec(char* query_fmt, ...)
-{
-    char* query;
-    char* error;
-    int query_length;
-    bool res;
-    va_list ap;
-    va_start(ap, query_fmt);
-    query_length = vsnprintf(NULL, 0, query_fmt, ap);
-    va_end(ap);
-    if (query_length < 0) return false;
-    query = malloc((query_length+1) * sizeof(char));
-    va_start(ap, query_fmt);
-    vsnprintf(query, query_length+1, query_fmt, ap);
-    va_end(ap);
-    //puts(query);
-    res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-    if (res) printf("sqlite3 command failed: %s\n", error);
-    sqlite3_free(error);
-    free(query);
-    return res;
-}
-
 int main(int argc, char** argv)
 {
     JsonObject* config;
@@ -813,7 +850,7 @@ int main(int argc, char** argv)
     int code;
 
     if (argc == 1) {
-        puts("Must supply config file");
+        log(FATAL, "Must supply config file");
         return 1;
     }
 
@@ -822,25 +859,29 @@ int main(int argc, char** argv)
 
     config = json_read(argv[1]);
     if (config == NULL) {
-        printf("Could not read config file: %s\n", argv[1]);
+        log(FATAL, "Could not read config file: %s", argv[1]);
         return 1;
     }
 
-    if (!context_init(config))
+    if (!context_init(config)) {
+        log(FATAL, "Could not initialize context");
         goto fail_config;
+    }
 
-    if (!db_init(config))
+    if (!db_init(config)) {
+        log(FATAL, "Could not initialize database");
         goto fail_context;
+    }
 
     ctx.cli_net_ctx = networking_init();
     if (ctx.cli_net_ctx == NULL) {
-        puts("Could not make cli server");
+        log(FATAL, "Could not make cli server");
         goto fail_db;
     }
 
     ctx.web_net_ctx = networking_init();
     if (ctx.web_net_ctx == NULL) {
-        puts("Could not make web server");
+        log(FATAL, "Could not make cli server");
         goto fail_db;
     }
 
