@@ -385,13 +385,13 @@ found_basename:
         switch (packet->id) {
             case PACKET_CODE_ACCEPTED:
                 puts("Accepted");
-                break;
+                goto done;
             case PACKET_CODE_FAILED:
                 if (packet->buffer != NULL)
                     printf("Failed: %s\n", packet->buffer);
                 else
                     puts("Failed: no message, this probably shouldnt have happened\n");
-                break;
+                goto done;
             case PACKET_CODE_NOTIFICATION:
                 if (packet->buffer != NULL)
                     puts(packet->buffer);
@@ -404,6 +404,7 @@ found_basename:
         }
         packet_destroy(packet);
     } while (1);
+done:
     packet_destroy(packet);
 
 success:

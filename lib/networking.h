@@ -45,6 +45,7 @@ typedef struct NetContext NetContext;
 NetContext* networking_init(void);
 void        networking_shutdown_sockets(NetContext* ctx);
 void        networking_cleanup(NetContext* ctx);
+int         networking_get_last_error(void);
 
 // Create a new socket
 // ip   -> ip to create socket for. NULL to create on host

@@ -1,7 +1,9 @@
+CC=gcc
 NAME_SERVER=server.exe
 NAME_CLIENT=client.exe
 LINKER_FLAGS= -pthread -lsqlite3
 CFLAGS_ALL = -Ilib -MMD -Wall -Wextra -Werror -Wfatal-errors -Wno-unused-parameter -pthread -mshstk -Wno-implicit-fallthrough
+CFLAGS_TMP = -Wno-unused-function -Wno-unused-variable
 
 ifeq ($(OS),Windows_NT)
 	LINKER_FLAGS += -lws2_32
@@ -13,7 +15,7 @@ else
 endif
 
 SRC_LIB = lib/json.c lib/networking.c 
-SRC_SERVER = src-server/main.c src-server/run.c
+SRC_SERVER = src-server/main.c src-server/run.c src-server/process.c
 SRC_CLIENT = src-client/main.c
 OBJ_DEV_LIB = $(SRC_LIB:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 OBJ_DEV_SERVER = $(SRC_SERVER:%.c=build/dev$(BUILD_SUFFIX)/%.o)
@@ -28,16 +30,16 @@ server: dev-server
 
 dev-server: $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER)
 	@mkdir -p bin/dev
-	@gcc $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER) $(LINKER_FLAGS) -o bin/dev/$(NAME_SERVER)
+	@$(CC) $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER) $(LINKER_FLAGS) -o bin/dev/$(NAME_SERVER)
 
 dev-client: $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT)
 	@mkdir -p bin/dev
-	@gcc $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT) $(LINKER_FLAGS) -o bin/dev/$(NAME_CLIENT)
+	@$(CC) $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT) $(LINKER_FLAGS) -o bin/dev/$(NAME_CLIENT)
 
 build/dev$(BUILD_SUFFIX)/%.o: %.c
 	@echo $<
 	@mkdir -p $(dir $@)
-	@gcc $(CFLAGS_ALL) -g3 -c -o $@ $<
+	@$(CC) $(CFLAGS_ALL) $(CFLAGS_TMP) -g3 -c -o $@ $<
 
 validators:
 	make -C example

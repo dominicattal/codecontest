@@ -264,7 +264,7 @@ static Socket* cli_create_listen_socket(JsonObject* config)
     }
 
     if (!socket_bind(listen_socket)) {
-        puts("Couldn't bind socket");
+        printf("Couldn't bind socket: %d\n", networking_get_last_error());
         return NULL;
     }
     if (!socket_listen(listen_socket)) {
@@ -295,6 +295,7 @@ static void* cli_server_daemon(void* vargp)
             continue;
         }
         pthread_create(&thread_id, NULL, handle_cli_client, client_socket);
+        pthread_join(thread_id, NULL);
     }
     return NULL;
 }
@@ -808,7 +809,7 @@ int main(int argc, char** argv)
 {
     JsonObject* config;
     pthread_t cli_server_thread_id;
-    pthread_t web_server_thread_id;
+    //pthread_t web_server_thread_id;
     int code;
 
     if (argc == 1) {
@@ -828,13 +829,20 @@ int main(int argc, char** argv)
     if (!context_init(config))
         goto fail_config;
 
-    if (!db_init(config)) {
-        ctx.kill = true;
+    if (!db_init(config))
         goto fail_context;
-    }
 
     ctx.cli_net_ctx = networking_init();
+    if (ctx.cli_net_ctx == NULL) {
+        puts("Could not make cli server");
+        goto fail_db;
+    }
+
     ctx.web_net_ctx = networking_init();
+    if (ctx.web_net_ctx == NULL) {
+        puts("Could not make web server");
+        goto fail_db;
+    }
 
     pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
@@ -855,11 +863,14 @@ int main(int argc, char** argv)
     networking_cleanup(ctx.cli_net_ctx);
     networking_cleanup(ctx.web_net_ctx);
 
+fail_db:
+    ctx.kill = true;
     db_cleanup();
-
 fail_context:
+    ctx.kill = true;
     context_cleanup();
 fail_config:
+    ctx.kill = true;
     json_object_destroy(config);
 
     return 0;
