@@ -5,6 +5,6 @@
     "password": "team1",
     "language": "python3",
     "problem": "A",
-    "file": "example/problem1/test-py/mle.py",
+    "file": "example/problem1/test-py/accepted.py",
     "async": false
 }

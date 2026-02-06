@@ -37,6 +37,7 @@ int main(int argc, char** argv)
     }
 
     result = WRONG;
+    test_num=69;
     
     do {
         correct_res = fscanf(correct_file, "%d", &correct_num);

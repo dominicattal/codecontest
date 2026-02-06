@@ -3,174 +3,174 @@
 
 #ifdef __WIN32
 
-#include <windows.h>
-#include <psapi.h>
-#include <io.h>
-
-typedef struct Process {
-    PROCESS_INFORMATION pi;
-    HANDLE infile;
-    HANDLE infile_rd;
-} Process;
-
-char* read_file(const char* file_path, int* size)
-{
-    FILE* file;
-    char* buffer;
-    int end, length;
-    file = fopen(file_path, "r");
-    if (file == NULL)
-        goto fail;
-    if (fseek(file, 0, SEEK_END) != 0)
-        goto fail_close_file;
-    end = ftell(file);
-    if (end == -1L)
-        goto fail_close_file;
-    buffer = malloc((end+1)*sizeof(char));
-    if (buffer == NULL)
-        goto fail_close_file;
-    if (fseek(file, 0, SEEK_SET) != 0)
-        goto fail_free_buffer;
-    length = fread(buffer, sizeof(char), end, file);
-    *size = length+1;
-    if (ferror(file) != 0)
-        goto fail_free_buffer;
-    fclose(file);
-    buffer[length] = EOF;
-    return buffer;
-
-fail_free_buffer:
-    free(buffer);
-fail_close_file:
-    fclose(file);
-fail:
-    return NULL;
-}
-
-Process* process_create(const char* command, const char* infile_path, const char* outfile_path, const char* errfile_path)
-{
-    STARTUPINFO si;
-    Process* process;
-    char* text;
-    int size;
-    DWORD written;
-    SECURITY_ATTRIBUTES sa, saAttr;
-    int outfd;
-    HANDLE outfile_handle = NULL;
-    HANDLE errfile_handle = NULL;
-    HANDLE infile_wr;
-    DWORD flags;
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES); 
-    saAttr.bInheritHandle = TRUE; 
-    saAttr.lpSecurityDescriptor = NULL;
-    sa.nLength = sizeof(sa);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle = TRUE;
-    flags = CREATE_NO_WINDOW;
-    process = malloc(sizeof(Process));
-    ZeroMemory(&si, sizeof(si));
-    ZeroMemory(&process->pi, sizeof(process->pi));
-    process->infile = NULL;
-    process->infile_rd = NULL;
-    si.cb = sizeof(si);
-    si.dwFlags |= STARTF_USESTDHANDLES;
-    if (infile_path != NULL) {
-        CreatePipe(&process->infile_rd, &infile_wr, &saAttr, 0);
-        SetHandleInformation(&infile_wr, HANDLE_FLAG_INHERIT, 0);
-        text = read_file(infile_path, &size);
-        if (text == NULL) {
-            puts("text is null");
-            goto fail_really_bad;
-        }
-        WriteFile(infile_wr, text, size, &written, NULL);
-        free(text);
-        CloseHandle(infile_wr);
-        si.hStdInput = process->infile_rd;
-    }
-    if (outfile_path != NULL) {
-        outfile_handle = CreateFile(outfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        si.hStdOutput = outfile_handle;
-    }
-    if (errfile_path != NULL) {
-        errfile_handle = CreateFile(errfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        si.hStdError = errfile_handle;
-    }
-    if (!CreateProcess(NULL, (char*)command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &process->pi))
-        goto fail_really_bad;
-    if (outfile_handle != NULL)
-        CloseHandle(outfile_handle);
-    if (errfile_handle != NULL)
-        CloseHandle(errfile_handle);
-    return process;
-
-fail_really_bad:
-    printf("Something went very wrong error: %ld %s:%d", GetLastError(), __FILE__, __LINE__);
-    printf("Process pid: %ld\n", process->pi.dwProcessId);
-    exit(1);
-    return NULL;
-}
-
-ProcessPair process_pair_create(const char* command1, const char* command2)
-{
-    puts("Process pair not implemented yet");
-    return (ProcessPair) {NULL,NULL};
-}
-
-void process_wait(Process* process)
-{
-    WaitForSingleObject(process->pi.hProcess, INFINITE);
-}
-
-size_t process_memory(Process* process)
-{
-    PROCESS_MEMORY_COUNTERS ppsemCounters;
-    GetProcessMemoryInfo(process->pi.hProcess, &ppsemCounters, sizeof(ppsemCounters));
-    return ((size_t)ppsemCounters.QuotaPeakPagedPoolUsage);
-}
-
-bool process_success(Process* process)
-{
-    DWORD lpExitCode;
-    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
-    return lpExitCode == PROCESS_SUCCESS;
-}
-
-bool process_failed(Process* process)
-{
-    DWORD lpExitCode;
-    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
-    return lpExitCode == PROCESS_FAILED;
-}
-
-bool process_error(Process* process)
-{
-    DWORD lpExitCode;
-    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
-    return lpExitCode == PROCESS_ERROR;
-}
-
-bool process_running(Process* process)
-{
-    DWORD lpExitCode;
-    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
-    return lpExitCode == STILL_ACTIVE;
-}
-
-
-void process_destroy(Process* process)
-{
-    if (process->pi.hProcess != NULL)
-        TerminateProcess(process->pi.hProcess, 1);
-    if (process->infile != NULL)
-        CloseHandle(process->infile);
-    if (process->infile_rd != NULL)
-        CloseHandle(process->infile_rd);
-    if (process->pi.hProcess != NULL)
-        CloseHandle(process->pi.hProcess);
-    if (process->pi.hThread != NULL)
-        CloseHandle(process->pi.hThread);
-    free(process);
-}
+//#include <windows.h>
+//#include <psapi.h>
+//#include <io.h>
+//
+//typedef struct Process {
+//    PROCESS_INFORMATION pi;
+//    HANDLE infile;
+//    HANDLE infile_rd;
+//} Process;
+//
+//char* read_file(const char* file_path, int* size)
+//{
+//    FILE* file;
+//    char* buffer;
+//    int end, length;
+//    file = fopen(file_path, "r");
+//    if (file == NULL)
+//        goto fail;
+//    if (fseek(file, 0, SEEK_END) != 0)
+//        goto fail_close_file;
+//    end = ftell(file);
+//    if (end == -1L)
+//        goto fail_close_file;
+//    buffer = malloc((end+1)*sizeof(char));
+//    if (buffer == NULL)
+//        goto fail_close_file;
+//    if (fseek(file, 0, SEEK_SET) != 0)
+//        goto fail_free_buffer;
+//    length = fread(buffer, sizeof(char), end, file);
+//    *size = length+1;
+//    if (ferror(file) != 0)
+//        goto fail_free_buffer;
+//    fclose(file);
+//    buffer[length] = EOF;
+//    return buffer;
+//
+//fail_free_buffer:
+//    free(buffer);
+//fail_close_file:
+//    fclose(file);
+//fail:
+//    return NULL;
+//}
+//
+//Process* process_create(const char* command, const char* infile_path, const char* outfile_path, const char* errfile_path)
+//{
+//    STARTUPINFO si;
+//    Process* process;
+//    char* text;
+//    int size;
+//    DWORD written;
+//    SECURITY_ATTRIBUTES sa, saAttr;
+//    int outfd;
+//    HANDLE outfile_handle = NULL;
+//    HANDLE errfile_handle = NULL;
+//    HANDLE infile_wr;
+//    DWORD flags;
+//    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES); 
+//    saAttr.bInheritHandle = TRUE; 
+//    saAttr.lpSecurityDescriptor = NULL;
+//    sa.nLength = sizeof(sa);
+//    sa.lpSecurityDescriptor = NULL;
+//    sa.bInheritHandle = TRUE;
+//    flags = CREATE_NO_WINDOW;
+//    process = malloc(sizeof(Process));
+//    ZeroMemory(&si, sizeof(si));
+//    ZeroMemory(&process->pi, sizeof(process->pi));
+//    process->infile = NULL;
+//    process->infile_rd = NULL;
+//    si.cb = sizeof(si);
+//    si.dwFlags |= STARTF_USESTDHANDLES;
+//    if (infile_path != NULL) {
+//        CreatePipe(&process->infile_rd, &infile_wr, &saAttr, 0);
+//        SetHandleInformation(&infile_wr, HANDLE_FLAG_INHERIT, 0);
+//        text = read_file(infile_path, &size);
+//        if (text == NULL) {
+//            puts("text is null");
+//            goto fail_really_bad;
+//        }
+//        WriteFile(infile_wr, text, size, &written, NULL);
+//        free(text);
+//        CloseHandle(infile_wr);
+//        si.hStdInput = process->infile_rd;
+//    }
+//    if (outfile_path != NULL) {
+//        outfile_handle = CreateFile(outfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+//        si.hStdOutput = outfile_handle;
+//    }
+//    if (errfile_path != NULL) {
+//        errfile_handle = CreateFile(errfile_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+//        si.hStdError = errfile_handle;
+//    }
+//    if (!CreateProcess(NULL, (char*)command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &process->pi))
+//        goto fail_really_bad;
+//    if (outfile_handle != NULL)
+//        CloseHandle(outfile_handle);
+//    if (errfile_handle != NULL)
+//        CloseHandle(errfile_handle);
+//    return process;
+//
+//fail_really_bad:
+//    printf("Something went very wrong error: %ld %s:%d", GetLastError(), __FILE__, __LINE__);
+//    printf("Process pid: %ld\n", process->pi.dwProcessId);
+//    exit(1);
+//    return NULL;
+//}
+//
+//ProcessPair process_pair_create(const char* command1, const char* command2)
+//{
+//    puts("Process pair not implemented yet");
+//    return (ProcessPair) {NULL,NULL};
+//}
+//
+//void process_wait(Process* process)
+//{
+//    WaitForSingleObject(process->pi.hProcess, INFINITE);
+//}
+//
+//size_t process_memory(Process* process)
+//{
+//    PROCESS_MEMORY_COUNTERS ppsemCounters;
+//    GetProcessMemoryInfo(process->pi.hProcess, &ppsemCounters, sizeof(ppsemCounters));
+//    return ((size_t)ppsemCounters.QuotaPeakPagedPoolUsage);
+//}
+//
+//bool process_success(Process* process)
+//{
+//    DWORD lpExitCode;
+//    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
+//    return lpExitCode == PROCESS_SUCCESS;
+//}
+//
+//bool process_failed(Process* process)
+//{
+//    DWORD lpExitCode;
+//    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
+//    return lpExitCode == PROCESS_FAILED;
+//}
+//
+//bool process_error(Process* process)
+//{
+//    DWORD lpExitCode;
+//    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
+//    return lpExitCode == PROCESS_ERROR;
+//}
+//
+//bool process_running(Process* process)
+//{
+//    DWORD lpExitCode;
+//    GetExitCodeProcess(process->pi.hProcess, &lpExitCode);
+//    return lpExitCode == STILL_ACTIVE;
+//}
+//
+//
+//void process_destroy(Process* process)
+//{
+//    if (process->pi.hProcess != NULL)
+//        TerminateProcess(process->pi.hProcess, 1);
+//    if (process->infile != NULL)
+//        CloseHandle(process->infile);
+//    if (process->infile_rd != NULL)
+//        CloseHandle(process->infile_rd);
+//    if (process->pi.hProcess != NULL)
+//        CloseHandle(process->pi.hProcess);
+//    if (process->pi.hThread != NULL)
+//        CloseHandle(process->pi.hThread);
+//    free(process);
+//}
 
 #else
 
@@ -200,7 +200,7 @@ static void* process_handler_daemon(void* vargp)
     return NULL;
 }
 
-Process* process_create(const char* command, const char* infile_path, const char* outfile_path, const char* errfile_path)
+Process* process_create(const char* command, FILE* infile, FILE* outfile, FILE* errfile)
 {
     Process* process;
     pid_t pid;
@@ -218,26 +218,26 @@ Process* process_create(const char* command, const char* infile_path, const char
     if (pid == -1) {
         goto fail;
     } else if (pid == 0) {
-        if (infile_path != NULL) {
-            fd_in = open(infile_path, O_RDONLY, S_IRUSR);
+        if (infile != NULL) {
+            fd_in = fileno(infile);
+            //fd_in = open(infile_path, O_RDONLY, S_IRUSR);
             if (fd_in < 0)
                 goto fail;
             dup2(fd_in, STDIN_FILENO);
-            close(fd_in);
         }
-        if (outfile_path != NULL) {
-            fd_out = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (outfile != NULL) {
+            fd_out = fileno(outfile);
+            //fd_out = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
             if (fd_out < 0)
                 goto fail;
             dup2(fd_out, STDOUT_FILENO);
-            close(fd_out);
         }
-        if (errfile_path != NULL) {
-            fd_err = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (errfile != NULL) {
+            fd_err = fileno(errfile);
+            //fd_err = open(outfile_path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
             if (fd_err < 0)
                 goto fail;
             dup2(fd_err, STDERR_FILENO);
-            close(fd_err);
         }
         if (execvp("/bin/bash", process->argv))
             goto fail;

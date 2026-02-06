@@ -17,7 +17,7 @@ typedef struct {
     Process* process2;
 } ProcessPair;
 
-Process* process_create(const char* command, const char* infile_path, const char* outfile_path, const char* errfile_path);
+Process* process_create(const char* command, FILE* infile, FILE* outfile, FILE* errfile);
 ProcessPair process_pair_create(const char* command1, const char* command2);
 void process_wait(Process* process);
 size_t process_memory(Process* process);

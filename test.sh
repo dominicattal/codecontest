@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ip="127.0.0.1"
-port="27114"
+port="27120"
 
 echo "Test: python accepted"
 bin/dev/client -i "$ip" -t $port -u "team1" -p "team1" -l "python3" -b "A" -f "example/problem1/test-py/accepted.py"

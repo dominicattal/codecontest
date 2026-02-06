@@ -374,16 +374,16 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
     bool success = true;
     Process* process;
+    FILE* outfile;
 
+    outfile = fopen(get_token_value(tb, COMPILE_PATH), "w");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
     printf("compile run %d: %s\n", run->id, get_token_value(tb, COMPILE_COMMAND));
-    process = process_create(get_token_value(tb, COMPILE_COMMAND), 
-                             NULL, 
-                             get_token_value(tb, COMPILE_PATH), 
-                             NULL);
+    process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, outfile, NULL);
     process_wait(process);
     success = process_success(process);
     process_destroy(process);
+    fclose(outfile);
 
     if (success)
         return true;
@@ -410,16 +410,18 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     char response[512];
     size_t mem;
     struct timeval start, cur;
+    FILE* infile = NULL;
+    FILE* outfile = NULL;
 
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
-    execute = process_create(get_token_value(tb, EXECUTE_COMMAND), 
-                             get_token_value(tb, CASE_PATH), 
-                             get_token_value(tb, OUTPUT_PATH), 
-                             NULL);
-    printf("execute run %d no pipe: %s infile=%s outfile=%s\n", run->id,
-                        get_token_value(tb, EXECUTE_COMMAND), 
-                        get_token_value(tb, CASE_PATH), 
-                        get_token_value(tb, OUTPUT_PATH));
+    infile = fopen(get_token_value(tb, CASE_PATH), "r");
+    if (infile == NULL)
+        goto error;
+    outfile = fopen(get_token_value(tb, OUTPUT_PATH), "w+");
+    if (outfile == NULL)
+        goto error;
+    execute = process_create(get_token_value(tb, EXECUTE_COMMAND), infile, outfile, NULL);
+    printf("execute run %d no pipe: %s infile=%s\n outfile=%s\n", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH));
     if (execute == NULL)
         goto error;
     gettimeofday(&start, NULL);
@@ -450,14 +452,13 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     }
     process_destroy(execute);
     execute = NULL;
+    fclose(infile);
+    infile = NULL;
+    rewind(outfile);
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
-    validate = process_create(get_token_value(tb, VALIDATE_COMMAND), 
-                              get_token_value(tb, OUTPUT_PATH), 
-                              NULL, NULL);
-    printf("validate run %d no pipe: %s infile=%s\n", run->id, 
-                        get_token_value(tb, VALIDATE_COMMAND), 
-                        get_token_value(tb, OUTPUT_PATH));
+    validate = process_create(get_token_value(tb, VALIDATE_COMMAND), outfile, NULL, NULL);
+    printf("validate run %d no pipe: %s\n", run->id, get_token_value(tb, VALIDATE_COMMAND));
     process_wait(validate);
     if (process_error(validate))
         goto error;
@@ -467,21 +468,19 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
         goto fail;
     }
     process_destroy(validate);
-
-    // remove output path
-    remove(get_token_value(tb, OUTPUT_PATH));
+    fclose(outfile);
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     return VALIDATE_SUCCESS;
 
 fail:
-    if (execute != NULL) {
+    if (execute != NULL)
         process_destroy(execute);
-        execute = NULL;
-    } if (validate != NULL) {
+    if (validate != NULL)
         process_destroy(validate);
-        validate = NULL;
-    }
-    remove(get_token_value(tb, OUTPUT_PATH));
+    if (infile != NULL)
+        fclose(infile);
+    if (outfile != NULL)
+        fclose(outfile);
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     set_run_response(run, response);
     return VALIDATE_FAILED;
@@ -491,7 +490,10 @@ error:
         process_destroy(execute);
     if (validate != NULL)
         process_destroy(validate);
-    remove(get_token_value(tb, OUTPUT_PATH));
+    if (infile != NULL)
+        fclose(infile);
+    if (outfile != NULL)
+        fclose(outfile);
     set_run_stats(run, 0, 0, 0, 0);
     return VALIDATE_ERROR;
 }
