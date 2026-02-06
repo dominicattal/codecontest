@@ -1,4 +1,4 @@
 <?php
-    header("Location: problems.php");
+    header("Location: submit.php");
     die();
 ?>

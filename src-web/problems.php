@@ -1,7 +1,8 @@
 <?php
-  include "header.php";
-  include "create_arrays.php";
-  include "run_enum.php";
+require_once "header.php";
+require_once "create_arrays.php";
+require_once "run_enum.php";
+require_once "config.php";
 ?>
 <style>
 #problems {
@@ -207,97 +208,98 @@
   </div>
 </div>
 <script>
-  var cur_shown = null;
-  function showProblem(letter) {
-    if (cur_shown) cur_shown.setAttribute("hidden", "");
-    ele = document.getElementById(`problem-${letter}`);
-    ele.removeAttribute("hidden");
-    cur_shown = ele;
+var cur_shown = null;
+function showProblem(letter) {
+  if (cur_shown) cur_shown.setAttribute("hidden", "");
+  ele = document.getElementById(`problem-${letter}`);
+  ele.removeAttribute("hidden");
+  cur_shown = ele;
+}
+showProblem('A');
+
+var host = "<?php echo "ws://$config[ip]:$config[web_port]"; ?>";
+
+var socket = new WebSocket(host);
+var runs_table = document.getElementById('runs-table');
+if (runs_table) {
+  var table_body = runs_table.getElementsByTagName('tbody')[0];
+}
+
+const RUN_IDLE = 0;
+const RUN_ENQUEUED = 1;
+const RUN_COMPILING = 2;
+const RUN_RUNNING = 3;
+const RUN_SUCCESS = 4;
+const RUN_COMPILATION_ERROR = 5;
+const RUN_RUNTIME_ERROR = 6;
+const RUN_TIME_LIMIT_EXCEEDED = 7;
+const RUN_MEM_LIMIT_EXCEEDED = 8;
+const RUN_WRONG_ANSWER = 9;
+const RUN_SERVER_ERROR = 10;
+const RUN_DEAD = 11;
+
+var teams_solved = new Map();
+<?php
+$db = new SQLite3($config["database"]);
+$db->enableExceptions(true);
+$db->busyTimeout(5000);
+$db->exec('PRAGMA journal_mode = wal;');
+foreach ($teams as $team_id => $team) { 
+  foreach ($problems as $problem_id => $problem) {
+    $stmt = $db->prepare("SELECT COUNT(DISTINCT team_id) count FROM runs WHERE team_id=:team_id AND problem_id=:problem_id");
+    $stmt->bindParam(':team_id', $team_id);
+    $stmt->bindParam(':problem_id', $problem_id);
+    $res = $stmt->execute();
+    $solved = ($res->fetchArray(SQLITE3_ASSOC)["count"] != 0) ? "true" : "false";
+    echo "teams_solved.set('$team-$problem[letter]', $solved);\n";
+    $res->finalize();
   }
-  showProblem('A');
+}
+$db->close(); 
+?>
+console.log(teams_solved);
 
-  var host = "ws://127.0.0.1:27106";
-  var socket = new WebSocket(host);
-  var runs_table = document.getElementById('runs-table');
-  if (runs_table) {
-    var table_body = runs_table.getElementsByTagName('tbody')[0];
-  }
+function status_failed(stat) {
+  return stat >= RUN_COMPILATION_ERROR && stat <= RUN_WRONG_ANSWER;
+}
 
-  const RUN_IDLE = 0;
-  const RUN_ENQUEUED = 1;
-  const RUN_COMPILING = 2;
-  const RUN_RUNNING = 3;
-  const RUN_SUCCESS = 4;
-  const RUN_COMPILATION_ERROR = 5;
-  const RUN_RUNTIME_ERROR = 6;
-  const RUN_TIME_LIMIT_EXCEEDED = 7;
-  const RUN_MEM_LIMIT_EXCEEDED = 8;
-  const RUN_WRONG_ANSWER = 9;
-  const RUN_SERVER_ERROR = 10;
-  const RUN_DEAD = 11;
-
-  var teams_solved = new Map();
-  <?php
-    $db = new SQLite3("../runs.db");
-    $db->enableExceptions(true);
-    $db->busyTimeout(5000);
-    $db->exec('PRAGMA journal_mode = wal;');
-    foreach ($teams as $team_id => $team) { 
-      foreach ($problems as $problem_id => $problem) {
-        $stmt = $db->prepare("SELECT COUNT(DISTINCT team_id) count FROM runs WHERE team_id=:team_id AND problem_id=:problem_id");
-        $stmt->bindParam(':team_id', $team_id);
-        $stmt->bindParam(':problem_id', $problem_id);
-        $res = $stmt->execute();
-        $solved = ($res->fetchArray(SQLITE3_ASSOC)["count"] != 0) ? "true" : "false";
-        echo "teams_solved.set('$team-$problem[letter]', $solved);\n";
-        $res->finalize();
-      }
-    }
-    $db->close(); 
-  ?>
-  console.log(teams_solved);
-
-  function status_failed(stat) {
-    return stat >= RUN_COMPILATION_ERROR && stat <= RUN_WRONG_ANSWER;
-  }
-
-  function update_problem_table(stat, letter, team) {
-    tr = document.getElementById(`problem-table-${letter}`);
-    if (stat == RUN_SUCCESS) {
-      key = `${team}-${letter}`;
-      if (!teams_solved[key]) {
-        teams_solved[key] = true;
-        td = tr.children[2];
-        td.textContent = parseInt(td.textContent)+1;
-      }
-    }
-    if (tr.className == "problem-success")
-      return;
-    tr.removeAttribute("class");
-    if (stat == RUN_SUCCESS) {
-      tr.setAttribute("class", "problem-success");
-    } else if (status_failed(stat)) {
-      tr.setAttribute("class", "problem-failed");
+function update_problem_table(stat, letter, team) {
+  tr = document.getElementById(`problem-table-${letter}`);
+  if (stat == RUN_SUCCESS) {
+    key = `${team}-${letter}`;
+    if (!teams_solved[key]) {
+      teams_solved[key] = true;
+      td = tr.children[2];
+      td.textContent = parseInt(td.textContent)+1;
     }
   }
+  if (tr.className == "problem-success")
+    return;
+  tr.removeAttribute("class");
+  if (stat == RUN_SUCCESS) {
+    tr.setAttribute("class", "problem-success");
+  } else if (status_failed(stat)) {
+    tr.setAttribute("class", "problem-failed");
+  }
+}
 
-  window.addEventListener('beforeunload', function() {
-      socket.close();
-  });
+window.addEventListener('beforeunload', function() {
+    socket.close();
+});
 
-  socket.onopen = (e) => {
-      console.log(e);
-  }
+socket.onopen = (e) => {
+    console.log(e);
+}
 
-  socket.onmessage = (e) => {
-      arr = e["data"].split("\r");
-      [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
-      update_problem_table(stat, letter, team);
-  }
-  socket.onclose = (e) => {
-      console.log(e);
-  }
-  socket.onerror = (e) => {
-      console.log(e);
-  }
+socket.onmessage = (e) => {
+    arr = e["data"].split("\r");
+    [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
+    update_problem_table(stat, letter, team);
+}
+socket.onclose = (e) => {
+    console.log(e);
+}
+socket.onerror = (e) => {
+    console.log(e);
+}
 </script>

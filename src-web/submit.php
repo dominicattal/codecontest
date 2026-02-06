@@ -1,6 +1,7 @@
 <?php
-  include "header.php";
-  include "create_arrays.php";
+require_once "header.php";
+require_once "create_arrays.php";
+require_once "config.php";
 ?>
 
 <style>
@@ -88,7 +89,7 @@
       echo "</thead>";
       echo "<tbody>";
 
-      $db = new SQLite3("../runs.db");
+      $db = new SQLite3($config["database"]);
       $db->enableExceptions(true);
       $db->busyTimeout(5000);
       $db->exec('PRAGMA journal_mode = wal;');
@@ -124,137 +125,137 @@
   </div>
 </div>
 <script>
-  var host = "ws://127.0.0.1:27106";
-  var socket = new WebSocket(host);
-  var runs_table = document.getElementById('runs-table');
-  if (runs_table) {
-    var table_body = runs_table.getElementsByTagName('tbody')[0];
-  }
+var host = "<?php echo "ws://$config[ip]:$config[web_port]"; ?>";
+var socket = new WebSocket(host);
+var runs_table = document.getElementById('runs-table');
+if (runs_table) {
+  var table_body = runs_table.getElementsByTagName('tbody')[0];
+}
 
-  socket.onopen = (e) => {
-      console.log(e);
-  }
+socket.onopen = (e) => {
+    console.log(e);
+}
 
-  socket.onmessage = (e) => {
-      arr = e["data"].split("\r");
-      [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
-      if (table_body && team == TEAM) 
-        update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
-  }
-  socket.onclose = (e) => {
-      console.log(e);
-  }
-  socket.onerror = (e) => {
-      console.log(e);
-  }
+socket.onmessage = (e) => {
+    arr = e["data"].split("\r");
+    [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
+    if (table_body && team == TEAM) 
+      update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
+}
+socket.onclose = (e) => {
+    console.log(e);
+}
+socket.onerror = (e) => {
+    console.log(e);
+}
 
-  const TEAM = "<?php echo $_SESSION['username']; ?>";
+const TEAM = "<?php echo $_SESSION['username']; ?>";
 
-  const RUN_IDLE = 0;
-  const RUN_ENQUEUED = 1;
-  const RUN_COMPILING = 2;
-  const RUN_RUNNING = 3;
-  const RUN_SUCCESS = 4;
-  const RUN_COMPILATION_ERROR = 5;
-  const RUN_RUNTIME_ERROR = 6;
-  const RUN_TIME_LIMIT_EXCEEDED = 7;
-  const RUN_MEM_LIMIT_EXCEEDED = 8;
-  const RUN_WRONG_ANSWER = 9;
-  const RUN_SERVER_ERROR = 10;
-  const RUN_DEAD = 11;
+const RUN_IDLE = 0;
+const RUN_ENQUEUED = 1;
+const RUN_COMPILING = 2;
+const RUN_RUNNING = 3;
+const RUN_SUCCESS = 4;
+const RUN_COMPILATION_ERROR = 5;
+const RUN_RUNTIME_ERROR = 6;
+const RUN_TIME_LIMIT_EXCEEDED = 7;
+const RUN_MEM_LIMIT_EXCEEDED = 8;
+const RUN_WRONG_ANSWER = 9;
+const RUN_SERVER_ERROR = 10;
+const RUN_DEAD = 11;
 
-  var teams_solved = new Map();
-  <?php
-    $db = new SQLite3("../runs.db");
-    $db->enableExceptions(true);
-    $db->busyTimeout(5000);
-    $db->exec('PRAGMA journal_mode = wal;');
-    foreach ($teams as $team_id => $team) { 
-      foreach ($problems as $problem_id => $problem) {
-        $stmt = $db->prepare("SELECT COUNT(DISTINCT team_id) count FROM runs WHERE team_id=:team_id AND problem_id=:problem_id");
-        $stmt->bindParam(':team_id', $team_id);
-        $stmt->bindParam(':problem_id', $problem_id);
-        $res = $stmt->execute();
-        $solved = ($res->fetchArray(SQLITE3_ASSOC)["count"] != 0) ? "true" : "false";
-        echo "teams_solved.set('$team-$problem[letter]', $solved);\n";
-        $res->finalize();
-      }
+var teams_solved = new Map();
+<?php
+  $db = new SQLite3($config["database"]);
+  $db->enableExceptions(true);
+  $db->busyTimeout(5000);
+  $db->exec('PRAGMA journal_mode = wal;');
+  foreach ($teams as $team_id => $team) { 
+    foreach ($problems as $problem_id => $problem) {
+      $stmt = $db->prepare("SELECT COUNT(DISTINCT team_id) count FROM runs WHERE team_id=:team_id AND problem_id=:problem_id");
+      $stmt->bindParam(':team_id', $team_id);
+      $stmt->bindParam(':problem_id', $problem_id);
+      $res = $stmt->execute();
+      $solved = ($res->fetchArray(SQLITE3_ASSOC)["count"] != 0) ? "true" : "false";
+      echo "teams_solved.set('$team-$problem[letter]', $solved);\n";
+      $res->finalize();
     }
-    $db->close(); 
-  ?>
-
-  function status_to_text(stat, testcase) {
-      
-      switch (parseInt(stat)) {
-      case RUN_IDLE: return "Idle";
-      case RUN_ENQUEUED: return "In queue";
-      case RUN_COMPILING: return "Compiling";
-      case RUN_RUNNING: return `Running on testcase ${testcase}`;
-      case RUN_SUCCESS: return "Accepted";
-      case RUN_COMPILATION_ERROR: return "Compilation failed";
-      case RUN_RUNTIME_ERROR: return `Runtime error on testcase ${testcase}`;
-      case RUN_TIME_LIMIT_EXCEEDED: return `Time limit exceeded on testcase ${testcase}`;
-      case RUN_MEM_LIMIT_EXCEEDED: return `Memory limit exceeded testcase ${testcase}`;
-      case RUN_WRONG_ANSWER: return `Wrong answer on testcase ${testcase}`;
-      case RUN_SERVER_ERROR: return "Server error";
-      case RUN_DEAD: return "How tf did this happen";
-      }
-      return "?";
   }
+  $db->close(); 
+?>
 
-  function status_failed(stat) {
-    return stat >= RUN_COMPILATION_ERROR && stat <= RUN_WRONG_ANSWER;
-  }
+function status_to_text(stat, testcase) {
+    
+    switch (parseInt(stat)) {
+    case RUN_IDLE: return "Idle";
+    case RUN_ENQUEUED: return "In queue";
+    case RUN_COMPILING: return "Compiling";
+    case RUN_RUNNING: return `Running on testcase ${testcase}`;
+    case RUN_SUCCESS: return "Accepted";
+    case RUN_COMPILATION_ERROR: return "Compilation failed";
+    case RUN_RUNTIME_ERROR: return `Runtime error on testcase ${testcase}`;
+    case RUN_TIME_LIMIT_EXCEEDED: return `Time limit exceeded on testcase ${testcase}`;
+    case RUN_MEM_LIMIT_EXCEEDED: return `Memory limit exceeded testcase ${testcase}`;
+    case RUN_WRONG_ANSWER: return `Wrong answer on testcase ${testcase}`;
+    case RUN_SERVER_ERROR: return "Server error";
+    case RUN_DEAD: return "How tf did this happen";
+    }
+    return "?";
+}
 
-  function create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory) {
-      tr = document.createElement("tr");
-      tr.setAttribute("id", id);
+function status_failed(stat) {
+  return stat >= RUN_COMPILATION_ERROR && stat <= RUN_WRONG_ANSWER;
+}
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(id);
-      td.appendChild(td_text);
-      td.setAttribute("id", `id-${id}`);
-      tr.appendChild(td);
+function create_table_row(id, stat, testcase, letter, problem, lang, team, time, memory) {
+    tr = document.createElement("tr");
+    tr.setAttribute("id", id);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode("N/A");
-      td.appendChild(td_text);
-      //td.setAttribute("id", `team-${id}`);
-      tr.appendChild(td);
+    td = document.createElement("td");
+    td_text = document.createTextNode(id);
+    td.appendChild(td_text);
+    td.setAttribute("id", `id-${id}`);
+    tr.appendChild(td);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(team);
-      td.appendChild(td_text);
-      td.setAttribute("id", `team-${id}`);
-      tr.appendChild(td);
+    td = document.createElement("td");
+    td_text = document.createTextNode("N/A");
+    td.appendChild(td_text);
+    //td.setAttribute("id", `team-${id}`);
+    tr.appendChild(td);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(`${letter} - ${problem}`);
-      td.appendChild(td_text);
-      td.setAttribute("id", `problem-${id}`);
-      tr.appendChild(td);
+    td = document.createElement("td");
+    td_text = document.createTextNode(team);
+    td.appendChild(td_text);
+    td.setAttribute("id", `team-${id}`);
+    tr.appendChild(td);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(lang);
-      td.appendChild(td_text);
-      td.setAttribute("id", `lang-${id}`);
-      tr.appendChild(td);
+    td = document.createElement("td");
+    td_text = document.createTextNode(`${letter} - ${problem}`);
+    td.appendChild(td_text);
+    td.setAttribute("id", `problem-${id}`);
+    tr.appendChild(td);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(status_to_text(stat, testcase));
-      td.appendChild(td_text);
-      td.setAttribute("id", `verdict-${id}`);
-      tr.appendChild(td);
+    td = document.createElement("td");
+    td_text = document.createTextNode(lang);
+    td.appendChild(td_text);
+    td.setAttribute("id", `lang-${id}`);
+    tr.appendChild(td);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(`${time} ms`);
-      td.appendChild(td_text);
-      td.setAttribute("id", `time-${id}`);
-      tr.appendChild(td);
+    td = document.createElement("td");
+    td_text = document.createTextNode(status_to_text(stat, testcase));
+    td.appendChild(td_text);
+    td.setAttribute("id", `verdict-${id}`);
+    tr.appendChild(td);
 
-      td = document.createElement("td");
-      td_text = document.createTextNode(`${memory} KB`);
-      td.appendChild(td_text);
+    td = document.createElement("td");
+    td_text = document.createTextNode(`${time} ms`);
+    td.appendChild(td_text);
+    td.setAttribute("id", `time-${id}`);
+    tr.appendChild(td);
+
+    td = document.createElement("td");
+    td_text = document.createTextNode(`${memory} KB`);
+    td.appendChild(td_text);
       td.setAttribute("id", `mem-${id}`);
       tr.appendChild(td);
 
