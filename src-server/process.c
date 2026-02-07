@@ -7,15 +7,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-typedef struct Process {
-    char** argv;
-    pthread_t wait_thread;
-    pid_t pid;
-    ProcessEnum exit_status;
-    int status;
-    int fd_in, fd_out;
-} Process;
-
 static void* process_handler_daemon(void* vargp)
 {
     Process* process;
@@ -24,6 +15,7 @@ static void* process_handler_daemon(void* vargp)
     waitpid(process->pid, &status, 0);
     process->status = status;
     process->exit_status = WEXITSTATUS(status);
+    process->running = false;
     return NULL;
 }
 
@@ -39,7 +31,7 @@ Process* process_create(const char* command, FILE* infile, FILE* outfile, FILE* 
     process->argv[1] = "-c";
     process->argv[2] = (char*)command;
     process->argv[3] = NULL;
-    process->exit_status = PROCESS_RUNNING;
+    process->running = true;
     process->fd_in = process->fd_out = -1;
     pid = fork();
     if (pid == -1) {
@@ -100,7 +92,7 @@ ProcessPair process_pair_create(const char* command1, const char* command2)
     p1->argv[1] = "-c";
     p1->argv[2] = (char*)command1;
     p1->argv[3] = NULL;
-    p1->exit_status = PROCESS_RUNNING;
+    p1->running = true;
     pid = fork();
     if (pid == -1) {
         goto fail;
@@ -119,7 +111,7 @@ ProcessPair process_pair_create(const char* command1, const char* command2)
     p2->argv[1] = "-c";
     p2->argv[2] = (char*)command2;
     p2->argv[3] = NULL;
-    p2->exit_status = PROCESS_RUNNING;
+    p2->running = true;
     pid = fork();
     if (pid == -1) {
         goto fail;
@@ -215,11 +207,6 @@ bool process_failed(Process* process)
 bool process_error(Process* process)
 {
     return process->exit_status == PROCESS_ERROR;
-}
-
-bool process_running(Process* process)
-{
-    return process->exit_status == PROCESS_RUNNING;
 }
 
 int networking_get_last_error(void)

@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/time.h>
+#include <wait.h>
 #include <dirent.h>
 #include <errno.h>
 
@@ -331,7 +332,7 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
 
     outfile = fopen(get_token_value(tb, COMPILE_PATH), "w");
     set_token_value_parse(tb, COMPILE_COMMAND, language->compile);
-    log(INFO, "compile run %d: %s", run->id, get_token_value(tb, COMPILE_COMMAND));
+    //log(INFO, "compile run %d: %s", run->id, get_token_value(tb, COMPILE_COMMAND));
     process = process_create(get_token_value(tb, COMPILE_COMMAND), NULL, outfile, outfile);
     process_wait(process);
     success = process_success(process);
@@ -397,7 +398,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     gettimeofday(&start, NULL);
     cur = start;
     mem = 0;
-    while (process_running(execute)) {
+    while (execute->running) {
         mem = process_memory(execute);
         run->memory = (mem > run->memory) ? mem : run->memory;
         if (run->memory > problem->mem_limit) {
@@ -415,7 +416,10 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     }
     if (process_error(execute))
         goto error;
-    if (process_failed(execute)) {
+
+    //int s = execute->status;
+    //log(INFO, "%d %d %d %d %d %d %d %d", WIFEXITED(s), WEXITSTATUS(s), WIFSIGNALED(s), WTERMSIG(s), WCOREDUMP(s), WIFSTOPPED(s), WSTOPSIG(s), WIFCONTINUED(s));
+    if (WIFSIGNALED(execute->status) || WSTOPSIG(execute->status)) {
         set_run_status(run, RUN_RUNTIME_ERROR);
         sprintf(response, "Runtime error on testcase %d", testcase);
         goto fail;
@@ -429,7 +433,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
     validate = process_create(get_token_value(tb, VALIDATE_COMMAND), NULL, NULL, NULL);
-    log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
+    //log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
     process_wait(validate);
     if (process_error(validate))
         goto error;
@@ -495,7 +499,7 @@ static int validate_with_pipe(TokenBuffers* tb, Language* language, Problem* pro
     gettimeofday(&start, NULL);
     cur = start;
     mem = 0;
-    while (process_running(execute) && process_running(validate)) {
+    while (execute->running && validate->running) {
         mem = process_memory(execute);
         run->memory = (mem > run->memory) ? mem : run->memory;
         if (run->memory > problem->mem_limit) {
@@ -512,10 +516,10 @@ static int validate_with_pipe(TokenBuffers* tb, Language* language, Problem* pro
         }
     }
 
-    if (!process_running(validate)) {
+    if (!validate->running) {
         if (process_error(validate))
             goto error;
-        while (process_running(execute)) {
+        while (execute->running) {
             mem = process_memory(execute);
             run->memory = (mem > run->memory) ? mem : run->memory;
             if (run->memory > problem->mem_limit) {
@@ -535,14 +539,14 @@ static int validate_with_pipe(TokenBuffers* tb, Language* language, Problem* pro
     }
 
     //int s = execute->status;
-    //printf("%d %d %d %d %d %d %d %d\n", WIFEXITED(s), WEXITSTATUS(s), WIFSIGNALED(s), WTERMSIG(s), WCOREDUMP(s), WIFSTOPPED(s), WSTOPSIG(s), WIFCONTINUED(s));
-    //if (WSTOPSIG(execute->status)) {
-    //    set_run_status(run, RUN_RUNTIME_ERROR);
-    //    sprintf(response, "Runtime error on testcase %d", testcase);
-    //    goto fail;
-    //}
+    //log(INFO, "%d %d %d %d %d %d %d %d", WIFEXITED(s), WEXITSTATUS(s), WIFSIGNALED(s), WTERMSIG(s), WCOREDUMP(s), WIFSTOPPED(s), WSTOPSIG(s), WIFCONTINUED(s));
+    if (WIFSIGNALED(execute->status) || WSTOPSIG(execute->status)) {
+        set_run_status(run, RUN_RUNTIME_ERROR);
+        sprintf(response, "Runtime error on testcase %d", testcase);
+        goto fail;
+    }
 
-    while (process_running(validate)) {
+    while (validate->running) {
         gettimeofday(&extra, NULL);
         if (timeval_diff(extra, start) > problem->time_limit) {
             set_run_status(run, RUN_WRONG_ANSWER);

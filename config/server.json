@@ -62,7 +62,7 @@
             "testcases": "test/problem1/cases",
             "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
             "pipe": false,
-            "time_limit": 500,
+            "time_limit": 2000,
             "mem_limit": 1000000
         },
         {

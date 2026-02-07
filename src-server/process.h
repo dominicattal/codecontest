@@ -3,15 +3,24 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 typedef enum {
     PROCESS_SUCCESS  = 0,
     PROCESS_FAILED   = 1,
-    PROCESS_ERROR    = 2,
-    PROCESS_RUNNING  = 3
+    PROCESS_ERROR    = 2
 } ProcessEnum;
 
-typedef struct Process Process;
+typedef struct Process {
+    char** argv;
+    pthread_t wait_thread;
+    pid_t pid;
+    ProcessEnum exit_status;
+    int status;
+    int fd_in, fd_out;
+    bool running;
+} Process;
+
 typedef struct {
     Process* process1;
     Process* process2;
@@ -25,7 +34,5 @@ void process_destroy(Process* process);
 bool process_success(Process* process);
 bool process_failed(Process* process);
 bool process_error(Process* process);
-bool process_runtime_error(Process* process);
-bool process_running(Process* process);
 
 #endif

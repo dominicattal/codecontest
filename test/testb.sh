@@ -1,0 +1,18 @@
+#!/bin/bash
+source test/config.sh
+echo "Problem B tests"
+echo "-----------------------------------------"
+echo "Test: python accepted exact"
+bin/dev/client -i "$ip" -t $port -u "team1" -p "team1" -l "python3" -b "B" -f "test/problem2/test-py/accepted1.py"
+echo "-----------------------------------------"
+echo "Test: python accepted a little off"
+bin/dev/client -i "$ip" -t $port -u "team1" -p "team1" -l "python3" -b "B" -f "test/problem2/test-py/accepted2.py"
+echo "-----------------------------------------"
+echo "Test: python runtime bad type"
+bin/dev/client -i "$ip" -t $port -u "team1" -p "team1" -l "python3" -b "B" -f "test/problem2/test-py/runtime.py"
+echo "-----------------------------------------"
+echo "Test: python wrong converted to int"
+bin/dev/client -i "$ip" -t $port -u "team1" -p "team1" -l "python3" -b "B" -f "test/problem2/test-py/wrong1.py"
+echo "-----------------------------------------"
+echo "Test: python wrong too much off"
+bin/dev/client -i "$ip" -t $port -u "team1" -p "team1" -l "python3" -b "B" -f "test/problem2/test-py/wrong2.py"
