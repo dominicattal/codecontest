@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <libgen.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -14,8 +15,8 @@
 #define TOKEN_BUFFER_LENGTH 1024
 
 typedef enum {
+    DATA_DIR,
     PROBLEM_DIR,        
-    CASE_DIR_NAME,
     CASE_DIR,
     RUN_DIR_NAME,
     RUN_DIR,
@@ -49,8 +50,8 @@ typedef enum {
 } CommandToken;
 
 static char* tok_map[NUM_COMMAND_TOKENS] = {
+    "DATA_DIR",
     "PROBLEM_DIR",
-    "CASE_DIR_NAME",
     "CASE_DIR",
     "RUN_DIR_NAME",
     "RUN_DIR",
@@ -337,19 +338,28 @@ static bool find_dir(const char* path)
 
 static bool create_dir(const char* path)
 {
-    int result;
-#ifdef __WIN32
-    result = mkdir(path);
-#elif __linux__
+    char* path_copy;
+    char* up_one;
+    int result, n;
+    n = strlen(path);
+    path_copy = malloc((n+1) * sizeof(char));
+    snprintf(path_copy, n+1, "%s", path);
+    up_one = dirname(path_copy);
+    if (strcmp(up_one, ".") != 0) {
+        result = create_dir(up_one);
+        if (!result) {
+            free(path_copy);
+            return false;
+        }
+    }
     result = mkdir(path, 0777);
-#else
-    result = 2;
-#endif
-    // TODO: figure out why EBADF occurs here
-    if (result == 0 || errno == EEXIST || errno == EBADF)
+    if (result == 0 || errno == EEXIST || errno == EBADF) {
+        free(path_copy);
         return true;
-    log(ERROR, "Creted dir failed: %s %d", path, errno);
-    return false;
+    }
+    log(ERROR, "Crete dir failed: %s %d", path, errno);
+    free(path_copy);
+    return true;
 }
 
 static bool create_file(const char* path, const char* code, int code_length)
@@ -428,7 +438,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
         goto error;
     }
     execute = process_create(get_token_value(tb, EXECUTE_COMMAND), infile, outfile, errfile);
-    log(INFO, "execute run %d no pipe: %s infile=%s outfile=%s errfile=%s", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH), get_token_value(tb, RUNTIME_PATH));
+    //log(INFO, "execute run %d no pipe: %s infile=%s outfile=%s errfile=%s", run->id, get_token_value(tb, EXECUTE_COMMAND), get_token_value(tb, CASE_PATH), get_token_value(tb, OUTPUT_PATH), get_token_value(tb, RUNTIME_PATH));
     if (execute == NULL)
         goto error;
     gettimeofday(&start, NULL);
@@ -467,7 +477,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
     validate = process_create(get_token_value(tb, VALIDATE_COMMAND), outfile, NULL, NULL);
-    log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
+    //log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
     process_wait(validate);
     if (process_error(validate))
         goto error;
@@ -648,22 +658,22 @@ static void handle_run(TokenBuffers* tb, Run* run)
     language = &ctx.languages[run->language_id];
 
     // default values
+    set_token_value(tb, DATA_DIR, "data");
     set_token_value(tb, PROBLEM_DIR, "%s", problem->dir);
-    //set_token_value(tb, CASE_DIR_NAME, "cases");
-    //set_token_value(tb, CASE_DIR, "%s/%s",
-    //    get_token_value(tb, PROBLEM_DIR),
-    //    get_token_value(tb, CASE_DIR_NAME));
     set_token_value(tb, CASE_DIR, "%s", problem->testcases_dir);
     set_token_value(tb, RUN_DIR_NAME, "runs");
-    set_token_value(tb, RUN_DIR, "%s/%s",
+    set_token_value(tb, RUN_DIR, "%s/%s/%s",
+        get_token_value(tb, DATA_DIR),
         get_token_value(tb, PROBLEM_DIR),
         get_token_value(tb, RUN_DIR_NAME));
     set_token_value(tb, COMPILE_DIR_NAME, "runs");
-    set_token_value(tb, COMPILE_DIR, "%s/%s",
+    set_token_value(tb, COMPILE_DIR, "%s/%s/%s",
+        get_token_value(tb, DATA_DIR),
         get_token_value(tb, PROBLEM_DIR),
         get_token_value(tb, COMPILE_DIR_NAME));
     set_token_value(tb, BIN_DIR_NAME, "bin");
-    set_token_value(tb, BIN_DIR, "%s/%s", 
+    set_token_value(tb, BIN_DIR, "%s/%s/%s", 
+        get_token_value(tb, DATA_DIR), 
         get_token_value(tb, PROBLEM_DIR), 
         get_token_value(tb, BIN_DIR_NAME));
     set_token_value(tb, TEAM_NAME, "%s", ctx.teams[run->team_id].username);
@@ -685,7 +695,7 @@ static void handle_run(TokenBuffers* tb, Run* run)
         get_token_value(tb, COMPILE_DIR),
         get_token_value(tb, BASENAME));
     set_token_value(tb, OUTPUT_DIR, "%s/tmp",
-        get_token_value(tb, PROBLEM_DIR));
+        get_token_value(tb, DATA_DIR));
     set_token_value(tb, RUNTIME_DIR, "%s",
         get_token_value(tb, COMPILE_DIR));
     set_token_value(tb, LETTER, "%c", ctx.problems[run->problem_id].letter);
@@ -723,7 +733,7 @@ static void handle_run(TokenBuffers* tb, Run* run)
         goto server_error;
     }
     if (!create_file(get_token_value(tb, CODE_PATH), run->code, run->code_length)) {
-        log(ERROR, "[%d] Couldn't create code file", run->id);
+        log(ERROR, "[%d] Couldn't create code file %s", run->id, get_token_value(tb, CODE_PATH));
         goto server_error;
     }
     set_run_status(run, RUN_COMPILING);
@@ -732,12 +742,12 @@ static void handle_run(TokenBuffers* tb, Run* run)
     set_run_status(run, RUN_RUNNING);
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
         set_token_value(tb, TESTCASE, "%d", testcase);
-        set_token_value(tb, CASE_PATH, "%s/%s",
-                get_token_value(tb, CASE_DIR),
-                problem->testcases[testcase].in_name);
-        set_token_value(tb, ANSWER_PATH, "%s/%s",
-                get_token_value(tb, CASE_DIR),
-                problem->testcases[testcase].ans_name);
+        set_token_value(tb, CASE_PATH, "%s/%s.in",
+                problem->testcases_dir,
+                problem->testcases[testcase].name);
+        set_token_value(tb, ANSWER_PATH, "%s/%s.ans",
+                problem->testcases_dir,
+                problem->testcases[testcase].name);
         set_token_value(tb, OUTPUT_PATH, "%s/%s-%s-%s.output",
                 get_token_value(tb, OUTPUT_DIR),
                 get_token_value(tb, TEAM_NAME),

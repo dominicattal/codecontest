@@ -35,8 +35,7 @@ typedef struct {
 } Language;
 
 typedef struct {
-    char* in_name;
-    char* ans_name;
+    char* name;
     int id;
 } Testcase;
 

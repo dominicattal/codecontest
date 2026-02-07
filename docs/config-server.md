@@ -21,22 +21,22 @@ forgive me im not checking this in a md renderer right now
     "dir" -> directory of the problem's information \
     "html" -> path of problem statement relative to php server. see problem html section \
     "validate" -> command for validating a program's output \
-    "testcases" -> number of testcases for this problem \
+    "testcases" -> dir that has testcases, more info below \
     "time_limit" -> time limit in seconds \
     "mem_limit" -> memory limit in MB \
     "pipe" -> whether to set up pipes between the validation and execution processes, false by default
 
 A command is a string that is to be run in the system's shell. \
 If any of the following tokens appear in the command, they will be expanded: \
+- [DATA_DIR]            -> directory of where to store relevant data. default is data
 - [PROBLEM_DIR]         -> directory of the problem
-- [CASE_DIR_NAME]       -> name of the directory's case dir, which contains the testcases. default is cases
-- [CASE_DIR]            -> directory of the problem's case dir, which contains each testcase. equivalent to [PROBLEM_DIR]/[CASE_DIR_NAME]
+- [CASE_DIR]            -> directory of the problem's case dir, which contains each testcase. this token is specified in the config file
 - [RUN_DIR_NAME]        -> name of the directory that stores all of the runs. default is runs
-- [RUN_DIR]             -> directory of the problem's run dir, which contains each run. equivalent to [PROBLEM_DIR]/[RUN_DIR_NAME]
+- [RUN_DIR]             -> directory of the problem's run dir, which contains each run. equivalent to [DATA_DIR]/[PROBLEM_DIR]/[RUN_DIR_NAME]
 - [COMPILE_DIR_NAME]    -> name of the directory that stores the compilation outputs. default is runs
-- [COMPILE_DIR]         -> directory of the problem's compile dir. equivalent to [PROBLEM_DIR]/[COMPILE_DIR_NAME]
+- [COMPILE_DIR]         -> directory of the problem's compile dir. equivalent to [DATA_DIR]/[PROBLEM_DIR]/[COMPILE_DIR_NAME]
 - [BIN_DIR_NAME]        -> name of the bin directory to store compiled files. default is bin
-- [BIN_DIR]             -> directory of the problem's bin dir. equivalent to [PROBLEM_DIR]/[BIN_DIR_NAME]
+- [BIN_DIR]             -> directory of the problem's bin dir. equivalent to [DATA_DIR]/[PROBLEM_DIR]/[BIN_DIR_NAME]
 - [TEAM_NAME]           -> name of the team submitting
 - [RUN_ID]              -> global id of the run
 - [RUN_PID]             -> id of the run local to problem
@@ -50,7 +50,7 @@ If any of the following tokens appear in the command, they will be expanded: \
 - [TESTCASE]            -> current testcase number. equal to -1 if not used in the "validate" or the "execute" fields
 - [CASE_PATH]           -> file that contains current testcase. equivalent to [CASE_DIR]/[TESTCASE].in
 - [ANSWER_PATH]         -> file that contains the answer for the current testcase. equivalent to [CASE_DIR]/[TESTCASE].ans
-- [OUTPUT_DIR]          -> path to the dir that contains the output files. Equivalent to [RUN_DIR]/tmp
+- [OUTPUT_DIR]          -> path to the dir that contains the output files. Equivalent to [DATA_DIR]/tmp
 - [OUTPUT_PATH]         -> path to the textfile generated after executing. This is equivalent to [OUTPUT_DIR]/[TESTCASE].output.
 - [RUNTIME_DIR]         -> path to the dir that contains the stderr output files. Equivalent to [COMPILE_DIR]
 - [RUNTIME_PATH]        -> path to the textfile generated while executing. This is equivalent to [COMPILE_DIR]/[BASENAME]-[TESTCASE].runtime

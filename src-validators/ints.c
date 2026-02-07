@@ -29,7 +29,6 @@ int main(int argc, char** argv)
     }
 
     correct_file_path = argv[1];
-    puts(correct_file_path);
     correct_file = fopen(correct_file_path, "r");
     if (correct_file == NULL) {
         fprintf(stderr, "validator: couldnt read %s\n", correct_file_path);

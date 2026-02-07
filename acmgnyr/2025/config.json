@@ -53,14 +53,32 @@
     ],
     "problems": [
         {
+            "letter": "A",
+            "name": "A Little Leftover Pizza",
+            "dir": "acmgnyr/2025/A-Alittleleftoverpizza",
+            "validate": "bin/validators/ints [ANSWER_PATH]",
+            "testcases": "acmgnyr/2025/A-Alittleleftoverpizza/secret",
+            "pipe": false,
+            "time_limit": 1000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "B",
+            "name": "Andor",
+            "dir": "acmgnyr/2025/A-Alittleleftoverpizza",
+            "validate": "bin/validators/ints [ANSWER_PATH]",
+            "testcases": "acmgnyr/2025/A-Alittleleftoverpizza/secret",
+            "pipe": false,
+            "time_limit": 5000,
+            "mem_limit": 2000000
+        },
+        {
             "letter": "K",
             "name": "Triptych",
             "dir": "acmgnyr/2025/K-Triptych",
-            "html": "example/problem1.html",
-            "validate": "example/bin/problem1 [ANSWER_PATH]",
-            "_testcases": "acmgnyr/2025/K-Triptych/secret",
-            "_pipe": false,
-            "testcases": 3,
+            "validate": "bin/validators/ints [ANSWER_PATH]",
+            "testcases": "acmgnyr/2025/K-Triptych/secret",
+            "pipe": false,
             "time_limit": 5000,
             "mem_limit": 1000000
         }

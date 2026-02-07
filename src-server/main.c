@@ -52,7 +52,7 @@ bool _db_exec(char* query_fmt, const char* file, int line, ...)
     va_end(ap);
     //_log(DBQUERY, query, file, line);
     res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-    if (res) log(WARNING, "sqlite3 command failed: %s", error);
+    if (res) _log(WARNING, "sqlite3 command failed: %s", file, line, error);
     sqlite3_free(error);
     free(query);
     return res;
@@ -592,10 +592,19 @@ bool read_languages(JsonObject* config)
 
 bool read_testcases(Problem* problem)
 {
-    DIR* dir = opendir(problem->testcases_dir);
-    struct dirent* testcase_file = readdir(dir);
+    DIR* dir;
+    struct dirent* testcase_file;
     Testcase* testcase;
     int len, id;
+
+    dir = opendir(problem->testcases_dir);
+    if (dir == NULL) {
+        log(ERROR, "Could not read testcases directory %s", problem->testcases_dir);
+        return false;
+    }
+    testcase_file = readdir(dir);
+    if (testcase_file == NULL)
+        log(WARNING, "Could not get testcase file for testcases directory %s", problem->testcases_dir);
     problem->num_testcases = 0;
     while (testcase_file != NULL) {
         len = strlen(testcase_file->d_name);
@@ -611,11 +620,8 @@ bool read_testcases(Problem* problem)
         len = strlen(testcase_file->d_name);
         if (len >= 3 && strcmp(testcase_file->d_name + len - 3, ".in") == 0) {
             testcase = problem->testcases + id;
-            testcase->in_name = malloc((len+1) * sizeof(char));
-            snprintf(testcase->in_name, len+1, "%s", testcase_file->d_name);
-            testcase->ans_name = malloc((len+2) * sizeof(char));
-            snprintf(testcase->ans_name, len+1, "%s", testcase_file->d_name);
-            snprintf(testcase->ans_name+len-3, 5, ".ans");
+            testcase->name = malloc((len-3+1) * sizeof(char));
+            snprintf(testcase->name, len-3+1, "%s", testcase_file->d_name);
             testcase->id = id; 
             id++;
         }
@@ -692,14 +698,15 @@ bool read_problems(JsonObject* config)
         problem->name = string;
         value = json_get_value(object, "html");
         if (value == NULL) {
-            log(ERROR, "Missing problem html");
-            return false;
+            log(WARNING, "Missing problem html");
+            string = "no.html";
         }
-        if (json_get_type(value) != JTYPE_STRING) {
-            log(ERROR, "Invalid problem html");
-            return false;
+        else if (json_get_type(value) != JTYPE_STRING) {
+            log(WARNING, "Invalid problem html");
+            string = "no.html";
+        } else {
+            string = json_get_string(value);
         }
-        string = json_get_string(value);
         problem->html = string;
         value = json_get_value(object, "dir");
         if (value == NULL) {
@@ -733,7 +740,7 @@ bool read_problems(JsonObject* config)
         //    return false;
         //}
         //problem->num_testcases = json_get_int(value);
-        value = json_get_value(object, "_testcases");
+        value = json_get_value(object, "testcases");
         if (value == NULL) {
             log(ERROR, "Missing testcases dir");
             return false;
@@ -833,10 +840,8 @@ void context_cleanup(void)
         pthread_join(ctx.run_threads[i], NULL);
     for (int i = 0; i < ctx.num_problems; i++) {
         Problem* problem = &ctx.problems[i];
-        for (int j = 0; j < problem->num_testcases; j++) {
-            free(problem->testcases[i].in_name);        
-            free(problem->testcases[i].ans_name);        
-        }
+        for (int j = 0; j < problem->num_testcases; j++)
+            free(problem->testcases[j].name);        
         free(problem->testcases);
     }
     free(ctx.problems);
@@ -905,7 +910,6 @@ bool db_init(JsonObject* config)
     }
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
-        log(INFO, problem->html);
         query_fmt = "INSERT INTO problems (id, letter, name, html_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', %d, %d);";
         db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->html, problem->time_limit, problem->mem_limit);
     }
