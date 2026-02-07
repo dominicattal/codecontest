@@ -60,8 +60,8 @@
             "validate": "example/bin/problem1 [ANSWER_PATH]",
             "_pipe": false,
             "testcases": 3,
-            "time_limit": 2,
-            "mem_limit": 256
+            "time_limit": 500,
+            "mem_limit": 1000000
         },
         {
             "letter": "B",

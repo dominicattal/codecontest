@@ -1,0 +1,68 @@
+{
+    "ip": "127.0.0.1",
+    "cli_port": "27120",
+    "web_port": "27106",
+    "database": "runs.db",
+    "num_threads": 1,
+    "contest": true,
+    "_contest": {
+        "_active": true,
+        "_name": "NJIT Programming Team",
+        "_duration": "5:00:00",
+        "_freeze": "1:00:00",
+        "_start_time": "2026-04-01 12:12Z"
+    },
+    "_web": {
+        "_show_all_runs": true,
+        "_show_problem_statements": true,
+        "_allow_run_downloads": true,
+        "_allow_case_downloads": true,
+        "_title": "NJIT Programming Team"
+    },
+    "teams": [
+        {
+            "username": "team1",
+            "password": "team1"
+        },
+        {
+            "username": "team2",
+            "password": "team2"
+        }
+    ],
+    "languages": [
+        {
+            "language": "python3",
+            "extension": "py",
+            "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
+            "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
+        },
+        {
+            "language": "cpp",
+            "extension": "cpp",
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME].exe",
+            "execute": "[BIN_DIR]/[BASENAME].exe"
+        },
+        {
+            "CODE_DIR": "[RUN_DIR]/[BASENAME]",
+            "CODE_PATH": "[RUN_DIR]/[BASENAME]/[CODE_FILENAME].java",
+            "language": "java",
+            "extension": "java",
+            "compile": "javac [CODE_PATH]",
+            "execute": "java -cp [CODE_DIR] [CODE_FILENAME]"
+        }
+    ],
+    "problems": [
+        {
+            "letter": "K",
+            "name": "Triptych",
+            "dir": "acmgnyr/2025/K-Triptych",
+            "html": "example/problem1.html",
+            "validate": "example/bin/problem1 [ANSWER_PATH]",
+            "_testcases": "acmgnyr/2025/K-Triptych/secret",
+            "_pipe": false,
+            "testcases": 3,
+            "time_limit": 5000,
+            "mem_limit": 1000000
+        }
+    ]
+}

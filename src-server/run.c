@@ -8,13 +8,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-//#include <stdbool.h>
-//#include <wait.h>
-//#include <time.h>
-//#include <unistd.h>
-//#include <fcntl.h>
-//#include <pthread.h>
-//#include <stdarg.h>
 #include <dirent.h>
 #include <errno.h>
 
@@ -656,10 +649,11 @@ static void handle_run(TokenBuffers* tb, Run* run)
 
     // default values
     set_token_value(tb, PROBLEM_DIR, "%s", problem->dir);
-    set_token_value(tb, CASE_DIR_NAME, "cases");
-    set_token_value(tb, CASE_DIR, "%s/%s",
-        get_token_value(tb, PROBLEM_DIR),
-        get_token_value(tb, CASE_DIR_NAME));
+    //set_token_value(tb, CASE_DIR_NAME, "cases");
+    //set_token_value(tb, CASE_DIR, "%s/%s",
+    //    get_token_value(tb, PROBLEM_DIR),
+    //    get_token_value(tb, CASE_DIR_NAME));
+    set_token_value(tb, CASE_DIR, "%s", problem->testcases_dir);
     set_token_value(tb, RUN_DIR_NAME, "runs");
     set_token_value(tb, RUN_DIR, "%s/%s",
         get_token_value(tb, PROBLEM_DIR),
@@ -738,12 +732,12 @@ static void handle_run(TokenBuffers* tb, Run* run)
     set_run_status(run, RUN_RUNNING);
     for (testcase = 0; testcase < problem->num_testcases; testcase++) {
         set_token_value(tb, TESTCASE, "%d", testcase);
-        set_token_value(tb, CASE_PATH, "%s/%s.in",
+        set_token_value(tb, CASE_PATH, "%s/%s",
                 get_token_value(tb, CASE_DIR),
-                get_token_value(tb, TESTCASE));
-        set_token_value(tb, ANSWER_PATH, "%s/%s.ans",
+                problem->testcases[testcase].in_name);
+        set_token_value(tb, ANSWER_PATH, "%s/%s",
                 get_token_value(tb, CASE_DIR),
-                get_token_value(tb, TESTCASE));
+                problem->testcases[testcase].ans_name);
         set_token_value(tb, OUTPUT_PATH, "%s/%s-%s-%s.output",
                 get_token_value(tb, OUTPUT_DIR),
                 get_token_value(tb, TEAM_NAME),

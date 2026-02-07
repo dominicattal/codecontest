@@ -6,6 +6,8 @@
 #include <signal.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <libgen.h>
+#include <dirent.h>
 #include <json.h>
 #include "main.h"
 #include "run.h"
@@ -222,7 +224,7 @@ static void* handle_cli_client(void* vargp)
     if (packet->buffer == NULL)
         goto fail_packet;
     problem = validate_problem(packet->buffer[0]);
-    if (language == NULL) {
+    if (problem == NULL) {
         packet_destroy(packet);
         packet = packet_create(PACKET_PROBLEM_VALIDATION_FAILED, 0, NULL);
         socket_send(client_socket, packet);
@@ -588,6 +590,41 @@ bool read_languages(JsonObject* config)
     return true;
 }
 
+bool read_testcases(Problem* problem)
+{
+    DIR* dir = opendir(problem->testcases_dir);
+    struct dirent* testcase_file = readdir(dir);
+    Testcase* testcase;
+    int len, id;
+    problem->num_testcases = 0;
+    while (testcase_file != NULL) {
+        len = strlen(testcase_file->d_name);
+        if (len >= 3 && strcmp(testcase_file->d_name + len - 3, ".in") == 0)
+            problem->num_testcases++;
+        testcase_file = readdir(dir);
+    }
+    rewinddir(dir);
+    problem->testcases = malloc(problem->num_testcases * sizeof(Testcase));
+    id = 0;
+    testcase_file = readdir(dir);
+    while (testcase_file != NULL) {
+        len = strlen(testcase_file->d_name);
+        if (len >= 3 && strcmp(testcase_file->d_name + len - 3, ".in") == 0) {
+            testcase = problem->testcases + id;
+            testcase->in_name = malloc((len+1) * sizeof(char));
+            snprintf(testcase->in_name, len+1, "%s", testcase_file->d_name);
+            testcase->ans_name = malloc((len+2) * sizeof(char));
+            snprintf(testcase->ans_name, len+1, "%s", testcase_file->d_name);
+            snprintf(testcase->ans_name+len-3, 5, ".ans");
+            testcase->id = id; 
+            id++;
+        }
+        testcase_file = readdir(dir);
+    }
+    closedir(dir);
+    return true;
+}
+
 bool read_problems(JsonObject* config)
 {
     JsonObject* object;
@@ -686,25 +723,59 @@ bool read_problems(JsonObject* config)
         }
         string = json_get_string(value);
         problem->validate = string;
-        value = json_get_value(object, "testcases");
+        //value = json_get_value(object, "testcases");
+        //if (value == NULL) {
+        //    log(ERROR, "Missing testcases");
+        //    return false;
+        //}
+        //if (json_get_type(value) != JTYPE_INT) {
+        //    log(ERROR, "Invalid number of testcases");
+        //    return false;
+        //}
+        //problem->num_testcases = json_get_int(value);
+        value = json_get_value(object, "_testcases");
         if (value == NULL) {
-            log(ERROR, "Missing testcases");
+            log(ERROR, "Missing testcases dir");
             return false;
         }
-        if (json_get_type(value) != JTYPE_INT) {
-            log(ERROR, "Invalid number of testcases");
+        if (json_get_type(value) != JTYPE_STRING) {
+            log(ERROR, "Invalid testcases path");
             return false;
         }
-        problem->num_testcases = json_get_int(value);
+        string = json_get_string(value);
+        problem->testcases_dir = string;
+        log(INFO, "%s", string);
+        if (!read_testcases(problem)) {
+            log(ERROR, "Failed to read testcases for problem %s", problem->name);
+            return false;
+        }
         value = json_get_value(object, "pipe");
         if (value == NULL) {
-            printf("Missing pipe field, defaulting to no pipe for problem %c (%s)\n", problem->letter, problem->name);
+            log(WARNING, "Missing pipe field, defaulting to no pipe for problem %c (%s)", problem->letter, problem->name);
             problem->pipe = false;
         } else {
             problem->pipe = json_get_type(value) == JTYPE_TRUE;
         }
-        problem->time_limit = 2000;
-        problem->mem_limit = 1000000;
+        value = json_get_value(object, "time_limit");
+        if (value == NULL) {
+            log(ERROR, "Missing time_limit");
+            return false;
+        }
+        if (json_get_type(value) != JTYPE_INT) {
+            log(ERROR, "Invalid time_limit");
+            return false;
+        }
+        problem->time_limit = json_get_int(value);
+        value = json_get_value(object, "mem_limit");
+        if (value == NULL) {
+            log(ERROR, "Missing mem_limit");
+            return false;
+        }
+        if (json_get_type(value) != JTYPE_INT) {
+            log(ERROR, "Invalid mem_limit");
+            return false;
+        }
+        problem->mem_limit = json_get_int(value);
     }
     return true;
 }
@@ -760,10 +831,18 @@ void context_cleanup(void)
 {
     for (int i = 0; i < ctx.num_run_threads; i++)
         pthread_join(ctx.run_threads[i], NULL);
+    for (int i = 0; i < ctx.num_problems; i++) {
+        Problem* problem = &ctx.problems[i];
+        for (int j = 0; j < problem->num_testcases; j++) {
+            free(problem->testcases[i].in_name);        
+            free(problem->testcases[i].ans_name);        
+        }
+        free(problem->testcases);
+    }
+    free(ctx.problems);
     free(ctx.run_threads);
     free(ctx.teams);
     free(ctx.languages);
-    free(ctx.problems);
 }
 
 bool db_init(JsonObject* config)

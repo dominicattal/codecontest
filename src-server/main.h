@@ -35,9 +35,17 @@ typedef struct {
 } Language;
 
 typedef struct {
+    char* in_name;
+    char* ans_name;
+    int id;
+} Testcase;
+
+typedef struct {
     JsonObject* object;
+    Testcase* testcases;
     const char* name;
     const char* dir;
+    const char* testcases_dir;
     const char* html;
     const char* validate;
     char letter;

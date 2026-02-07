@@ -4,7 +4,7 @@
     "username": "team1",
     "password": "team1",
     "language": "python3",
-    "problem": "A",
-    "file": "example/problem1/test-py/compile.py",
+    "problem": "K",
+    "file": "acmgnyr/2025/K-Triptych/solutions/triptychIsaac.py",
     "async": false
 }
