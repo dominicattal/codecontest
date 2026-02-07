@@ -17,7 +17,10 @@ endif
 SRC_LIB = lib/json.c lib/networking.c 
 SRC_SERVER = src-server/main.c src-server/run.c src-server/process.c
 SRC_CLIENT = src-client/main.c
-SRC_VALIDATORS = src-validators/ints.c src-validators/floats.c src-validators/strings.c
+SRC_VALIDATORS = src-validators/ints.c \
+				 src-validators/floats.c \
+				 src-validators/strings.c \
+				 src-validators/interactive.c
 OBJ_DEV_LIB = $(SRC_LIB:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 OBJ_DEV_SERVER = $(SRC_SERVER:%.c=build/dev$(BUILD_SUFFIX)/%.o)
 OBJ_DEV_CLIENT = $(SRC_CLIENT:%.c=build/dev$(BUILD_SUFFIX)/%.o)

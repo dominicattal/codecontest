@@ -93,7 +93,7 @@
             "dir": "test/problem4",
             "html": "test/problem4/problem4.html",
             "testcases": "test/problem4/cases",
-            "validate": "bin/validators/interactive [ANSWER_PATH]  [OUTPUT_PATH]",
+            "validate": "bin/validators/interactive [CASE_PATH]",
             "pipe": true,
             "time_limit": 500,
             "mem_limit": 1000000

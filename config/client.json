@@ -4,7 +4,7 @@
     "username": "team1",
     "password": "team1",
     "language": "python3",
-    "problem": "C",
-    "file": "test/problem3/test-py/accepted.py",
+    "problem": "D",
+    "file": "test/problem4/test-py/accepted.py",
     "async": false
 }
