@@ -56,8 +56,9 @@
             "letter": "A",
             "name": "A Little Leftover Pizza",
             "dir": "acmgnyr/2025/A-Alittleleftoverpizza",
-            "validate": "bin/validators/ints [ANSWER_PATH]",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
             "testcases": "acmgnyr/2025/A-Alittleleftoverpizza/secret",
+            "pdf": "acmgnyr/2025/A-Alittleleftoverpizza/A-Alittleleftoverpizza.pdf",
             "pipe": false,
             "time_limit": 1000,
             "mem_limit": 2000000
@@ -65,9 +66,10 @@
         {
             "letter": "B",
             "name": "Andor",
-            "dir": "acmgnyr/2025/A-Alittleleftoverpizza",
-            "validate": "bin/validators/ints [ANSWER_PATH]",
-            "testcases": "acmgnyr/2025/A-Alittleleftoverpizza/secret",
+            "dir": "acmgnyr/2025/B-Andor",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/B-Andor/secret",
+            "pdf": "acmgnyr/2025/B-Andor/B-Andor.pdf",
             "pipe": false,
             "time_limit": 5000,
             "mem_limit": 2000000
@@ -76,8 +78,9 @@
             "letter": "K",
             "name": "Triptych",
             "dir": "acmgnyr/2025/K-Triptych",
-            "validate": "bin/validators/ints [ANSWER_PATH]",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
             "testcases": "acmgnyr/2025/K-Triptych/secret",
+            "pdf": "acmgnyr/2025/K-Triptych/K-Triptych.pdf",
             "pipe": false,
             "time_limit": 5000,
             "mem_limit": 1000000

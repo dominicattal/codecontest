@@ -921,7 +921,7 @@ bool db_init(JsonObject* config)
     len = strlen(db_file_path);
     db_dirname = malloc((len+1) * sizeof(char));
     snprintf(db_dirname, len+1, "%s", db_file_path);
-    db_dirname = dirname(db_dirname);
+    dirname(db_dirname);
     create_dir(db_dirname);
     free(db_dirname);
     res = sqlite3_open(db_file_path, &ctx.db);
