@@ -10,10 +10,12 @@
 #define SERVER_ERROR 2
 
 // argv[1] = case path
+// argv[2] = output path
 int main(int argc, char** argv)
 {
     FILE* correct_file = NULL;
     FILE* test_file = NULL;
+    char* test_file_path;
     char* correct_file_path;
     int test_res, correct_res;
     int test_num, correct_num;
@@ -23,7 +25,7 @@ int main(int argc, char** argv)
 
     result = SERVER_ERROR;
 
-    if (argc != 2) {
+    if (argc != 3) {
         fprintf(stderr, "validator: incorrect number of arguments\n");
         goto cleanup;
     }
@@ -35,11 +37,18 @@ int main(int argc, char** argv)
         goto cleanup;
     }
 
+    test_file_path = argv[2];
+    test_file = fopen(test_file_path, "r");
+    if (test_file == NULL) {
+        fprintf(stderr, "validator: couldnt read %s\n", test_file_path);
+        goto cleanup;
+    }
+
     result = WRONG;
     
     do {
         correct_res = fscanf(correct_file, "%d", &correct_num);
-        test_res = fscanf(stdin, "%d", &test_num);
+        test_res = fscanf(test_file, "%d", &test_num);
         if (test_num != correct_num)
             goto cleanup;
     } while (correct_res != EOF && test_res != EOF);
@@ -52,5 +61,7 @@ int main(int argc, char** argv)
 cleanup:
     if (correct_file != NULL) 
         fclose(correct_file);
+    if (test_file != NULL)
+        fclose(test_file);
     return result;
 }

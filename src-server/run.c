@@ -5,9 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <libgen.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/time.h>
 #include <dirent.h>
 #include <errno.h>
@@ -325,58 +323,6 @@ void run_destroy(Run* run)
     free(run);
 }
 
-static bool find_dir(const char* path)
-{
-    DIR* dir;
-    dir = opendir(path);
-    if (dir) {
-        closedir(dir);
-        return true;
-    }
-    return false;
-}
-
-static bool create_dir(const char* path)
-{
-    char* path_copy;
-    char* up_one;
-    int result, n;
-    n = strlen(path);
-    path_copy = malloc((n+1) * sizeof(char));
-    snprintf(path_copy, n+1, "%s", path);
-    up_one = dirname(path_copy);
-    if (strcmp(up_one, ".") != 0) {
-        result = create_dir(up_one);
-        if (!result) {
-            free(path_copy);
-            return false;
-        }
-    }
-    result = mkdir(path, 0777);
-    if (result == 0 || errno == EEXIST || errno == EBADF) {
-        free(path_copy);
-        return true;
-    }
-    log(ERROR, "Crete dir failed: %s %d", path, errno);
-    free(path_copy);
-    return true;
-}
-
-static bool create_file(const char* path, const char* code, int code_length)
-{
-    FILE* file;
-    size_t ret;
-    bool status = true;
-    file = fopen(path, "w");
-    if (file == NULL)
-        return false;
-    ret = fwrite(code, sizeof(char), code_length, file);
-    if (ret < (size_t)code_length)
-        status = false;
-    fclose(file);
-    return status;
-}
-
 static bool compile(TokenBuffers* tb, Language* language, Run* run)
 {
     bool success = true;
@@ -392,13 +338,16 @@ static bool compile(TokenBuffers* tb, Language* language, Run* run)
     process_destroy(process);
     fclose(outfile);
 
-    if (success)
-        return true;
+    if (!success) {
+        set_run_status(run, RUN_COMPILATION_ERROR);
+        set_run_response(run, "Compilation failed");
+        return false;
+    }
 
-    set_run_status(run, RUN_COMPILATION_ERROR);
-    set_run_response(run, "Compilation failed");
+    if (remove(get_token_value(tb, COMPILE_PATH)) == -1)
+        log(WARNING, "Could not remove compile path %s errno=%d", get_token_value(tb, COMPILE_PATH), errno);
 
-    return false;
+    return true;
 }
 
 static int timeval_diff(struct timeval tv1, struct timeval tv2)
@@ -416,10 +365,14 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     Process* execute = NULL;
     char response[512];
     size_t mem;
+    long pos;
     struct timeval start, cur;
     FILE* infile = NULL;
     FILE* outfile = NULL;
     FILE* errfile = NULL;
+    int validate_status;
+
+    validate_status = VALIDATE_SUCCESS;
 
     set_token_value_parse(tb, EXECUTE_COMMAND, language->execute);
     infile = fopen(get_token_value(tb, CASE_PATH), "r");
@@ -471,13 +424,12 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     execute = NULL;
     fclose(infile);
     infile = NULL;
-    fclose(errfile);
-    errfile = NULL;
-    rewind(outfile);
+    fclose(outfile);
+    outfile = NULL;
 
     set_token_value_parse(tb, VALIDATE_COMMAND, problem->validate);
-    validate = process_create(get_token_value(tb, VALIDATE_COMMAND), outfile, NULL, NULL);
-    //log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
+    validate = process_create(get_token_value(tb, VALIDATE_COMMAND), NULL, NULL, NULL);
+    log(INFO, "validate run %d no pipe: %s", run->id, get_token_value(tb, VALIDATE_COMMAND));
     process_wait(validate);
     if (process_error(validate))
         goto error;
@@ -487,30 +439,22 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
         goto fail;
     }
     process_destroy(validate);
-    fclose(outfile);
-    if (remove(get_token_value(tb, OUTPUT_PATH)) == -1)
-        log(WARNING, "Could not remove output path %s: errno=%d", get_token_value(tb, OUTPUT_PATH), errno);
+    validate = NULL;
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
-    return VALIDATE_SUCCESS;
+    goto destroy;
 
 fail:
-    if (execute != NULL)
-        process_destroy(execute);
-    if (validate != NULL)
-        process_destroy(validate);
-    if (infile != NULL)
-        fclose(infile);
-    if (outfile != NULL)
-        fclose(outfile);
-    if (errfile != NULL)
-        fclose(errfile);
-    if (remove(get_token_value(tb, OUTPUT_PATH)) == -1)
-        log(WARNING, "Could not remove output path %s: errno=%d", get_token_value(tb, OUTPUT_PATH), errno);
+    validate_status = VALIDATE_FAILED;
     set_run_stats(run, run->time, problem->time_limit, run->memory, problem->mem_limit);
     set_run_response(run, response);
-    return VALIDATE_FAILED;
+    goto destroy;
 
 error:
+    validate_status = VALIDATE_ERROR;
+    set_run_stats(run, 0, 0, 0, 0);
+    goto destroy;
+
+destroy:
     if (execute != NULL)
         process_destroy(execute);
     if (validate != NULL)
@@ -519,13 +463,15 @@ error:
         fclose(infile);
     if (outfile != NULL)
         fclose(outfile);
-    if (errfile != NULL)
+    if (errfile != NULL) {
+        pos = ftell(errfile);
         fclose(errfile);
+        if (pos == 0 && remove(get_token_value(tb, RUNTIME_PATH)) == -1)
+            log(WARNING, "Could not remove output path %s errno=%d", get_token_value(tb, RUNTIME_PATH), errno);
+    }
     if (remove(get_token_value(tb, OUTPUT_PATH)) == -1)
         log(WARNING, "Could not remove output path %s errno=%d", get_token_value(tb, OUTPUT_PATH), errno);
-    remove(get_token_value(tb, OUTPUT_PATH));
-    set_run_stats(run, 0, 0, 0, 0);
-    return VALIDATE_ERROR;
+    return validate_status;
 }
 
 static int validate_with_pipe(TokenBuffers* tb, Language* language, Problem* problem, Run* run, int testcase)

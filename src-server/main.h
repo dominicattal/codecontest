@@ -79,4 +79,8 @@ void _log(LogLevel level, const char* fmt, const char* file, int line, ...);
 bool _db_exec(char* query_fmt, const char* file, int line, ...);
 #define db_exec(query_fmt, ...) _db_exec(query_fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
+bool create_file(const char* path, const char* code, int code_length);
+bool create_dir(const char* path);
+bool find_dir(const char* path);
+
 #endif

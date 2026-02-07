@@ -2,5 +2,5 @@
     "ip": "127.0.0.1",
     "cli_port": "27120",
     "web_port": "27106",
-    "database": "../config/runs.db"
+    "database": "../data/runs.db"
 }

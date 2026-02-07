@@ -1,1 +1,2 @@
+sometimes program hangs after inputting 1
 

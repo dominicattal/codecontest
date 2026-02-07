@@ -57,6 +57,14 @@ require_once "config.php";
   text-align: center;
 }
 
+#problem-header h1, h2, h3, h4, h5, h6 {
+  margin: 0px;
+}
+
+#problem-header h2 {
+  font-size: 20px;
+}
+
 @media only screen and (max-width: 1300px) {
   #problems-submit-table {
     display: none;

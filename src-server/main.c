@@ -7,6 +7,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <libgen.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <dirent.h>
 #include <json.h>
 #include "main.h"
@@ -45,7 +47,10 @@ bool _db_exec(char* query_fmt, const char* file, int line, ...)
     va_start(ap, line);
     query_length = vsnprintf(NULL, 0, query_fmt, ap);
     va_end(ap);
-    if (query_length < 0) return false;
+    if (query_length < 0) {
+        _log(WARNING, "Query length is zero", file, line);
+        return false;
+    }
     query = malloc((query_length+1) * sizeof(char));
     va_start(ap, line);
     vsnprintf(query, query_length+1, query_fmt, ap);
@@ -56,6 +61,58 @@ bool _db_exec(char* query_fmt, const char* file, int line, ...)
     sqlite3_free(error);
     free(query);
     return res;
+}
+
+bool find_dir(const char* path)
+{
+    DIR* dir;
+    dir = opendir(path);
+    if (dir) {
+        closedir(dir);
+        return true;
+    }
+    return false;
+}
+
+bool create_dir(const char* path)
+{
+    char* path_copy;
+    char* up_one;
+    int result, n;
+    n = strlen(path);
+    path_copy = malloc((n+1) * sizeof(char));
+    snprintf(path_copy, n+1, "%s", path);
+    up_one = dirname(path_copy);
+    if (strcmp(up_one, ".") != 0) {
+        result = create_dir(up_one);
+        if (!result) {
+            free(path_copy);
+            return false;
+        }
+    }
+    result = mkdir(path, 0777);
+    if (result == 0 || errno == EEXIST || errno == EBADF) {
+        free(path_copy);
+        return true;
+    }
+    log(ERROR, "Crete dir failed: %s %d", path, errno);
+    free(path_copy);
+    return true;
+}
+
+bool create_file(const char* path, const char* code, int code_length)
+{
+    FILE* file;
+    size_t ret;
+    bool status = true;
+    file = fopen(path, "w");
+    if (file == NULL)
+        return false;
+    ret = fwrite(code, sizeof(char), code_length, file);
+    if (ret < (size_t)code_length)
+        status = false;
+    fclose(file);
+    return status;
 }
 
 static char* get_string(JsonObject* object, char* key)
@@ -597,6 +654,7 @@ bool read_testcases(Problem* problem)
     Testcase* testcase;
     int len, id;
 
+    problem->testcases = NULL;
     dir = opendir(problem->testcases_dir);
     if (dir == NULL) {
         log(ERROR, "Could not read testcases directory %s", problem->testcases_dir);
@@ -613,6 +671,11 @@ bool read_testcases(Problem* problem)
         testcase_file = readdir(dir);
     }
     rewinddir(dir);
+    if (problem->num_testcases == 0) {
+        log(WARNING, "No testcases for problem %c-%s", problem->letter, problem->name);
+        closedir(dir);
+        return true;
+    }
     problem->testcases = malloc(problem->num_testcases * sizeof(Testcase));
     id = 0;
     testcase_file = readdir(dir);
@@ -730,16 +793,6 @@ bool read_problems(JsonObject* config)
         }
         string = json_get_string(value);
         problem->validate = string;
-        //value = json_get_value(object, "testcases");
-        //if (value == NULL) {
-        //    log(ERROR, "Missing testcases");
-        //    return false;
-        //}
-        //if (json_get_type(value) != JTYPE_INT) {
-        //    log(ERROR, "Invalid number of testcases");
-        //    return false;
-        //}
-        //problem->num_testcases = json_get_int(value);
         value = json_get_value(object, "testcases");
         if (value == NULL) {
             log(ERROR, "Missing testcases dir");
@@ -751,7 +804,6 @@ bool read_problems(JsonObject* config)
         }
         string = json_get_string(value);
         problem->testcases_dir = string;
-        log(INFO, "%s", string);
         if (!read_testcases(problem)) {
             log(ERROR, "Failed to read testcases for problem %s", problem->name);
             return false;
@@ -855,7 +907,8 @@ bool db_init(JsonObject* config)
     Problem* problem;
     char* db_file_path;
     char* query_fmt;
-    int i, res;
+    char* db_dirname;
+    int i, res, len;
     if (!sqlite3_threadsafe()) {
         log(ERROR, "sqlite3 must be threadsafe");
         return false;
@@ -865,6 +918,12 @@ bool db_init(JsonObject* config)
         log(ERROR, "Missing database file in config");
         return false;
     }
+    len = strlen(db_file_path);
+    db_dirname = malloc((len+1) * sizeof(char));
+    snprintf(db_dirname, len+1, "%s", db_file_path);
+    db_dirname = dirname(db_dirname);
+    create_dir(db_dirname);
+    free(db_dirname);
     res = sqlite3_open(db_file_path, &ctx.db);
     if (res) {
         log(ERROR, "Opening database failed");

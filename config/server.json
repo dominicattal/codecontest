@@ -2,7 +2,7 @@
     "ip": "127.0.0.1",
     "cli_port": "27120",
     "web_port": "27106",
-    "database": "runs.db",
+    "database": "data/runs.db",
     "num_threads": 1,
     "contest": true,
     "_contest": {
@@ -41,8 +41,8 @@
         {
             "language": "cpp",
             "extension": "cpp",
-            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME].exe",
-            "execute": "[BIN_DIR]/[BASENAME].exe"
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME]",
+            "execute": "[BIN_DIR]/[BASENAME]"
         },
         {
             "CODE_DIR": "[RUN_DIR]/[BASENAME]",
@@ -58,9 +58,9 @@
             "letter": "A",
             "name": "Super Easy Problem",
             "dir": "test/problem1",
-            "html": "test/problem1.html",
+            "html": "test/problem1/problem1.html",
             "testcases": "test/problem1/cases",
-            "validate": "bin/validators/ints [ANSWER_PATH]",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
             "pipe": false,
             "time_limit": 500,
             "mem_limit": 1000000
@@ -69,9 +69,9 @@
             "letter": "B",
             "name": "Floats",
             "dir": "test/problem2",
-            "html": "test/problem2.html",
+            "html": "test/problem2/problem2.html",
             "testcases": "test/problem2/cases",
-            "validate": "bin/validators/floats [ANSWER_PATH]",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
             "pipe": false,
             "time_limit": 500,
             "mem_limit": 1000000
@@ -80,9 +80,9 @@
             "letter": "C",
             "name": "String",
             "dir": "test/problem3",
-            "html": "test/problem3.html",
+            "html": "test/problem3/problem3.html",
             "testcases": "test/problem3/cases",
-            "validate": "bin/validators/strings [TESTCASE]",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
             "pipe": false,
             "time_limit": 500,
             "mem_limit": 1000000
@@ -91,9 +91,9 @@
             "letter": "D",
             "name": "Interactive",
             "dir": "test/problem4",
-            "html": "test/problem4.html",
+            "html": "test/problem4/problem4.html",
             "testcases": "test/problem4/cases",
-            "validate": "bin/validators/interactive [TESTCASE]",
+            "validate": "bin/validators/interactive [ANSWER_PATH]  [OUTPUT_PATH]",
             "pipe": true,
             "time_limit": 500,
             "mem_limit": 1000000
