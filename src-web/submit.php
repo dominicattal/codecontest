@@ -67,6 +67,14 @@ require_once "config.php";
           <tr>
             <td colspan="2"><input type="submit" value="Submit" id="submit"></input></td>
           </tr>
+          <?php
+          if (isset($_SESSION["message"])) {
+            echo "<tr>";
+            echo "<td colspan='2'>$_SESSION[message]</td>";
+            echo "</tr>";
+            unset($_SESSION["message"]);
+          }
+          ?>
         </tfoot>
       </table>
     </form>

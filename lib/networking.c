@@ -402,6 +402,11 @@ bool socket_connected(Socket* sock)
     return sock->connected;
 }
 
+void socket_set_thread_id(Socket* socket, pthread_t thread_id)
+{
+    puts("socket_set_thread_id not implemented on windows");
+}
+
 #else
 
 #include <netinet/ip.h>
@@ -413,6 +418,7 @@ bool socket_connected(Socket* sock)
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <pthread.h>
 #include <fcntl.h>
 
@@ -421,7 +427,9 @@ typedef struct Socket {
     struct Socket* prev;
     struct Socket* next;
     struct sockaddr_in addr;
+    pthread_t thread_id;
     int fd;
+    bool has_thread;
     bool connected;
 } Socket;
 
@@ -456,6 +464,20 @@ void networking_shutdown_sockets(NetContext* ctx)
     pthread_mutex_unlock(&ctx->mutex);
 }
 
+void networking_join_sockets(NetContext* ctx)
+{
+    Socket* sock;
+    pthread_mutex_lock(&ctx->mutex);
+    sock = ctx->head;
+    while (sock != NULL) {
+        if (sock->has_thread)
+            pthread_kill(sock->thread_id, SIGTERM);
+        sock->fd = -1;
+        sock = sock->next;
+    }
+    pthread_mutex_unlock(&ctx->mutex);
+}
+
 void networking_cleanup(NetContext* ctx)
 {
     Socket* sock = ctx->head;
@@ -479,6 +501,7 @@ static Socket* get_free_socket(NetContext* ctx)
     sock->connected = false;
     sock->next = NULL;
     sock->prev = ctx->tail;
+    sock->has_thread = false;
     if (ctx->head == NULL) {
         ctx->head = sock;
     } else {
@@ -858,6 +881,12 @@ found:
     bool success = send(sock->fd, send_buffer, strlen(send_buffer), 0) != -1;
     free(send_buffer);
     return success;
+}
+
+void socket_set_thread_id(Socket* sock, pthread_t thread_id)
+{
+    sock->has_thread = true;
+    sock->thread_id = thread_id;
 }
 
 #endif

@@ -42,9 +42,19 @@ typedef struct {
 typedef struct Socket Socket;
 typedef struct NetContext NetContext;
 
+// initialize a net context. each net context has their own singly-linked list of in use sockets
 NetContext* networking_init(void);
+
+// shutdown all of the sockets in the netcontext. this will unblock all listening sockets
 void        networking_shutdown_sockets(NetContext* ctx);
+
+// join all the sockets' threads if a thread was set using socket_set_thread_id
+void        networking_join_sockets(NetContext* ctx);
+
+// cleanup networking context
 void        networking_cleanup(NetContext* ctx);
+
+// for windows, doesn't do anything on linux
 int         networking_get_last_error(void);
 
 // Create a new socket
@@ -94,6 +104,9 @@ Packet* socket_recv_web(Socket* socket);
 
 // Perform web socket handshake with client socket
 bool    socket_web_handshake(Socket* socket);
+
+// Keep track of a socket's handler thread. 
+void    socket_set_thread_id(Socket* socket, pthread_t thread_id);
 
 // Create a packet with id with a buffer of length. buffer can be NULL iff length is 0.
 // Returns NULL if buffer is NULL and length is not 0

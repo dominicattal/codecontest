@@ -479,8 +479,9 @@ static void* cli_server_daemon(void* vargp)
             continue;
         }
         pthread_create(&thread_id, NULL, handle_cli_client, client_socket);
-        //pthread_join(thread_id, NULL);
+        socket_set_thread_id(client_socket, thread_id);
     }
+    networking_join_sockets(ctx.cli_net_ctx);
     return NULL;
 }
 
@@ -591,7 +592,9 @@ static void* web_server_daemon(void* vargp)
         socket_web_handshake(client_socket);
         // should check if client is already connected before creating thread
         pthread_create(&thread_id, NULL, handle_web_client, client_socket);
+        socket_set_thread_id(client_socket, thread_id);
     }
+    networking_join_sockets(ctx.web_net_ctx);
     return NULL;
 }
 
@@ -846,11 +849,11 @@ bool read_problems(JsonObject* config)
         value = json_get_value(object, "html");
         if (value == NULL) {
             log(WARNING, "Missing problem html");
-            string = "no.html";
+            string = "null";
         }
         else if (json_get_type(value) != JTYPE_STRING) {
             log(WARNING, "Invalid problem html");
-            string = "no.html";
+            string = "null";
         } else {
             string = json_get_string(value);
         }
@@ -858,11 +861,11 @@ bool read_problems(JsonObject* config)
         value = json_get_value(object, "pdf");
         if (value == NULL) {
             log(WARNING, "Missing problem pdf");
-            string = "no.html";
+            string = "null";
         }
         else if (json_get_type(value) != JTYPE_STRING) {
             log(WARNING, "Invalid problem pdf");
-            string = "no.pdf";
+            string = "null";
         } else {
             string = json_get_string(value);
         }
@@ -1106,7 +1109,7 @@ int main(int argc, char** argv)
     JsonObject* config;
     pthread_t cli_server_thread_id;
     pthread_t web_server_thread_id;
-    int code;
+    char code;
 
     if (argc == 1) {
         log(FATAL, "Must supply config file");
@@ -1148,8 +1151,9 @@ int main(int argc, char** argv)
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
 
     code = 0;
-    while (code != 1) {
-        scanf("%d", &code);
+    while (code != '1') {
+        code = fgetc(stdin);
+        log(INFO, "%d", code);
     }
 
     ctx.kill = true;

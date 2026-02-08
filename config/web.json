@@ -2,5 +2,12 @@
     "ip": "127.0.0.1",
     "cli_port": "27120",
     "web_port": "27106",
-    "database": "../data/runs.db"
+    "database": "../data/runs.db",
+    "_show_all_runs": true,
+    "_show_problem_statements": true,
+    "_allow_run_downloads": true,
+    "_allow_case_downloads": true,
+    "_title": "NJIT Programming Team",
+    "pdf": false,
+    "html": true
 }

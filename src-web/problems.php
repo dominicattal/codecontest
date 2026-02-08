@@ -98,8 +98,10 @@ require_once "config.php";
   <?php
   foreach ($problems as $id => $problem) {
     echo "<div id='problem-$problem[letter]' hidden>";
-    //include "../$problem[html]";
-    echo "<embed src='tmp/$problem[pdf]' type='application/pdf' width=100% height=1200px></embed>";
+    if ($config["html"])
+      include "../$problem[html]";
+    else if ($config["pdf"])
+      echo "<embed src='tmp/$problem[pdf]' type='application/pdf' width=100% height=1200px></embed>";
     echo "</div>";
   }
   ?>
