@@ -21,25 +21,25 @@ SRC_VALIDATORS = src-validators/ints.c \
 				 src-validators/floats.c \
 				 src-validators/strings.c \
 				 src-validators/interactive.c
-OBJ_DEV_LIB = $(SRC_LIB:%.c=build/dev$(BUILD_SUFFIX)/%.o)
-OBJ_DEV_SERVER = $(SRC_SERVER:%.c=build/dev$(BUILD_SUFFIX)/%.o)
-OBJ_DEV_CLIENT = $(SRC_CLIENT:%.c=build/dev$(BUILD_SUFFIX)/%.o)
+OBJ_DEV_LIB = $(SRC_LIB:%.c=build/%.o)
+OBJ_DEV_SERVER = $(SRC_SERVER:%.c=build/%.o)
+OBJ_DEV_CLIENT = $(SRC_CLIENT:%.c=build/%.o)
 EXE_VALIDATORS = $(SRC_VALIDATORS:src-validators/%.c=bin/validators/%)
 
 all: dev
 	@rm -rf example/problem1/bin example/problem1/runs example/runs.db example/runs.db-shm example/runs.db-wal
 
-dev: build dev-server dev-client validators
+dev: dev-server dev-client validators
 client: dev-client
 server: dev-server
 
 dev-client: $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT)
-	@mkdir -p bin/dev
-	@$(CC) $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT) $(LINKER_FLAGS) -o bin/dev/$(NAME_CLIENT)
+	@mkdir -p bin
+	@$(CC) $(OBJ_DEV_LIB) $(OBJ_DEV_CLIENT) $(LINKER_FLAGS) -o bin/$(NAME_CLIENT)
 
 dev-server: $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER)
-	@mkdir -p bin/dev
-	@$(CC) $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER) $(LINKER_FLAGS) -o bin/dev/$(NAME_SERVER)
+	@mkdir -p bin
+	@$(CC) $(OBJ_DEV_LIB) $(OBJ_DEV_SERVER) $(LINKER_FLAGS) -o bin/$(NAME_SERVER)
 
 validators: $(EXE_VALIDATORS)
 
@@ -49,13 +49,10 @@ bin/validators/%: src-validators/%.c
 	@$(CC) $(CFLAGS_ALL) $(CFLAGS_TMP) -g3 -o bin/validators/$(@F) $<
 
 
-build/dev$(BUILD_SUFFIX)/%.o: %.c
+build/%.o: %.c
 	@echo $<
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS_ALL) $(CFLAGS_TMP) -g3 -c -o $@ $<
-
-build:
-	@mkdir -p build
 
 clean:
 	rm -rf build bin data src-web/tmp

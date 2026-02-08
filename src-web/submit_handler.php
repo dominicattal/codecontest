@@ -21,7 +21,7 @@ $problem = $_POST["problem"];
 $file = $_FILES["code"]["tmp_name"];
 $org_name = basename($_FILES["code"]["name"]);
 
-$res = shell_exec("../bin/dev/client -i $ip -t $port -u $username -p $password -l $lang -b $problem -f $file -n $org_name -a");
+$res = shell_exec("../bin/client -i $ip -t $port -u $username -p $password -l $lang -b $problem -f $file -n $org_name -a");
 
 done:
 header("Location: submit.php");

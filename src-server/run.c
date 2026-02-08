@@ -82,7 +82,7 @@ static char* tok_map[NUM_COMMAND_TOKENS] = {
 };
 
 typedef struct {
-    char buffers[NUM_COMMAND_TOKENS][TOKEN_BUFFER_LENGTH+1];
+    char buffers[NUM_COMMAND_TOKENS][TOKEN_BUFFER_LENGTH];
 } TokenBuffers;
 
 typedef struct {

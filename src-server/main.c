@@ -57,10 +57,44 @@ bool _db_exec(char* query_fmt, const char* file, int line, ...)
     va_end(ap);
     //_log(DBQUERY, query, file, line);
     res = sqlite3_exec(ctx.db, query, NULL, NULL, &error);
-    if (res) _log(WARNING, "sqlite3 command failed: %s", file, line, error);
+    if (res != SQLITE_OK) 
+        _log(WARNING, "sqlite3 command failed: %s", file, line, error);
     sqlite3_free(error);
     free(query);
     return res;
+}
+
+int _db_exec_int(char* query_fmt, const char* file, int line, ...)
+{
+    char* query = NULL;
+    int query_length;
+    int res;
+    int ret = -1;
+    va_list ap;
+    sqlite3_stmt* stmt = NULL;
+    va_start(ap, line);
+    query_length = vsnprintf(NULL, 0, query_fmt, ap);
+    va_end(ap);
+    if (query_length < 0) {
+        _log(WARNING, "Query length is zero", file, line);
+        return false;
+    }
+    query = malloc((query_length+1) * sizeof(char));
+    va_start(ap, line);
+    vsnprintf(query, query_length+1, query_fmt, ap);
+    va_end(ap);
+    res = sqlite3_prepare_v2(ctx.db, query, -1, &stmt, 0);
+    if (res != SQLITE_OK) {
+        _log(WARNING, "sqlite3 command failed: could not prepare query", file, line);
+        goto cleanup;
+    }
+    res = sqlite3_step(stmt);
+    if (res == SQLITE_ROW)
+        ret = sqlite3_column_int(stmt, 0);
+cleanup:
+    if (stmt != NULL)  sqlite3_finalize(stmt);
+    if (query != NULL) free(query);
+    return ret;
 }
 
 bool find_dir(const char* path)
@@ -69,6 +103,17 @@ bool find_dir(const char* path)
     dir = opendir(path);
     if (dir) {
         closedir(dir);
+        return true;
+    }
+    return false;
+}
+
+bool find_file(const char* path)
+{
+    FILE* fptr;
+    fptr = fopen(path, "r");
+    if (fptr) {
+        fclose(fptr);
         return true;
     }
     return false;
@@ -933,7 +978,6 @@ bool context_init(JsonObject* config)
         log(ERROR, "Could not read num threads");
         return false;
     }
-    ctx.num_runs = 0;
     log(INFO, "Successfully initialized config");
     return true;
 }
@@ -961,6 +1005,8 @@ bool db_init(JsonObject* config)
     char* query_fmt;
     char* db_dirname;
     int i, res, len;
+    bool db_exists;
+    char c;
     if (!sqlite3_threadsafe()) {
         log(ERROR, "sqlite3 must be threadsafe");
         return false;
@@ -976,46 +1022,64 @@ bool db_init(JsonObject* config)
     dirname(db_dirname);
     create_dir(db_dirname);
     free(db_dirname);
+    db_exists = find_file(db_file_path);
     res = sqlite3_open(db_file_path, &ctx.db);
     if (res) {
         log(ERROR, "Opening database failed");
         return false;
     }
-    log(INFO, "Creating db file at %s", db_file_path);
-    db_exec(
-        "CREATE TABLE runs ("
-        "    id INT PRIMARY KEY,"
-        "    team_id INT,"
-        "    problem_id INT,"
-        "    language_id INT,"
-        "    testcase INT,"
-        "    status INT,"
-        "    timestamp TEXT,"
-        "    time INT,"
-        "    memory INT"
-        ");"
-        ""
-        "CREATE TABLE teams ("
-        "    id INT PRIMARY KEY,"
-        "    username TEXT,"
-        "    password TEXT"
-        ");"
-        ""
-        "CREATE TABLE languages ("
-        "    id INT PRIMARY KEY,"
-        "    name TEXT"
-        ");"
-        ""
-        "CREATE TABLE problems ("
-        "    id INT PRIMARY KEY,"
-        "    letter TEXT,"
-        "    name TEXT,"
-        "    html_path TEXT,"
-        "    pdf_path TEXT,"
-        "    time_limit INT,"
-        "    mem_limit INT"
-        ");");
-    db_exec( "DELETE FROM runs;DELETE FROM teams;DELETE FROM languages;DELETE FROM problems;");
+    if (db_exists) {
+        printf("Database %s exists already. Overwrite? (y/N) ", db_file_path);
+        c = fgetc(stdin);
+        if (c != 'y' && 'c' != 'Y') {
+            log(INFO, "Reading database from %s", db_file_path);
+            ctx.num_runs = db_exec_int("SELECT COUNT(*) count FROM runs;");
+            log(INFO, "num_runs = %d", ctx.num_runs);
+            if (ctx.num_runs == -1) {
+                log(ERROR, "Could not get number of runs when initializing database");
+                return false;
+            }
+            return true;
+        }
+        log(INFO, "Overwriting database at %s", db_file_path);
+        db_exec("DELETE FROM runs;DELETE FROM teams;DELETE FROM languages;DELETE FROM problems;");
+    } else {
+        log(INFO, "Creating database at %s", db_file_path);
+        db_exec(
+            "CREATE TABLE runs ("
+            "    id INT PRIMARY KEY,"
+            "    team_id INT,"
+            "    problem_id INT,"
+            "    language_id INT,"
+            "    testcase INT,"
+            "    status INT,"
+            "    timestamp TEXT,"
+            "    time INT,"
+            "    memory INT"
+            ");"
+            ""
+            "CREATE TABLE teams ("
+            "    id INT PRIMARY KEY,"
+            "    username TEXT,"
+            "    password TEXT"
+            ");"
+            ""
+            "CREATE TABLE languages ("
+            "    id INT PRIMARY KEY,"
+            "    name TEXT"
+            ");"
+            ""
+            "CREATE TABLE problems ("
+            "    id INT PRIMARY KEY,"
+            "    letter TEXT,"
+            "    name TEXT,"
+            "    html_path TEXT,"
+            "    pdf_path TEXT,"
+            "    time_limit INT,"
+            "    mem_limit INT"
+            ");");
+    }
+    ctx.num_runs = 0;
     for (i = 0; i < ctx.num_languages; i++) {
         query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
         db_exec(query_fmt, ctx.languages[i].id, ctx.languages[i].name);
