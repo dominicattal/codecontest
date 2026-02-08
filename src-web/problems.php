@@ -98,7 +98,8 @@ require_once "config.php";
   <?php
   foreach ($problems as $id => $problem) {
     echo "<div id='problem-$problem[letter]' hidden>";
-    include "../$problem[html]";
+    //include "../$problem[html]";
+    echo "<embed src='tmp/$problem[pdf]' type='application/pdf' width=100% height=1200px></embed>";
     echo "</div>";
   }
   ?>
@@ -115,7 +116,7 @@ require_once "config.php";
         </thead>
         <tbody>
         <?php
-          $db = new SQLite3("../runs.db");
+          $db = new SQLite3($config["database"]);
           $db->enableExceptions(true);
           $db->busyTimeout(5000);
           $db->exec('PRAGMA journal_mode = wal;');
@@ -275,8 +276,8 @@ function update_problem_table(stat, letter, team) {
   tr = document.getElementById(`problem-table-${letter}`);
   if (stat == RUN_SUCCESS) {
     key = `${team}-${letter}`;
-    if (!teams_solved[key]) {
-      teams_solved[key] = true;
+    if (!teams_solved.get(key)) {
+      teams_solved.set(key, true);
       td = tr.children[2];
       td.textContent = parseInt(td.textContent)+1;
     }

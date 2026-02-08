@@ -58,7 +58,7 @@ build:
 	@mkdir -p build
 
 clean:
-	rm -rf build bin data
+	rm -rf build bin data src-web/tmp
 	
 .PHONY: clean validators
 

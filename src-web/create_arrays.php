@@ -21,7 +21,7 @@ $res = $stmt->execute();
 $arr = $res->fetchArray(SQLITE3_ASSOC);
 $problems = array();
 while ($arr) {
-    $problems[$arr["id"]] = array("name" => $arr["name"], "letter" => $arr["letter"], "html" => $arr["html_path"]);
+    $problems[$arr["id"]] = array("name" => $arr["name"], "letter" => $arr["letter"], "html" => $arr["html_path"], "pdf" => $arr["pdf_path"]);
     $arr = $res->fetchArray(SQLITE3_ASSOC);
 }
 $res->finalize();

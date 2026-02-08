@@ -366,6 +366,7 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
     Process* execute = NULL;
     char response[512];
     size_t mem;
+    double delta_time;
     long pos;
     struct timeval start, cur;
     FILE* infile = NULL;
@@ -407,7 +408,9 @@ static int validate_without_pipe(TokenBuffers* tb, Language* language, Problem* 
             goto fail;
         }
         gettimeofday(&cur, NULL);
-        run->time = timeval_diff(cur, start);
+        //run->time = timeval_diff(cur, start);
+        delta_time = timeval_diff(cur, start);
+        run->time = (run->time > delta_time) ? run->time : delta_time;
         if (run->time > problem->time_limit) {
             set_run_status(run, RUN_TIME_LIMIT_EXCEEDED);
             sprintf(response, "Time limit exceeded on testcase %d", testcase);

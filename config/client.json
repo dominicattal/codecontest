@@ -3,8 +3,8 @@
     "port": "27120",
     "username": "team1",
     "password": "team1",
-    "language": "cpp",
+    "language": "python3",
     "problem": "A",
-    "file": "test/problem1/test-cpp/runtime.cpp",
+    "file": "acmgnyr/2025/A-Alittleleftoverpizza/solutions/pizza_zack.py",
     "async": false
 }

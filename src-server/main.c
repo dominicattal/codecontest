@@ -128,6 +128,45 @@ static char* get_string(JsonObject* object, char* key)
     return json_get_string(value);
 }
 
+static void copy_pdf_to_web(const char* path)
+{
+    int len;
+    char* out_path = NULL;
+    char* dir = "src-web/tmp";
+    char* tmp_dirname;
+    FILE* in_pdf = NULL;
+    FILE* out_pdf = NULL;
+    char c;
+    in_pdf = fopen(path, "rb");
+    if (in_pdf == NULL)
+        goto fail;
+    len = snprintf(NULL, 0, "%s/%s", dir, path);
+    out_path = malloc((len+1) * sizeof(char));
+    snprintf(out_path, len+1, "%s/%s", dir, path);
+    tmp_dirname = dirname(out_path);
+    create_dir(tmp_dirname);
+    snprintf(out_path, len+1, "%s/%s", dir, path);
+    out_pdf = fopen(out_path, "wb");
+    free(out_path);
+    out_path = NULL;
+    if (out_pdf == NULL)
+        goto fail;
+    while ((fread(&c, sizeof(char), 1, in_pdf)) != 0)
+        fwrite(&c, sizeof(char), 1, out_pdf);
+    fclose(in_pdf);
+    fclose(out_pdf);
+    return;
+
+fail:
+    if (in_pdf != NULL)
+        fclose(in_pdf);
+    if (out_pdf != NULL)
+        fclose(out_pdf);
+    if (out_path != NULL)
+        free(out_path);
+    log(WARNING, "Could not copy pdf to web: %s", path);
+}
+
 static bool contest_is_running(void)
 {
     return ctx.num_teams != 0;
@@ -771,6 +810,19 @@ bool read_problems(JsonObject* config)
             string = json_get_string(value);
         }
         problem->html = string;
+        value = json_get_value(object, "pdf");
+        if (value == NULL) {
+            log(WARNING, "Missing problem pdf");
+            string = "no.html";
+        }
+        else if (json_get_type(value) != JTYPE_STRING) {
+            log(WARNING, "Invalid problem pdf");
+            string = "no.pdf";
+        } else {
+            string = json_get_string(value);
+        }
+        problem->pdf = string;
+        copy_pdf_to_web(problem->pdf);
         value = json_get_value(object, "dir");
         if (value == NULL) {
             log(ERROR, "Missing dir path");
@@ -959,6 +1011,7 @@ bool db_init(JsonObject* config)
         "    letter TEXT,"
         "    name TEXT,"
         "    html_path TEXT,"
+        "    pdf_path TEXT,"
         "    time_limit INT,"
         "    mem_limit INT"
         ");");
@@ -969,8 +1022,8 @@ bool db_init(JsonObject* config)
     }
     for (i = 0; i < ctx.num_problems; i++) {
         problem = &ctx.problems[i];
-        query_fmt = "INSERT INTO problems (id, letter, name, html_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', %d, %d);";
-        db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->html, problem->time_limit, problem->mem_limit);
+        query_fmt = "INSERT INTO problems (id, letter, name, html_path, pdf_path, time_limit, mem_limit) VALUES (%d, '%c', '%s', '%s', '%s', %d, %d);";
+        db_exec(query_fmt, problem->id, problem->letter, problem->name, problem->html, problem->pdf, problem->time_limit, problem->mem_limit);
     }
     for (i = 0; i < ctx.num_teams; i++) {
         query_fmt = "INSERT INTO teams (id, username, password) VALUES (%d, '%s', '%s');";

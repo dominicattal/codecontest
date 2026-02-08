@@ -46,6 +46,7 @@ typedef struct {
     const char* dir;
     const char* testcases_dir;
     const char* html;
+    const char* pdf;
     const char* validate;
     char letter;
     size_t mem_limit;

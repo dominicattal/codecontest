@@ -2,7 +2,7 @@
     "ip": "127.0.0.1",
     "cli_port": "27120",
     "web_port": "27106",
-    "database": "runs.db",
+    "database": "data/runs.db",
     "num_threads": 1,
     "contest": true,
     "_contest": {
@@ -39,7 +39,7 @@
         {
             "language": "cpp",
             "extension": "cpp",
-            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME].exe",
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME]",
             "execute": "[BIN_DIR]/[BASENAME].exe"
         },
         {
@@ -75,6 +75,94 @@
             "mem_limit": 2000000
         },
         {
+            "letter": "C",
+            "name": "AROD",
+            "dir": "acmgnyr/2025/C-Arod",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/C-Arod/secret",
+            "pdf": "acmgnyr/2025/C-Arod/C-Arod.pdf",
+            "pipe": false,
+            "time_limit": 8000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "D",
+            "name": "But I Want to Win",
+            "dir": "acmgnyr/2025/D-Butiwanttowin",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/D-Butiwanttowin/secret",
+            "pdf": "acmgnyr/2025/D-Butiwanttowin/D-Butiwanttowin.pdf",
+            "pipe": false,
+            "time_limit": 1000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "E",
+            "name": "Chess Solitare",
+            "dir": "acmgnyr/2025/E-Chesssolitaire",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/E-Chesssolitaire/secret",
+            "pdf": "acmgnyr/2025/E-Chesssolitaire/E-Chesssolitaire.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "F",
+            "name": "Fractional Sequence",
+            "dir": "acmgnyr/2025/F-Fractionalsequence",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/F-Fractionalsequence/secret",
+            "pdf": "acmgnyr/2025/F-Fractionalsequence/F-Fractionalsequence.pdf",
+            "pipe": false,
+            "time_limit": 1000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "G",
+            "name": "How Many Balls?",
+            "dir": "acmgnyr/2025/G-Howmanyballs",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/G-Howmanyballs/secret",
+            "pdf": "acmgnyr/2025/G-Howmanyballs/G-Howmanyballs.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "H",
+            "name": "Move It, Slowpoke!",
+            "dir": "acmgnyr/2025/H-Moveitslowpoke",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/H-Moveitslowpoke/secret",
+            "pdf": "acmgnyr/2025/H-Moveitslowpoke/H-Moveitslowpoke.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "I",
+            "name": "Number Pyramid",
+            "dir": "acmgnyr/2025/I-Numberpyramid",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/I-Numberpyramid/secret",
+            "pdf": "acmgnyr/2025/I-Numberpyramid/I-Numberpyramid.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "J",
+            "name": "Polyomino Tiling",
+            "dir": "acmgnyr/2025/J-Polyominotiling",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/J-Polyominotiling/secret",
+            "pdf": "acmgnyr/2025/J-Polyominotiling/J-Polyominotiling.pdf",
+            "pipe": false,
+            "time_limit": 5000,
+            "mem_limit": 2000000
+        },
+        {
             "letter": "K",
             "name": "Triptych",
             "dir": "acmgnyr/2025/K-Triptych",
@@ -84,6 +172,17 @@
             "pipe": false,
             "time_limit": 5000,
             "mem_limit": 1000000
+        },
+        {
+            "letter": "L",
+            "name": "Valley Gulls",
+            "dir": "acmgnyr/2025/L-Valleygulls",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2025/L-Valleygulls/secret",
+            "pdf": "acmgnyr/2025/L-Valleygulls/L-Valleygulls.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
         }
     ]
 }

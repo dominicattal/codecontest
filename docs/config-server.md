@@ -111,6 +111,7 @@ CREATE TABLE problems (
     letter TEXT,
     name TEXT,
     html_path TEXT,
+    pdf_path TEXT,
     time_limit REAL,
     mem_limit INT
 );

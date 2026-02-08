@@ -1,2 +1,22 @@
 sometimes program hangs after inputting 1
 
+Thread 2 "server" received signal SIGPIPE, Broken pipe.
+[Switching to Thread 0x7ffff7b166c0 (LWP 34723)]
+0x00007ffff7d2bf2a in __libc_send (flags=<optimized out>, len=51, buf=0x7ffff00087e0, fd=9)
+    at ../sysdeps/unix/sysv/linux/send.c:28
+warning: 28     ../sysdeps/unix/sysv/linux/send.c: No such file or directory
+(gdb) bt
+#0  0x00007ffff7d2bf2a in __libc_send (flags=<optimized out>, len=51, buf=0x7ffff00087e0, fd=9)
+    at ../sysdeps/unix/sysv/linux/send.c:28
+#1  __libc_send (fd=9, buf=0x7ffff00087e0, len=51, flags=0) at ../sysdeps/unix/sysv/linux/send.c:23
+#2  0x0000555555559f7d in socket_send_web (sock=0x7fffec000bb0, packet=0x7ffff0008450)
+    at lib/networking.c:657
+#3  0x0000555555559fe5 in socket_send_web_all (ctx=0x555555570590, packet=0x7ffff0008450)
+    at lib/networking.c:670
+#4  0x000055555555ebb9 in send_run_to_web_clients (run=0x7fffe0000d80) at src-server/run.c:200
+#5  0x000055555555ecca in set_run_status (run=0x7fffe0000d80, status=RUN_COMPILING) at src-server/run.c:220
+#6  0x0000555555560b4e in handle_run (tb=0x7ffff0000b70, run=0x7fffe0000d80) at src-server/run.c:689
+#7  0x0000555555560edf in run_daemon (vargp=0x0) at src-server/run.c:751
+#8  0x00007ffff7c9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#9  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+(gdb) 
