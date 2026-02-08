@@ -212,11 +212,6 @@ fail:
     log(WARNING, "Could not copy pdf to web: %s", path);
 }
 
-static bool contest_is_running(void)
-{
-    return ctx.num_teams != 0;
-}
-
 static Team* validate_team_username(const char* username)
 {
     for (int i = 0; i < ctx.num_teams; i++)
@@ -274,7 +269,7 @@ static void* handle_cli_client(void* vargp)
     }
     packet_destroy(packet);
 
-    packet = packet_create((contest_is_running()) ? PACKET_CONTEST : PACKET_NO_CONTEST, strlen(buf)+1, buf);
+    packet = packet_create((ctx.contest.active) ? PACKET_CONTEST : PACKET_NO_CONTEST, strlen(buf)+1, buf);
     if (packet == NULL) {
         log(ERROR, "Could not get contest packet");
         goto fail;
@@ -283,43 +278,41 @@ static void* handle_cli_client(void* vargp)
     packet_destroy(packet);
 
     team = NULL;
-    if (contest_is_running()) {
-        packet = socket_recv(client_socket);
-        if (packet == NULL)
-            goto fail;
-        if (packet->id != PACKET_TEAM_VALIDATE_USERNAME)
-            goto fail_packet;
-        team = validate_team_username(packet->buffer);
-        if (team == NULL) {
-            packet_destroy(packet);
-            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 0, NULL);
-            socket_send(client_socket, packet);
-            goto fail_packet;
-        }
+    packet = socket_recv(client_socket);
+    if (packet == NULL)
+        goto fail;
+    if (packet->id != PACKET_TEAM_VALIDATE_USERNAME)
+        goto fail_packet;
+    team = validate_team_username(packet->buffer);
+    if (team == NULL) {
         packet_destroy(packet);
-        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 0, NULL);
-        if (packet == NULL)
-            goto fail;
+        packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 0, NULL);
         socket_send(client_socket, packet);
-        packet_destroy(packet);
-        packet = socket_recv(client_socket);
-        if (packet == NULL)
-            goto fail;
-        if (packet->id != PACKET_TEAM_VALIDATE_PASSWORD)
-            goto fail_packet;
-        if (!validate_team_password(team, packet->buffer)) {
-            packet_destroy(packet);
-            packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 0, NULL);
-            socket_send(client_socket, packet);
-            goto fail_packet;
-        }
-        packet_destroy(packet);
-        packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 0, NULL);
-        if (packet == NULL)
-            goto fail;
-        socket_send(client_socket, packet);
-        packet_destroy(packet);
+        goto fail_packet;
     }
+    packet_destroy(packet);
+    packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 0, NULL);
+    if (packet == NULL)
+        goto fail;
+    socket_send(client_socket, packet);
+    packet_destroy(packet);
+    packet = socket_recv(client_socket);
+    if (packet == NULL)
+        goto fail;
+    if (packet->id != PACKET_TEAM_VALIDATE_PASSWORD)
+        goto fail_packet;
+    if (!validate_team_password(team, packet->buffer)) {
+        packet_destroy(packet);
+        packet = packet_create(PACKET_TEAM_VALIDATION_FAILED, 0, NULL);
+        socket_send(client_socket, packet);
+        goto fail_packet;
+    }
+    packet_destroy(packet);
+    packet = packet_create(PACKET_TEAM_VALIDATION_SUCCESS, 0, NULL);
+    if (packet == NULL)
+        goto fail;
+    socket_send(client_socket, packet);
+    packet_destroy(packet);
 
     packet = socket_recv(client_socket);
     if (packet == NULL)
@@ -939,18 +932,18 @@ bool read_problems(JsonObject* config)
     return true;
 }
 
-bool read_num_run_threads(JsonObject* config)
+void read_num_run_threads(JsonObject* config)
 {
     JsonValue* value;
     int i;
     value = json_get_value(config, "num_threads");
     ctx.num_run_threads = 1;
     if (value == NULL) {
-        log(WARNING, "Number of run threads missing, defaulting to 1");
+        log(WARNING, "Number of run threads missing, defaulting to 1 run thread");
         goto setup;
     }
     if (json_get_type(value) != JTYPE_INT) {
-        log(WARNING, "Invalid type for number of run threads");
+        log(WARNING, "Invalid type for number of run threads, defaulting to 1 run thread");
         goto setup;
     }
     ctx.num_run_threads = json_get_int(value);
@@ -959,8 +952,17 @@ setup:
     ctx.run_threads = calloc(ctx.num_run_threads, sizeof(pthread_t));
     for (i = 0; i < ctx.num_run_threads; i++)
         pthread_create(&ctx.run_threads[i], NULL, run_daemon, NULL);
+}
 
-    return true;
+void read_contest(JsonObject* config)
+{
+    time_t duration;
+    log(WARNING, "Could not read contest, defaulting to no contest");
+    ctx.contest.active = true;
+    duration = 60*60*5;
+    ctx.contest.start = time(NULL) + 10;
+    ctx.contest.end = ctx.contest.start + duration;
+    ctx.contest.freeze = ctx.contest.end;
 }
 
 bool context_init(JsonObject* config)
@@ -977,10 +979,8 @@ bool context_init(JsonObject* config)
         log(ERROR, "Could not read problems");
         return false;
     }
-    if (!read_num_run_threads(config)) {
-        log(ERROR, "Could not read num threads");
-        return false;
-    }
+    read_num_run_threads(config);
+    read_contest(config);
     log(INFO, "Successfully initialized config");
     return true;
 }
@@ -1049,6 +1049,13 @@ bool db_init(JsonObject* config)
     } else {
         log(INFO, "Creating database at %s", db_file_path);
         db_exec(
+            "CREATE TABLE contest ("
+            "    active INT,"
+            "    start INT,"
+            "    freeze INT,"
+            "    end TEXT"
+            ");"
+            ""
             "CREATE TABLE runs ("
             "    id INT PRIMARY KEY,"
             "    team_id INT,"
@@ -1083,6 +1090,8 @@ bool db_init(JsonObject* config)
             ");");
     }
     ctx.num_runs = 0;
+    query_fmt = "INSERT INTO contest (active, start, freeze, end) VALUES (%d, %lld, %lld, %lld);";
+    db_exec(query_fmt, ctx.contest.active, ctx.contest.start, ctx.contest.freeze, ctx.contest.end);
     for (i = 0; i < ctx.num_languages; i++) {
         query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
         db_exec(query_fmt, ctx.languages[i].id, ctx.languages[i].name);
@@ -1151,10 +1160,8 @@ int main(int argc, char** argv)
     pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
 
     code = 0;
-    while (code != '1') {
+    while (code != '1')
         code = fgetc(stdin);
-        log(INFO, "%d", code);
-    }
 
     ctx.kill = true;
 
@@ -1176,6 +1183,8 @@ fail_context:
 fail_config:
     ctx.kill = true;
     json_object_destroy(config);
+
+    log(INFO, "Exited cleanly");
 
     return 0;
 }

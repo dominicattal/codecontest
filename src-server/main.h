@@ -57,6 +57,14 @@ typedef struct {
 } Problem;
 
 typedef struct {
+    time_t start;
+    time_t freeze;
+    time_t end;
+    bool active;
+} Contest;
+
+typedef struct {
+    Contest contest;
     sqlite3* db;
     Team* teams;
     Language* languages;

@@ -7,7 +7,8 @@
     "_show_problem_statements": true,
     "_allow_run_downloads": true,
     "_allow_case_downloads": true,
-    "_title": "NJIT Programming Team",
-    "pdf": false,
-    "html": true
+    "title": "NJIT Programming Team",
+    "name": "ACMGNYR 2025",
+    "pdf": true,
+    "html": false
 }

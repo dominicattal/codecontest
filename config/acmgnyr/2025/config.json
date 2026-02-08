@@ -4,20 +4,11 @@
     "web_port": "27106",
     "database": "data/runs.db",
     "num_threads": 1,
-    "contest": true,
-    "_contest": {
-        "_active": true,
-        "_name": "NJIT Programming Team",
-        "_duration": "5:00:00",
-        "_freeze": "1:00:00",
-        "_start_time": "2026-04-01 12:12Z"
-    },
-    "_web": {
-        "_show_all_runs": true,
-        "_show_problem_statements": true,
-        "_allow_run_downloads": true,
-        "_allow_case_downloads": true,
-        "_title": "NJIT Programming Team"
+    "contest": {
+        "active": true,
+        "duration": "5:00:00",
+        "freeze": "1:00:00",
+        "start_time": "2026-04-01 12:12Z"
     },
     "teams": [
         {
@@ -40,7 +31,7 @@
             "language": "cpp",
             "extension": "cpp",
             "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME]",
-            "execute": "[BIN_DIR]/[BASENAME].exe"
+            "execute": "[BIN_DIR]/[BASENAME]"
         },
         {
             "CODE_DIR": "[RUN_DIR]/[BASENAME]",

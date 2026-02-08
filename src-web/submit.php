@@ -296,3 +296,6 @@ function create_table_row(id, stat, testcase, letter, problem, lang, team, time,
       }
   }
 </script>
+<?php
+require_once "footer.php";
+?>

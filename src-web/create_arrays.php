@@ -4,6 +4,18 @@ $db = new SQLite3($config["database"]);
 $db->enableExceptions(true);
 $db->exec('PRAGMA journal_mode = wal;');
 
+$stmt = $db->prepare("SELECT active, start, freeze, end FROM contest");
+$res = $stmt->execute();
+$arr = $res->fetchArray(SQLITE3_ASSOC);
+$contest = array(
+  "active" => $arr["active"],
+  "start" => $arr["start"],
+  "freeze" => $arr["freeze"],
+  "end" => $arr["end"],
+);
+$cur_time = time();
+$res->finalize();
+
 $stmt = $db->prepare("SELECT * FROM teams");
 $res = $stmt->execute();
 $arr = $res->fetchArray(SQLITE3_ASSOC);

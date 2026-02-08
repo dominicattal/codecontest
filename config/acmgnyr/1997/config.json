@@ -12,13 +12,6 @@
         "freeze": "1:00:00",
         "start_time": "2026-04-01 12:12Z"
     },
-    "_web": {
-        "show_all_runs": true,
-        "show_problem_statements": true,
-        "allow_run_downloads": true,
-        "allow_case_downloads": true,
-        "title": "NJIT Programming Team"
-    },
     "teams": [
         {
             "username": "team1",

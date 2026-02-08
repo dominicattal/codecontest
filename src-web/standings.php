@@ -119,4 +119,6 @@ foreach ($teams as $team_id => $username) {
 }
 echo "</tbody></table>";
 $db->close();
+
+require_once "footer.php";
 ?>

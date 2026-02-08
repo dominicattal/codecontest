@@ -88,7 +88,6 @@ int main(int argc, char** argv)
     char* code;
     int i, option_idx;
     char c;
-    bool contest_running;
     char async = false;
 
     struct option long_options[] = {
@@ -269,14 +268,10 @@ found_basename:
     }
     packet_destroy(packet);
 
+    // PACKET_CONTEST, not in use right now
     packet = socket_recv(server_socket);
     if (packet == NULL)
         goto fail_destroy_socket;
-    contest_running = packet->id == PACKET_CONTEST;
-    //if (packet->id == PACKET_CONTEST)
-    //    puts("contest is running");
-    //else
-    //    puts("contest is not running");
     max_file_size = atoi(packet->buffer);
     packet_destroy(packet);
     if (max_file_size <= 0) {
@@ -284,36 +279,34 @@ found_basename:
         goto fail_destroy_socket;
     }
 
-    if (contest_running) {
-        packet = packet_create(PACKET_TEAM_VALIDATE_USERNAME, strlen(username)+1, username);
-        if (packet == NULL)
-            goto fail_destroy_socket;
-        if (!socket_send(server_socket, packet)) {
-            puts("Could not validate team username");
-            goto fail_destroy_packet;
-        }
-        packet_destroy(packet);
-        packet = socket_recv(server_socket);
-        if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
-            puts("Unrecognized team name");
-            goto fail_destroy_packet;
-        }
-        packet_destroy(packet);
-        packet = packet_create(PACKET_TEAM_VALIDATE_PASSWORD, strlen(password)+1, password);
-        if (packet == NULL)
-            goto fail_destroy_socket;
-        if (!socket_send(server_socket, packet)) {
-            puts("Could not validate team password");
-            goto fail_destroy_packet;
-        }
-        packet_destroy(packet);
-        packet = socket_recv(server_socket);
-        if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
-            puts("Incorrect team password");
-            goto fail_destroy_packet;
-        }
-        packet_destroy(packet);
+    packet = packet_create(PACKET_TEAM_VALIDATE_USERNAME, strlen(username)+1, username);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (!socket_send(server_socket, packet)) {
+        puts("Could not validate team username");
+        goto fail_destroy_packet;
     }
+    packet_destroy(packet);
+    packet = socket_recv(server_socket);
+    if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
+        puts("Unrecognized team name");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
+    packet = packet_create(PACKET_TEAM_VALIDATE_PASSWORD, strlen(password)+1, password);
+    if (packet == NULL)
+        goto fail_destroy_socket;
+    if (!socket_send(server_socket, packet)) {
+        puts("Could not validate team password");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
+    packet = socket_recv(server_socket);
+    if (packet->id != PACKET_TEAM_VALIDATION_SUCCESS) {
+        puts("Incorrect team password");
+        goto fail_destroy_packet;
+    }
+    packet_destroy(packet);
 
     packet = packet_create(PACKET_ASYNC, 1, &async);
     if (packet == NULL)
