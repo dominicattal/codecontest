@@ -1,5 +1,5 @@
 {
-    "ip": "127.0.0.1",
+    "ip": "0.0.0.0",
     "cli_port": "27120",
     "web_port": "27106",
     "database": "data/runs.db",
@@ -18,6 +18,38 @@
         {
             "username": "team2",
             "password": "team2"
+        },
+        {
+            "username": "team3",
+            "password": "team3"
+        },
+        {
+            "username": "team4",
+            "password": "team4"
+        },
+        {
+            "username": "team5",
+            "password": "team5"
+        },
+        {
+            "username": "team6",
+            "password": "team6"
+        },
+        {
+            "username": "team7",
+            "password": "team7"
+        },
+        {
+            "username": "team8",
+            "password": "team8"
+        },
+        {
+            "username": "team9",
+            "password": "team9"
+        },
+        {
+            "username": "team10",
+            "password": "team10"
         }
     ],
     "languages": [

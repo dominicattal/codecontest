@@ -67,7 +67,11 @@ require_once "create_arrays.php";
     </div>
     <div>
       <a href="problems.php">Problems</a>
-      <a href="submit.php">Submit</a>
+      <?php
+        if (isset($_SESSION["loggedin"]) && $_SESSION["loggedin"]) {
+          echo "<a href='submit.php'>Submit</a>";
+        }
+      ?>
       <a href="runs.php">Runs</a>
       <a href="standings.php">Standings</a>
       <?php

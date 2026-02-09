@@ -959,10 +959,10 @@ void read_contest(JsonObject* config)
     time_t duration;
     log(WARNING, "Could not read contest, defaulting to no contest");
     ctx.contest.active = true;
-    duration = 60*60*5;
-    ctx.contest.start = time(NULL) + 10;
+    duration = 60*60*3;
+    ctx.contest.start = time(NULL) + 60;
     ctx.contest.end = ctx.contest.start + duration;
-    ctx.contest.freeze = ctx.contest.end;
+    ctx.contest.freeze = ctx.contest.start + 60*60*2 + 30*60;
 }
 
 bool context_init(JsonObject* config)
@@ -1045,7 +1045,7 @@ bool db_init(JsonObject* config)
             return true;
         }
         log(INFO, "Overwriting database at %s", db_file_path);
-        db_exec("DELETE FROM runs;DELETE FROM teams;DELETE FROM languages;DELETE FROM problems;");
+        db_exec("DELETE FROM runs;DELETE FROM teams;DELETE FROM languages;DELETE FROM problems;DELETE FROM contest;");
     } else {
         log(INFO, "Creating database at %s", db_file_path);
         db_exec(

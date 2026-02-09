@@ -42,3 +42,18 @@ warning: 28     ../sysdeps/unix/sysv/linux/send.c: No such file or directory
 #9  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
 (gdb) 
 
+
+??????????????????????????????????????????????
+
+INFO src-server/main.c:490 Connected to web client
+INFO src-server/main.c:518 Closing web socket connection
+INFO src-server/main.c:490 Connected to web client
+INFO src-server/main.c:518 Closing web socket connection
+INFO src-server/main.c:490 Connected to web client
+1
+Segmentation fault (core dumped)
+fancy@laptop:~/projects/codecontest$ ls
+
+
+
+in meeting contest crashed after run said compilation error.

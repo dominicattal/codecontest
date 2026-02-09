@@ -31,8 +31,14 @@ $first_success_query = "SELECT timestamp
                         WHERE problem_id=:problem_id 
                           AND team_id=:team_id 
                           AND status=$RUN_SUCCESS
-                        ORDER BY timestamp DESC
+                        ORDER BY timestamp ASC
                         LIMIT 1;";
+$last_run_query = "SELECT timestamp
+                   FROM runs
+                   WHERE problem_id=:problem_id 
+                     AND team_id=:team_id 
+                   ORDER BY timestamp DESC
+                   LIMIT 1;";
 $success_query = "SELECT COUNT(*) AS success 
                   FROM runs 
                   WHERE problem_id=:problem_id 
@@ -60,12 +66,6 @@ foreach ($teams as $team_id => $username) {
   $standings[$team_id]["solved"] = 0;
   $standings[$team_id]["time"] = 0;
   $standings[$team_id]["name"] = $teams[$team_id];
-  //$stmt = $db->prepare($num_solved_query);
-  //$stmt->bindParam(':team_id', $team_id);
-  //$res = $stmt->execute();
-  //$solved = $res->fetchArray(SQLITE3_ASSOC)["solved"];
-  //echo "<td>$solved</td>";
-  //$res->finalize();
   foreach ($problems as $problem_id => $problem) {
     $stmt = $db->prepare($success_query);
     $stmt->bindParam(':problem_id', $problem_id);
@@ -84,19 +84,35 @@ foreach ($teams as $team_id => $username) {
     $standings[$team_id][$problem_id]["success"] = $success;
     $standings[$team_id][$problem_id]["total"] = $total;
     $standings[$team_id][$problem_id]["timestamp"] = 0;
+    $standings[$team_id][$problem_id]["frozen"] = false;
     $standings[$team_id]["success"] += $success;
     $standings[$team_id]["total"] += $total;
-    if ($success > 0) {
+    if ($total == 0) {
+      continue;
+    } else if ($success == 0) {
+      $stmt = $db->prepare($last_run_query);
+      $stmt->bindParam(':problem_id', $problem_id);
+      $stmt->bindParam(':team_id', $team_id);
+      $res = $stmt->execute();
+      $timestamp_last_run = $res->fetchArray(SQLITE3_ASSOC)["timestamp"];
+      $res->finalize();
+      if ($timestamp_last_run > $contest["freeze"])
+        $standings[$team_id][$problem_id]["frozen"] = true;
+    } else {
       $stmt = $db->prepare($first_success_query);
       $stmt->bindParam(':problem_id', $problem_id);
       $stmt->bindParam(':team_id', $team_id);
       $res = $stmt->execute();
-      $timestamp = $res->fetchArray(SQLITE3_ASSOC)["timestamp"];
+      $timestamp_first_success = $res->fetchArray(SQLITE3_ASSOC)["timestamp"];
       $res->finalize();
-      $standings[$team_id][$problem_id]["timestamp"] = $timestamp - $contest["start"];
-      $standings[$team_id]["solved"] += 1;
-      $standings[$team_id]["time"] += $standings[$team_id][$problem_id]["timestamp"];
-      $standings[$team_id]["time"] += $wrong * 60*20;
+      if ($timestamp_first_success > $contest["freeze"]) {
+        $standings[$team_id][$problem_id]["frozen"] = true;
+      } else {
+        $standings[$team_id][$problem_id]["timestamp"] = $timestamp_first_success - $contest["start"];
+        $standings[$team_id]["solved"] += 1;
+        $standings[$team_id]["time"] += $standings[$team_id][$problem_id]["timestamp"];
+        $standings[$team_id]["time"] += $wrong * 60*20;
+      }
     }
   }
 }
@@ -135,11 +151,11 @@ foreach ($standings as $team => $arr) {
     $success = $arr[$problem_id]["success"];
     $total = $arr[$problem_id]["total"];
     $timestamp = intdiv($arr[$problem_id]["timestamp"],60);
-    if ($total == 0) {
+    if ($total == 0)
       echo "<td scope='col'>0/--</td>";
-      continue;
-    }
-    if ($success == 0)
+    else if ($arr[$problem_id]["frozen"])
+      echo "<td scope='col' class='frozen'>$total/--</td>";
+    else if ($success == 0)
       echo "<td scope='col' class='failed'>$total/--</td>";
     else  
       echo "<td scope='col' class='success'>$total/$timestamp</td>";

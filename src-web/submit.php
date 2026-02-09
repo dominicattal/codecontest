@@ -1,4 +1,9 @@
 <?php
+session_start();
+if (!isset($_SESSION["loggedin"])) {
+  header("Location: login.php");
+  die();
+}
 require_once "header.php";
 require_once "create_arrays.php";
 require_once "config.php";
@@ -27,58 +32,9 @@ require_once "config.php";
 </style>
 
 <div>
-  <div id='problems-submit'>
-    <form action="submit_handler.php" method="post" enctype="multipart/form-data">
-      <table id='problems-submit-table'>
-        <tbody>
-          <tr>
-            <td><label for="problem">Problem</label></td>
-            <td>
-              <select id="problem" name="problem">
-                <option value="">Choose Problem</option>
-                <?php
-                  foreach ($problems as $id => $problem)
-                    echo "<option value='$problem[letter]'>$problem[letter] - $problem[name]</option>";
-                ?>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <td><label for="language">Language</label></td>
-            <td>
-              <select id="language" name="language">
-                <option value="">Choose Language</option>
-                <?php
-                  foreach ($langs as $id => $lang)
-                    echo "<option value='$lang'>$lang</option>";
-                ?>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <td><label for="code">File</label></td>
-            <td>
-              <input type="hidden" name="MAX_FILE_SIZE" value="30000" />
-              <input type="file" id="code" name="code"></input>
-            </td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2"><input type="submit" value="Submit" id="submit"></input></td>
-          </tr>
-          <?php
-          if (isset($_SESSION["message"])) {
-            echo "<tr>";
-            echo "<td colspan='2'>$_SESSION[message]</td>";
-            echo "</tr>";
-            unset($_SESSION["message"]);
-          }
-          ?>
-        </tfoot>
-      </table>
-    </form>
-  </div>
+  <?php
+  include "submit_form.php";
+  ?>
   <div>
     <?php
       include "run_enum.php";
@@ -133,31 +89,19 @@ require_once "config.php";
   </div>
 </div>
 <script>
+const TEAM = "<?php echo $_SESSION['username']; ?>";
 var host = "<?php echo "ws://$config[ip]:$config[web_port]"; ?>";
 var socket = new WebSocket(host);
 var runs_table = document.getElementById('runs-table');
 if (runs_table) {
   var table_body = runs_table.getElementsByTagName('tbody')[0];
 }
-
-socket.onopen = (e) => {
-    console.log(e);
-}
-
 socket.onmessage = (e) => {
     arr = e["data"].split("\r");
     [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
     if (table_body && team == TEAM) 
       update_table_body(id, stat, testcase, letter, problem, lang, team, time, memory);
 }
-socket.onclose = (e) => {
-    console.log(e);
-}
-socket.onerror = (e) => {
-    console.log(e);
-}
-
-const TEAM = "<?php echo $_SESSION['username']; ?>";
 
 const RUN_IDLE = 0;
 const RUN_ENQUEUED = 1;

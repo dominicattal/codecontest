@@ -141,7 +141,7 @@ require_once "config.php";
                                     FROM runs
                                     WHERE problem_id=:problem_id
                                       AND team_id=:team_id
-                                      AND status BETWEEN $RUN_RUNTIME_ERROR AND $RUN_WRONG_ANSWER");
+                                      AND status BETWEEN $RUN_COMPILATION_ERROR AND $RUN_WRONG_ANSWER");
               $stmt->bindParam(':problem_id', $problem_id);
               $stmt->bindParam(':team_id', $team_id);
               $res = $stmt->execute();
@@ -172,53 +172,14 @@ require_once "config.php";
         </tbody>
       </table>
     </div>
-    <div id='problems-submit'>
-      <form action="submit_handler.php" method="post" enctype="multipart/form-data">
-        <table id='problems-submit-table'>
-          <tbody>
-            <tr>
-              <td><label for="problem">Problem</label></td>
-              <td>
-                <select id="problem" name="problem">
-                  <option value="">Choose Problem</option>
-                  <?php
-                    foreach ($problems as $id => $problem)
-                      echo "<option value='$problem[letter]'>$problem[letter] - $problem[name]</option>";
-                  ?>
-                </select>
-              </td>
-            </tr>
-            <tr>
-              <td><label for="language">Language</label></td>
-              <td>
-                <select id="language" name="language">
-                  <option value="">Choose Language</option>
-                  <?php
-                    foreach ($langs as $id => $lang)
-                      echo "<option value='$lang'>$lang</option>";
-                  ?>
-                </select>
-              </td>
-            </tr>
-            <tr>
-              <td><label for="code">File</label></td>
-              <td>
-                <input type="hidden" name="MAX_FILE_SIZE" value="30000" />
-                <input type="file" id="code" name="code"></input>
-              </td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="2"><input type="submit" value="Submit" id="submit"></input></td>
-            </tr>
-          </tfoot>
-        </table>
-      </form>
-    </div>
+    <?php
+    if (isset($_SESSION["loggedin"]))
+      include "submit_form.php";
+    ?>
   </div>
 </div>
 <script>
+const TEAM = "<?php echo (isset($_SESSION['username']) ? $_SESSION['username'] : ""); ?>";
 var cur_shown = null;
 function showProblem(letter) {
   if (cur_shown) cur_shown.setAttribute("hidden", "");
@@ -284,6 +245,8 @@ function update_problem_table(stat, letter, team) {
       td.textContent = parseInt(td.textContent)+1;
     }
   }
+  if (team != TEAM)
+    return;
   if (tr.className == "problem-success")
     return;
   tr.removeAttribute("class");
@@ -298,20 +261,10 @@ window.addEventListener('beforeunload', function() {
     socket.close();
 });
 
-socket.onopen = (e) => {
-    console.log(e);
-}
-
 socket.onmessage = (e) => {
     arr = e["data"].split("\r");
     [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
     update_problem_table(stat, letter, team);
-}
-socket.onclose = (e) => {
-    console.log(e);
-}
-socket.onerror = (e) => {
-    console.log(e);
 }
 </script>
 <?php

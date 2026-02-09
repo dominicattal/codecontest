@@ -31,19 +31,26 @@
     $res = $stmt->execute();
     $run = $res->fetchArray(SQLITE3_ASSOC);
     while ($run) {
-        echo "<tr id='$run[id]'>";
-        echo "<td id='id-$run[id]'>$run[id]</td>";
-        echo "<td>TBD</td>";
-        echo "<td id='team-$run[id]'>{$teams[$run['team_id']]}</td>";
-        $problem_letter = $problems[$run['problem_id']]["letter"];
-        $problem_name = $problems[$run['problem_id']]["name"];
-        echo "<td id='problem-$run[id]'>$problem_letter - $problem_name</td>";
-        echo "<td id='lang-$run[id]'>{$langs[$run['language_id']]}</td>";
-        $status_str = run_status_str($run);
-        echo "<td id='verdict-$run[id]'>$status_str</td>";
-        echo "<td id='time-$run[id]'>$run[time] ms</td>";
-        echo "<td id='mem-$run[id]'>$run[memory] KB</td>";
-        echo "</tr>";
+        if ($run["timestamp"] <= $contest["freeze"]) {
+          echo "<tr id='$run[id]'>";
+          echo "<td id='id-$run[id]'>$run[id]</td>";
+          $when = $run["timestamp"] - $contest["start"];
+          $hour = intdiv($when, 3600);
+          $minute = intdiv($when%3600, 60);
+          $second = $when%60;
+          $str = sprintf("%d:%02d:%02d", $hour, $minute, $second);
+          echo "<td>$str</td>";
+          echo "<td id='team-$run[id]'>{$teams[$run['team_id']]}</td>";
+          $problem_letter = $problems[$run['problem_id']]["letter"];
+          $problem_name = $problems[$run['problem_id']]["name"];
+          echo "<td id='problem-$run[id]'>$problem_letter - $problem_name</td>";
+          echo "<td id='lang-$run[id]'>{$langs[$run['language_id']]}</td>";
+          $status_str = run_status_str($run);
+          echo "<td id='verdict-$run[id]'>$status_str</td>";
+          echo "<td id='time-$run[id]'>$run[time] ms</td>";
+          echo "<td id='mem-$run[id]'>$run[memory] KB</td>";
+          echo "</tr>";
+        }
         $run = $res->fetchArray(SQLITE3_ASSOC);
     }
     $res->finalize();
@@ -156,11 +163,12 @@ window.addEventListener('beforeunload', function() {
   socket.close();
 });
 
-socket.onopen = (e) => {
-  console.log(e);
-}
+const freeze_time = <?php echo $contest["freeze"]; ?>;
 
 socket.onmessage = (e) => {
+  let cur_time = new Date().getTime() / 1000;
+  if (cur_time > freeze_time)
+    return;
   arr = e["data"].split("\r");
   [id, stat, testcase, letter, problem, lang, team, time, memory] = arr;
   tr = document.getElementById(`${id}`);
@@ -171,29 +179,6 @@ socket.onmessage = (e) => {
     table_body.insertBefore(new_tr, table_body.children[0]);
     //table_body.children[0].insertBefore(new_tr, 0);
   }
-}
-socket.onclose = (e) => {
-  console.log(e);
-}
-socket.onerror = (e) => {
-  console.log(e);
-}
-
-let header_countdown = document.getElementById('header-countdown');
-if (header_countdown) {
-  let end_time = <?php echo $contest["end"]; ?>;
-  setInterval(function() {
-    cur_time = new Date().getTime() / 1000;
-    if (cur_time > end_time) {
-      header_counter.textContent = "0:00:00";
-      return;
-    }
-    let time_left = end_time - cur_time;
-    let hour = Math.floor(time_left / 3600);
-    let minute = (Math.floor((time_left % 3600) / 60)).toString().padStart(2, '0');
-    let second = (Math.floor(time_left % 60)).toString().padStart(2, '0');
-    header_countdown.textContent = `${hour}:${minute}:${second}`;
-  }, 500);
 }
 </script>
 <?php

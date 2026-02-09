@@ -1,9 +1,40 @@
 <?php
+require_once "config.php";
+
 session_start();
 $loggedin = isset($_SESSION["loggedin"]) && $_SESSION["loggedin"];
 if (!$loggedin) {
   header("Location: login.php");
   die();
+}
+
+$db = new SQLite3($config["database"]);
+$db->enableExceptions(true);
+$db->exec('PRAGMA journal_mode = wal;');
+
+$stmt = $db->prepare("SELECT active, start, freeze, end FROM contest");
+$res = $stmt->execute();
+$arr = $res->fetchArray(SQLITE3_ASSOC);
+$contest = array(
+  "active" => $arr["active"],
+  "start" => $arr["start"],
+  "freeze" => $arr["freeze"],
+  "end" => $arr["end"],
+);
+$cur_time = time();
+$res->finalize();
+$db->close();
+
+$cur_time = time();
+if ($contest["active"]) {
+  if ($cur_time > $contest["end"]) {
+    $_SESSION["message"] = "Contest is over";
+    goto done;
+  }
+  if ($cur_time < $contest["start"]) {
+    $_SESSION["message"] = "Contest hasn't started";
+    goto done;
+  }
 }
 if ($_FILES["code"]["error"] != UPLOAD_ERR_OK) {
   trigger_error("Failed to upload file", E_USER_WARNING);
