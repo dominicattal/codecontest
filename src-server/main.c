@@ -1091,7 +1091,7 @@ bool db_init(JsonObject* config)
     }
     ctx.num_runs = 0;
     query_fmt = "INSERT INTO contest (active, start, freeze, end) VALUES (%d, %lld, %lld, %lld);";
-    db_exec(query_fmt, ctx.contest.active, ctx.contest.start, ctx.contest.freeze, ctx.contest.end);
+    //db_exec(query_fmt, ctx.contest.active, ctx.contest.start, ctx.contest.freeze, ctx.contest.end);
     for (i = 0; i < ctx.num_languages; i++) {
         query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
         db_exec(query_fmt, ctx.languages[i].id, ctx.languages[i].name);

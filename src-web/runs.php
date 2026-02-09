@@ -6,8 +6,6 @@
 
 ?>
 <body>
-<style>
-</style>
 <table id='runs-table'>
   <thead>
     <tr>
@@ -163,7 +161,7 @@ window.addEventListener('beforeunload', function() {
   socket.close();
 });
 
-const freeze_time = <?php echo $contest["freeze"]; ?>;
+const freeze_time = <?php echo (isset($contest["freeze"]) ? $contest["freeze"] : "null"); ?>;
 
 socket.onmessage = (e) => {
   let cur_time = new Date().getTime() / 1000;

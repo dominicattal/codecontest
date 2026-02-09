@@ -69,6 +69,15 @@ require_once "config.php";
   #problems-submit-table {
     display: none;
   }
+  #problems-table {
+    display: none;
+  }
+  #problems-left {
+    width: 100%;
+  }
+  #problems-right {
+    width: 0%;
+  }
 }
 
 #problems-submit-table {

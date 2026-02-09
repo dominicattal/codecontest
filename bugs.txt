@@ -2,6 +2,8 @@ sometimes program hangs after inputting 1
 reproducible by typing any character before typing 1. i used scanf("%d") to read an int, but non-ints would mess it up. 
 Fixed by changing it to fgetc(stdin)
 
+---------------------------------------------------------------------------
+
 when killing socket thread, used SIGTERM, which for some reason terminated the main program
 to reproduce, connect on the web then type 1
 fixed by sending signal 0 instead of SIGTERM
@@ -20,6 +22,7 @@ warning: 26     ../sysdeps/unix/sysv/linux/read.c: No such file or directory
 #4  0x00007ffff7c9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
 #5  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
 
+---------------------------------------------------------------------------
 
 Thread 2 "server" received signal SIGPIPE, Broken pipe.
 [Switching to Thread 0x7ffff7b166c0 (LWP 34723)]
@@ -42,6 +45,7 @@ warning: 28     ../sysdeps/unix/sysv/linux/send.c: No such file or directory
 #9  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
 (gdb) 
 
+---------------------------------------------------------------------------
 
 ??????????????????????????????????????????????
 
@@ -54,6 +58,26 @@ INFO src-server/main.c:490 Connected to web client
 Segmentation fault (core dumped)
 fancy@laptop:~/projects/codecontest$ ls
 
-
+---------------------------------------------------------------------------
 
 in meeting contest crashed after run said compilation error.
+i think it might have been because i freeaddrinfo before i shutdown socket
+
+Thread 2 "server" received signal SIGPIPE, Broken pipe.
+[Switching to Thread 0x7ffff7b166c0 (LWP 29749)]
+0x00007ffff7d2bf2a in __libc_send (flags=<optimized out>, len=51, buf=0x7ffff0008670, fd=9)
+    at ../sysdeps/unix/sysv/linux/send.c:28
+warning: 28     ../sysdeps/unix/sysv/linux/send.c: No such file or directory
+(gdb) bt
+#0  0x00007ffff7d2bf2a in __libc_send (flags=<optimized out>, len=51, buf=0x7ffff0008670, fd=9)
+    at ../sysdeps/unix/sysv/linux/send.c:28
+#1  __libc_send (fd=9, buf=0x7ffff0008670, len=51, flags=0) at ../sysdeps/unix/sysv/linux/send.c:23
+#2  0x000055555555a07d in socket_send_web (sock=0x7fffec000bb0, packet=0x7ffff0008430) at lib/networking.c:680
+#3  0x000055555555a0e5 in socket_send_web_all (ctx=0x555555599b00, packet=0x7ffff0008430) at lib/networking.c:693
+#4  0x000055555555f1be in send_run_to_web_clients (run=0x7fffb4000d80) at src-server/run.c:200
+#5  0x000055555555f2cf in set_run_status (run=0x7fffb4000d80, status=RUN_COMPILING) at src-server/run.c:220
+#6  0x00005555555611a5 in handle_run (tb=0x7ffff0000b70, run=0x7fffb4000d80) at src-server/run.c:692
+#7  0x0000555555561536 in run_daemon (vargp=0x0) at src-server/run.c:754
+#8  0x00007ffff7c9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#9  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+(gdb) 

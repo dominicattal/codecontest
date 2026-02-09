@@ -1,7 +1,7 @@
 <script>
 let header_countdown = document.getElementById('header-countdown');
 if (header_countdown) {
-  let end_time = <?php echo $contest["end"]; ?>;
+  let end_time = <?php echo (isset($contest["end"]) ? $contest["end"] : 0; ?>;
   setInterval(function() {
     cur_time = new Date().getTime() / 1000;
     let time_left = end_time - cur_time;

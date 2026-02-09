@@ -237,12 +237,12 @@ void socket_destroy(Socket* sock)
     NetContext* ctx;
     ctx = sock->ctx;
     pthread_mutex_lock(&sock->ctx->mutex);
-    if (sock->info != NULL)
-        freeaddrinfo(sock->info);
     if (sock->sock != NULL) {
         shutdown(*sock->sock, SD_BOTH);
         closesocket(*sock->sock);
     }
+    if (sock->info != NULL)
+        freeaddrinfo(sock->info);
     sock->connected = false;
     sock->sock = NULL;
     sock->info = NULL;
