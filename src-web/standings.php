@@ -26,6 +26,13 @@ require_once "run_enum.php";
 </style>
 
 <?php
+$first_success_query = "SELECT timestamp
+                        FROM runs
+                        WHERE problem_id=:problem_id 
+                          AND team_id=:team_id 
+                          AND status=$RUN_SUCCESS
+                        ORDER BY timestamp DESC
+                        LIMIT 1;";
 $success_query = "SELECT COUNT(*) AS success 
                   FROM runs 
                   WHERE problem_id=:problem_id 
@@ -35,7 +42,7 @@ $wrong_query = "SELECT COUNT(*) AS wrong
                 FROM runs 
                 WHERE problem_id=:problem_id 
                   AND team_id=:team_id 
-                  AND status BETWEEN $RUN_RUNTIME_ERROR AND $RUN_WRONG_ANSWER";
+                  AND status BETWEEN $RUN_COMPILATION_ERROR AND $RUN_WRONG_ANSWER";
 $db = new SQLite3($config["database"]);
 $db->enableExceptions(true);
 $db->exec('PRAGMA journal_mode = wal;');
@@ -51,6 +58,8 @@ foreach ($teams as $team_id => $username) {
   $standings[$team_id]["success"] = 0;
   $standings[$team_id]["total"] = 0;
   $standings[$team_id]["solved"] = 0;
+  $standings[$team_id]["time"] = 0;
+  $standings[$team_id]["name"] = $teams[$team_id];
   //$stmt = $db->prepare($num_solved_query);
   //$stmt->bindParam(':team_id', $team_id);
   //$res = $stmt->execute();
@@ -71,16 +80,35 @@ foreach ($teams as $team_id => $username) {
     $wrong = $res->fetchArray(SQLITE3_ASSOC)["wrong"];
     $res->finalize();
     $total = $success + $wrong;
-    $total_success += $success;
     //$total_all += $total;
     $standings[$team_id][$problem_id]["success"] = $success;
     $standings[$team_id][$problem_id]["total"] = $total;
+    $standings[$team_id][$problem_id]["timestamp"] = 0;
     $standings[$team_id]["success"] += $success;
     $standings[$team_id]["total"] += $total;
-    if ($success > 0)
+    if ($success > 0) {
+      $stmt = $db->prepare($first_success_query);
+      $stmt->bindParam(':problem_id', $problem_id);
+      $stmt->bindParam(':team_id', $team_id);
+      $res = $stmt->execute();
+      $timestamp = $res->fetchArray(SQLITE3_ASSOC)["timestamp"];
+      $res->finalize();
+      $standings[$team_id][$problem_id]["timestamp"] = $timestamp - $contest["start"];
       $standings[$team_id]["solved"] += 1;
+      $standings[$team_id]["time"] += $standings[$team_id][$problem_id]["timestamp"];
+      $standings[$team_id]["time"] += $wrong * 60*20;
+    }
   }
 }
+function compare_function($a, $b)
+{
+  if ($a["solved"] > $b["solved"] || ($a["solved"] == $b["solved"] && $a["time"] < $b["time"]))
+    return -1;
+  if ($a["solved"] == $b["solved"] && $a["time"] == $b["time"])
+    return 0;
+  return 1;
+}
+usort($standings, "compare_function");
 echo "<table id='standings-table'>";
 echo "<thead><tr>";
 echo "<th scope='col'>Rank</th>";
@@ -92,29 +120,33 @@ foreach ($problems as $id => $problem)
 echo "<th scope='col'>Total</th>";
 echo "</tr></thead>";
 echo "<tbody>";
-foreach ($teams as $team_id => $username) {
+$rank = 1;
+foreach ($standings as $team => $arr) {
+  $username = $arr["name"];
   echo "<tr>";
-  echo "<td>0</td>";
+  echo "<td>$rank</td>";
+  $rank += 1;
   echo "<td>$username</td>";
-  $solved = $standings[$team_id]["solved"];
+  $solved = $arr["solved"];
   echo "<td>$solved</td>";
-  echo "<td>0</td>";
+  $team_time = intdiv($arr['time'],60);
+  echo "<td>$team_time</td>";
   foreach ($problems as $problem_id => $problem) {
-    $success = $standings[$team_id][$problem_id]["success"];
-    $total = $standings[$team_id][$problem_id]["total"];
+    $success = $arr[$problem_id]["success"];
+    $total = $arr[$problem_id]["total"];
+    $timestamp = intdiv($arr[$problem_id]["timestamp"],60);
     if ($total == 0) {
-      echo "<td scope='col'>--/--</td>";
+      echo "<td scope='col'>0/--</td>";
       continue;
     }
     if ($success == 0)
-      $class = 'failed';
+      echo "<td scope='col' class='failed'>$total/--</td>";
     else  
-      $class = 'success';
-    echo "<td scope='col' class='$class'>$success/$total</td>";
+      echo "<td scope='col' class='success'>$total/$timestamp</td>";
   }
-  $success = $standings[$team_id]["success"];
-  $total = $standings[$team_id]["total"];
-  echo "<td scope='col'>$success/$total</td>";
+  $solved = $arr["solved"];
+  $total = $arr["total"];
+  echo "<td scope='col'>$total/$solved</td>";
   echo "</tr>";
 }
 echo "</tbody></table>";
