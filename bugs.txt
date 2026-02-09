@@ -1,4 +1,25 @@
 sometimes program hangs after inputting 1
+reproducible by typing any character before typing 1. i used scanf("%d") to read an int, but non-ints would mess it up. 
+Fixed by changing it to fgetc(stdin)
+
+when killing socket thread, used SIGTERM, which for some reason terminated the main program
+to reproduce, connect on the web then type 1
+fixed by sending signal 0 instead of SIGTERM
+
+Thread 120 "server" received signal SIGTERM, Terminated.
+[Switching to Thread 0x7fffadf9b6c0 (LWP 34651)]
+0x00007ffff7d1baca in __GI___libc_read (nbytes=1, buf=0x7fffadf9ae18, fd=8)
+    at ../sysdeps/unix/sysv/linux/read.c:26
+warning: 26     ../sysdeps/unix/sysv/linux/read.c: No such file or directory
+(gdb) bt
+#0  0x00007ffff7d1baca in __GI___libc_read (nbytes=1, buf=0x7fffadf9ae18, fd=8)
+    at ../sysdeps/unix/sysv/linux/read.c:26
+#1  __GI___libc_read (fd=8, buf=0x7fffadf9ae18, nbytes=1) at ../sysdeps/unix/sysv/linux/read.c:24
+#2  0x000055555555a34d in socket_recv_web (sock=0x7fffec000bb0) at lib/networking.c:749
+#3  0x000055555555c5b0 in handle_web_client (vargp=0x7fffec000bb0) at src-server/main.c:493
+#4  0x00007ffff7c9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#5  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
 
 Thread 2 "server" received signal SIGPIPE, Broken pipe.
 [Switching to Thread 0x7ffff7b166c0 (LWP 34723)]
@@ -20,3 +41,4 @@ warning: 28     ../sysdeps/unix/sysv/linux/send.c: No such file or directory
 #8  0x00007ffff7c9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
 #9  0x00007ffff7d29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
 (gdb) 
+

@@ -471,7 +471,7 @@ void networking_join_sockets(NetContext* ctx)
     sock = ctx->head;
     while (sock != NULL) {
         if (sock->has_thread)
-            pthread_kill(sock->thread_id, SIGTERM);
+            pthread_kill(sock->thread_id, 0);
         sock->fd = -1;
         sock = sock->next;
     }
@@ -747,11 +747,8 @@ Packet* socket_recv_web(Socket* sock)
 
     do {
         len = read(sock->fd, &data, 1);
-        if (len == 0)  {
-            if (res == NULL) return NULL;
-            puts("expected len != 0");
-            abort();
-        }
+        if (len <= 0)
+            break;
         fin = (data>>7) & 1;
         if (res == NULL)
             opcode = data & 0xF;
@@ -800,6 +797,9 @@ Packet* socket_recv_web(Socket* sock)
         res[res_length] = '\0';
         free(buffer);
     } while (fin == 0);
+
+    if (res == NULL)
+        return NULL;
 
     packet = malloc(sizeof(Packet));
     switch (opcode) {

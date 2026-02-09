@@ -27,6 +27,7 @@ $output = null;
 exec($command, $output, $result_code);
 if ($result_code == 1) {
   trigger_error("Internal error", E_USER_WARNING);
+  trigger_error($output[0], E_USER_WARNING);
   $_SESSION["message"] = "Internal error";
 }
 

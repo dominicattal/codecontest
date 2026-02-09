@@ -261,8 +261,8 @@ Run* run_create(const char* filename, int team_id, int language_id, int problem_
     pthread_mutex_lock(&num_runs_mutex);
     run->id = ctx.num_runs++;
     db_exec("INSERT INTO runs (id, team_id, problem_id, language_id, testcase, status, timestamp, time, memory)"
-            "VALUES (%d, %d, %d, %d, 0, 0, 0, 0, 0)",
-            run->id, team_id, problem_id, language_id);
+            "VALUES (%d, %d, %d, %d, 0, 0, %lld, 0, 0)",
+            run->id, team_id, problem_id, language_id, time(NULL));
     pthread_mutex_unlock(&num_runs_mutex);
     sem_init(&run->run_to_server_signal, 0, 1);
     sem_init(&run->server_to_run_signal, 0, 1);

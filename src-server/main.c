@@ -1063,7 +1063,7 @@ bool db_init(JsonObject* config)
             "    language_id INT,"
             "    testcase INT,"
             "    status INT,"
-            "    timestamp TEXT,"
+            "    timestamp INT,"
             "    time INT,"
             "    memory INT"
             ");"

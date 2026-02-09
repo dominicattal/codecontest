@@ -63,7 +63,7 @@ require_once "create_arrays.php";
 <body>
   <div id="header">
     <div id="header-name">
-        <a><?php echo $config["name"]; ?></a>
+        <?php echo $config["name"]; ?>
     </div>
     <div>
       <a href="problems.php">Problems</a>
@@ -81,7 +81,7 @@ require_once "create_arrays.php";
     <div id='header-countdown'>
     <?php
       if ($contest["active"]) {
-        $time_left = $contest["end"] - $cur_time;
+        $time_left = $contest["end"] - time() - 1; // -1 to compensate a little
         $hour = intdiv($time_left, 3600);
         $minute = intdiv($time_left%3600, 60);
         $second = $time_left%60;
