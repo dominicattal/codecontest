@@ -176,32 +176,6 @@ static void delete_token_buffers(TokenBuffers* tb)
     free(tb);
 }
 
-static void send_run_to_web_clients(Run* run)
-{
-    Packet* packet;
-    Team* team;
-    Language* lang;
-    Problem* problem;
-    int buf_len;
-    char* buffer;
-    char* fmt;
-
-    problem = &ctx.problems[run->problem_id];
-    lang = &ctx.languages[run->language_id];
-    team = &ctx.teams[run->team_id];
-
-    fmt = "%d\r%d\r%d\r%c\r%s\r%s\r%s\r%d\r%d";
-    buf_len = snprintf(NULL, 0, fmt, run->id, run->status, run->testcase, problem->letter, 
-                       problem->name, lang->name, team->username, run->time, run->memory); 
-    buffer = malloc((buf_len+1) * sizeof(char));
-    snprintf(buffer, buf_len+1, fmt, run->id, run->status, run->testcase, problem->letter, 
-             problem->name, lang->name, team->username, run->time, run->memory);
-    packet = packet_create(WEB_PACKET_TEXT, buf_len, buffer);
-    socket_send_web_all(ctx.web_net_ctx, packet);
-    free(buffer);
-    packet_destroy(packet);
-}
-
 static void set_run_response(Run* run, const char* response)
 {
     if (run->response != NULL)
@@ -217,7 +191,6 @@ static bool set_run_status(Run* run, RunEnum status)
     bool res;
     run->status = status;
     res = db_exec("UPDATE runs SET status=%d WHERE id=%d", run->status, run->id);
-    send_run_to_web_clients(run);
     return res;
 }
 
@@ -226,7 +199,6 @@ static bool set_run_testcase(Run* run, int testcase)
     bool res;
     run->testcase = testcase;
     res = db_exec("UPDATE runs SET testcase=%d WHERE id=%d", run->testcase, run->id);
-    send_run_to_web_clients(run);
     return res;
 }
 
@@ -236,7 +208,6 @@ static bool set_run_stats(Run* run, int time, int time_limit, int memory, int me
     run->time = (time < time_limit) ? time : time_limit;
     run->memory = (memory < memory_limit) ? memory : memory_limit;
     res = db_exec("UPDATE runs SET time=%d, memory=%d WHERE id=%d", run->time, run->memory, run->id);
-    send_run_to_web_clients(run);
     return res;
 }
 

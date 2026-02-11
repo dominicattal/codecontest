@@ -87,23 +87,8 @@ bool    socket_send(Socket* socket, Packet* packet);
 // Send packet to all connected clients in context
 void    socket_send_all(NetContext* ctx, Packet* packet);
 
-// Send a packet over a web socket. Returns true if successful
-bool    socket_send_web(Socket* socket, Packet* packet);
-
-// Send web packet to all connected clients in context
-void    socket_send_web_all(NetContext* ctx, Packet* packet);
-
-// Send a generic server-to-client handshake
-bool    socket_send_web_handshake(Socket* socket);
-
 // Receive a packet from a socket
 Packet* socket_recv(Socket* socket);
-
-// Receive web socket packet
-Packet* socket_recv_web(Socket* socket);
-
-// Perform web socket handshake with client socket
-bool    socket_web_handshake(Socket* socket);
 
 // Keep track of a socket's handler thread. 
 void    socket_set_thread_id(Socket* socket, pthread_t thread_id);

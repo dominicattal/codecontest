@@ -167,6 +167,5 @@ foreach ($standings as $team => $arr) {
 }
 echo "</tbody></table>";
 $db->close();
-
-require_once "footer.php";
+include "footer.php";
 ?>

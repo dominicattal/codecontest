@@ -478,119 +478,6 @@ static void* cli_server_daemon(void* vargp)
     return NULL;
 }
 
-static void* handle_web_client(void* vargp)
-{
-    Packet* packet;
-    Packet* send_packet;
-    Socket* client_socket;
-    char* msg;
-    bool closed = false;
-    client_socket = vargp;
-
-    log(INFO, "Connected to web client");
-
-    while (!ctx.kill && !closed) {
-        packet = socket_recv_web(client_socket);
-        if (packet == NULL) {
-            continue;
-        }
-        switch (packet->id) {
-            case WEB_PACKET_TEXT:
-                if (packet->buffer)
-                    log(INFO, "Received text packet: %s", packet->buffer);
-                else
-                    log(WARNING, "Received text packet, but packet buffer null");
-                break;
-            case WEB_PACKET_PING:
-                if (packet->length > 125) {
-                    log(WARNING, "Invalid ping packet, ignoring");
-                    break;
-                }
-                log(INFO, "Received ping");
-                send_packet = packet_create(WEB_PACKET_PONG, packet->length, packet->buffer);
-                socket_send_web(client_socket, send_packet);
-                packet_destroy(send_packet);
-                break;
-            case WEB_PACKET_PONG:
-                log(INFO, "Received pong");
-                break;
-            case WEB_PACKET_CLOSE:
-                log(INFO, "Closing web socket connection");
-                msg = "received close packet";
-                send_packet = packet_create(WEB_PACKET_CLOSE, strlen(msg), msg); 
-                socket_send_web(client_socket, send_packet);
-                packet_destroy(send_packet);
-                closed = true;
-                break;
-            default:
-                log(WARNING, "Recveied weird web packet, ignoring");
-                break;
-        }
-        packet_destroy(packet);
-    }
-    socket_destroy(client_socket);
-    return NULL;
-}
-
-static Socket* web_create_listen_socket(JsonObject* config)
-{
-    Socket* listen_socket;
-    char* ip_str;
-    char* port_str;
-    
-    ip_str = get_string(config, "ip");
-    port_str = get_string(config, "web_port");
-    if (port_str == NULL) {
-        log(ERROR, "Could not read web_port from config file");
-        return NULL;
-    }
-    listen_socket = socket_create(ctx.web_net_ctx, ip_str, port_str, BIT_TCP);
-    if (listen_socket == NULL) {
-        log(ERROR, "Could not create web socket");
-        return NULL;
-    }
-
-    if (!socket_bind(listen_socket)) {
-        log(ERROR, "Couldn't bind socket");
-        return NULL;
-    }
-    if (!socket_listen(listen_socket)) {
-        log(ERROR, "Couldn't listen");
-        return NULL;
-    }
-    return listen_socket;
-}
-
-static void* web_server_daemon(void* vargp)
-{
-    Socket* listen_socket;
-    Socket* client_socket;
-    JsonObject* config = vargp;
-    pthread_t thread_id;
-
-    while (!ctx.kill) {
-        listen_socket = web_create_listen_socket(config);
-        if (listen_socket == NULL) {
-            log(FATAL, "Listen socket is null");
-            ctx.kill = true;
-            break;
-        }
-        client_socket = socket_accept(listen_socket);
-        socket_destroy(listen_socket);
-        if (client_socket == NULL) {
-            if (!ctx.kill)
-                log(WARNING, "Client socket is null");
-            continue;
-        }
-        socket_web_handshake(client_socket);
-        // should check if client is already connected before creating thread
-        pthread_create(&thread_id, NULL, handle_web_client, client_socket);
-        socket_set_thread_id(client_socket, thread_id);
-    }
-    networking_join_sockets(ctx.web_net_ctx);
-    return NULL;
-}
-
 bool read_teams(JsonObject* config)
 {
     JsonObject* object;
@@ -959,10 +846,10 @@ void read_contest(JsonObject* config)
     time_t duration;
     log(WARNING, "Could not read contest, defaulting to no contest");
     ctx.contest.active = true;
-    duration = 60*60*3;
+    duration = 60*60*5;
     ctx.contest.start = time(NULL) + 60;
     ctx.contest.end = ctx.contest.start + duration;
-    ctx.contest.freeze = ctx.contest.start + 60*60*2 + 30*60;
+    ctx.contest.freeze = ctx.contest.end;
 }
 
 bool context_init(JsonObject* config)
@@ -1091,7 +978,7 @@ bool db_init(JsonObject* config)
     }
     ctx.num_runs = 0;
     query_fmt = "INSERT INTO contest (active, start, freeze, end) VALUES (%d, %lld, %lld, %lld);";
-    //db_exec(query_fmt, ctx.contest.active, ctx.contest.start, ctx.contest.freeze, ctx.contest.end);
+    db_exec(query_fmt, ctx.contest.active, ctx.contest.start, ctx.contest.freeze, ctx.contest.end);
     for (i = 0; i < ctx.num_languages; i++) {
         query_fmt = "INSERT INTO languages (id, name) VALUES (%d, '%s');";
         db_exec(query_fmt, ctx.languages[i].id, ctx.languages[i].name);
@@ -1117,7 +1004,6 @@ int main(int argc, char** argv)
 {
     JsonObject* config;
     pthread_t cli_server_thread_id;
-    pthread_t web_server_thread_id;
     char code;
 
     if (argc == 1) {
@@ -1150,14 +1036,7 @@ int main(int argc, char** argv)
         goto fail_db;
     }
 
-    ctx.web_net_ctx = networking_init();
-    if (ctx.web_net_ctx == NULL) {
-        log(FATAL, "Could not make cli server");
-        goto fail_db;
-    }
-
     pthread_create(&cli_server_thread_id, NULL, cli_server_daemon, config);
-    pthread_create(&web_server_thread_id, NULL, web_server_daemon, config);
 
     code = 0;
     while (code != '1')
@@ -1166,13 +1045,8 @@ int main(int argc, char** argv)
     ctx.kill = true;
 
     networking_shutdown_sockets(ctx.cli_net_ctx);
-    networking_shutdown_sockets(ctx.web_net_ctx);
-
     pthread_join(cli_server_thread_id, NULL);
-    pthread_join(web_server_thread_id, NULL);
-
     networking_cleanup(ctx.cli_net_ctx);
-    networking_cleanup(ctx.web_net_ctx);
 
 fail_db:
     ctx.kill = true;
