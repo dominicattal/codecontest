@@ -62,6 +62,8 @@ if ($result_code == 1) {
   $_SESSION["message"] = "Internal error";
 }
 
+$_SESSION["message"] = "Successfully submitted";
+
 done:
 header("Location: submit.php");
 die();

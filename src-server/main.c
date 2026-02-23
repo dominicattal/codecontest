@@ -646,12 +646,14 @@ bool read_testcases(Problem* problem)
     problem->testcases = malloc(problem->num_testcases * sizeof(Testcase));
     id = 0;
     testcase_file = readdir(dir);
+    log(INFO, "Reading testcases for problem %c %s", problem->letter, problem->name);
     while (testcase_file != NULL) {
         len = strlen(testcase_file->d_name);
         if (len >= 3 && strcmp(testcase_file->d_name + len - 3, ".in") == 0) {
             testcase = problem->testcases + id;
             testcase->name = malloc((len-3+1) * sizeof(char));
             snprintf(testcase->name, len-3+1, "%s", testcase_file->d_name);
+            log(INFO, "testcase %d: %s", id, testcase_file->d_name);
             testcase->id = id; 
             id++;
         }

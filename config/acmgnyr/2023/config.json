@@ -1,0 +1,200 @@
+{
+    "ip": "0.0.0.0",
+    "cli_port": "27120",
+    "web_port": "27106",
+    "database": "data/runs.db",
+    "num_threads": 1,
+    "contest": {
+        "active": true,
+        "duration": "5:00:00",
+        "freeze": "1:00:00",
+        "start_time": "2026-04-01 12:12Z"
+    },
+    "teams": [
+        {
+            "username": "team1",
+            "password": "team1"
+        },
+        {
+            "username": "team2",
+            "password": "team2"
+        },
+        {
+            "username": "team3",
+            "password": "team3"
+        },
+        {
+            "username": "team4",
+            "password": "team4"
+        },
+        {
+            "username": "team5",
+            "password": "team5"
+        },
+        {
+            "username": "team6",
+            "password": "team6"
+        },
+        {
+            "username": "team7",
+            "password": "team7"
+        },
+        {
+            "username": "team8",
+            "password": "team8"
+        },
+        {
+            "username": "team9",
+            "password": "team9"
+        },
+        {
+            "username": "team10",
+            "password": "team10"
+        }
+    ],
+    "languages": [
+        {
+            "language": "python3",
+            "extension": "py",
+            "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
+            "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
+        },
+        {
+            "language": "cpp",
+            "extension": "cpp",
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME]",
+            "execute": "[BIN_DIR]/[BASENAME]"
+        },
+        {
+            "CODE_DIR": "[RUN_DIR]/[BASENAME]",
+            "CODE_PATH": "[RUN_DIR]/[BASENAME]/[CODE_FILENAME].java",
+            "language": "java",
+            "extension": "java",
+            "compile": "javac [CODE_PATH]",
+            "execute": "java -cp [CODE_DIR] [CODE_FILENAME]"
+        }
+    ],
+    "problems": [
+        {
+            "letter": "A",
+            "name": "Cornhusker",
+            "dir": "acmgnyr/2023/problems/A-cornhusker/A-cornhusker.pdf",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/A-cornhusker/secret",
+            "pdf": "acmgnyr/2023/problems/A-cornhusker/A-cornhusker.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "B",
+            "name": "apivotalquestion",
+            "dir": "acmgnyr/2023/problems/B-apivotalquestion",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/B-apivotalquestion/secret",
+            "pdf": "acmgnyr/2023/problems/B-apivotalquestion/B-apivotalquestion.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "C",
+            "name": "Prof. Fumblemore and the Collatz Conjecture",
+            "dir": "acmgnyr/2023/problems/C-coltype",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/C-coltype/secret",
+            "pdf": "acmgnyr/2023/problems/C-coltype/C-coltype.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "D",
+            "name": "Double Up",
+            "dir": "acmgnyr/2023/problems/D-doubleup",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/D-doubleup/secret",
+            "pdf": "acmgnyr/2023/problems/D-doubleup/D-doubleup.pdf",
+            "pipe": false,
+            "time_limit": 7000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "E",
+            "name": "Three Spheres and a Tetrahedron",
+            "dir": "acmgnyr/2023/problems/E-tetrasphere",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/E-tetrasphere/sample",
+            "pdf": "acmgnyr/2023/problems/E-tetrasphere/E-tetrasphere.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "F",
+            "name": "Forest for the Trees",
+            "dir": "acmgnyr/2023/problems/F-forestforthetrees",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/F-forestforthetrees/secret",
+            "pdf": "acmgnyr/2023/problems/F-forestforthetrees/F-forestforthetrees.pdf",
+            "pipe": false,
+            "time_limit": 5000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "G",
+            "name": "Pearls",
+            "dir": "acmgnyr/2023/problems/G-pearls",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/G-pearls/secret",
+            "pdf": "acmgnyr/2023/problems/G-pearls/G-pearls.pdf",
+            "pipe": false,
+            "time_limit": 5000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "H",
+            "name": "A (Fast) Walk in the Woods",
+            "dir": "acmgnyr/2023/problems/H-walkinthewoods",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/H-walkinthewoods/secret",
+            "pdf": "acmgnyr/2023/problems/H-walkinthewoods/H-walkinthewoods.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "I",
+            "name": "ISBN Conversion",
+            "dir": "acmgnyr/2023/problems/I-isbnconversion",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/I-isbnconversion/secret",
+            "pdf": "acmgnyr/2023/problems/I-isbnconversion/I-isbnconversion.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "K",
+            "name": "Plus Minus Four Squares",
+            "dir": "acmgnyr/2023/problems/K-plusminusfoursq",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/K-plusminusfoursq/secret",
+            "pdf": "acmgnyr/2023/problems/K-plusminusfoursq/K-plusminusfoursq.pdf",
+            "pipe": false,
+            "time_limit": 1000,
+            "mem_limit": 1000000
+        },
+        {
+            "letter": "L",
+            "name": "Make Your Own Morse Code Palindrome",
+            "dir": "acmgnyr/2023/problems/L-morsepal",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2023/problems/L-morsepal/secret",
+            "pdf": "acmgnyr/2023/problems/L-morsepal/L-morsepal.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        }
+    ]
+}
