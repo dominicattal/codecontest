@@ -176,6 +176,7 @@ size_t process_memory(Process* process)
         fclose(fptr);
     }
     free(path);
+    fclose(fptr);
     page_size = getpagesize();
     return num_pages * page_size / 1000;
 }

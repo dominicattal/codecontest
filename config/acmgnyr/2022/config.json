@@ -1,0 +1,189 @@
+{
+    "ip": "0.0.0.0",
+    "cli_port": "27120",
+    "web_port": "27106",
+    "database": "data/runs.db",
+    "num_threads": 1,
+    "contest": {
+        "active": true,
+        "duration": "5:00:00",
+        "freeze": "1:00:00",
+        "start_time": "2026-04-01 12:12Z"
+    },
+    "teams": [
+        {
+            "username": "team1",
+            "password": "team1"
+        },
+        {
+            "username": "team2",
+            "password": "team2"
+        },
+        {
+            "username": "team3",
+            "password": "team3"
+        },
+        {
+            "username": "team4",
+            "password": "team4"
+        },
+        {
+            "username": "team5",
+            "password": "team5"
+        },
+        {
+            "username": "team6",
+            "password": "team6"
+        },
+        {
+            "username": "team7",
+            "password": "team7"
+        },
+        {
+            "username": "team8",
+            "password": "team8"
+        },
+        {
+            "username": "team9",
+            "password": "team9"
+        },
+        {
+            "username": "team10",
+            "password": "team10"
+        }
+    ],
+    "languages": [
+        {
+            "language": "python3",
+            "extension": "py",
+            "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
+            "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
+        },
+        {
+            "language": "cpp",
+            "extension": "cpp",
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME]",
+            "execute": "[BIN_DIR]/[BASENAME]"
+        },
+        {
+            "CODE_DIR": "[RUN_DIR]/[BASENAME]",
+            "CODE_PATH": "[RUN_DIR]/[BASENAME]/[CODE_FILENAME].java",
+            "language": "java",
+            "extension": "java",
+            "compile": "javac [CODE_PATH]",
+            "execute": "java -cp [CODE_DIR] [CODE_FILENAME]"
+        }
+    ],
+    "problems": [
+        {
+            "letter": "A",
+            "name": "Cornhole",
+            "dir": "acmgnyr/2022/A-Cornhole/A-Cornhole.pdf",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/A-Cornhole/secret",
+            "pdf": "acmgnyr/2022/A-Cornhole/A-Cornhole.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "B",
+            "name": "Sum Of Remainders",
+            "dir": "acmgnyr/2022/B-SumOfRemainders",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/B-SumOfRemainders/secret",
+            "pdf": "acmgnyr/2022/B-SumOfRemainders/B-SumOfRemainders.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "C",
+            "name": "Quotdoku",
+            "dir": "acmgnyr/2022/C-Quotdoku",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/C-Quotdoku/secret",
+            "pdf": "acmgnyr/2022/C-Quotdoku/C-Quotdoku.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "D",
+            "name": "Pythagorean Triples",
+            "dir": "acmgnyr/2022/D-PythagTrips",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/D-PythagTrips/secret",
+            "pdf": "acmgnyr/2022/D-PythagTrips/D-PythagTrips.pdf",
+            "pipe": false,
+            "time_limit": 7000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "E",
+            "name": "Clarissas Cannolis",
+            "dir": "acmgnyr/2022/E-ClarissasCannolis",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/E-ClarissasCannolis/secret",
+            "pdf": "acmgnyr/2022/E-ClarissasCannolis/E-ClarissasCannolis.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "F",
+            "name": "Busy As a Bee",
+            "dir": "acmgnyr/2022/F-BusyAsaBee",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/F-BusyAsaBee/secret",
+            "pdf": "acmgnyr/2022/F-BusyAsaBee/F-BusyAsaBee.pdf",
+            "pipe": false,
+            "time_limit": 5000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "G",
+            "name": "TriLink",
+            "dir": "acmgnyr/2022/G-TriLink",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/G-TriLink/secret",
+            "pdf": "acmgnyr/2022/G-TriLink/G-TriLink.pdf",
+            "pipe": false,
+            "time_limit": 5000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "H",
+            "name": "You You See What",
+            "dir": "acmgnyr/2022/H-YouYouSeeWhat",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/H-YouYouSeeWhat/secret",
+            "pdf": "acmgnyr/2022/H-YouYouSeeWhat/H-YouYouSeeWhat.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "I",
+            "name": "Caravan",
+            "dir": "acmgnyr/2022/I-Caravan",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/I-Caravan/secret",
+            "pdf": "acmgnyr/2022/I-Caravan/I-Caravan.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "J",
+            "name": "PSet",
+            "dir": "acmgnyr/2022/J-PSet",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2022/J-PSet/secret",
+            "pdf": "acmgnyr/2022/J-PSet/J-PSet.pdf",
+            "pipe": false,
+            "time_limit": 1000,
+            "mem_limit": 1000000
+        }
+    ]
+}
