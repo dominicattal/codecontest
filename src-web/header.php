@@ -58,6 +58,9 @@ require_once "create_arrays.php";
     #runs-table tbody > tr:nth-of-type(odd) {
         background-color: rgb(255 255 255);
     }
+    #standings-table caption {
+      caption-side: bottom;
+    }
   </style>
 </head>
 <body>
