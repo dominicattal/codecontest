@@ -43,6 +43,7 @@ def fib_from_pow10(n):
             ans = matmul(ans, base)
     return ans[1][0]
 
+#print(fib(10**10000))
 #print(fib(10**1000000)) 305562778
 #print(fib(2**20))
 #print(fib_from_pow2(20))

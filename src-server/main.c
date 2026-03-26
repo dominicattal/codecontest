@@ -847,9 +847,10 @@ void read_contest(JsonObject* config)
 {
     time_t duration;
     log(WARNING, "Could not read contest, defaulting to no contest");
-    ctx.contest.active = true;
+    ctx.contest.active = false;
     duration = 60*60*5;
-    ctx.contest.start = time(NULL) + 60;
+    //ctx.contest.start = time(NULL) + 60;
+    ctx.contest.start = time(NULL);
     ctx.contest.end = ctx.contest.start + duration;
     ctx.contest.freeze = ctx.contest.end;
 }

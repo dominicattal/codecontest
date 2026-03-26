@@ -9,6 +9,6 @@
     "_allow_case_downloads": true,
     "title": "NJIT Programming Team",
     "name": "ACMGNYR 2025",
-    "pdf": true,
-    "html": false
+    "pdf": false,
+    "html": true
 }
