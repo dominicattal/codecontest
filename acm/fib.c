@@ -66,5 +66,5 @@ ll fib_from_pow10(ll n)
 
 int main()
 {
-    printf("%llu\n", fib(1000));
+    printf("%llu\n", fib_from_pow10(1000000));
 }
