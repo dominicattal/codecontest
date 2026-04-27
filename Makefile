@@ -20,6 +20,7 @@ SRC_CLIENT = src-client/main.c
 SRC_VALIDATORS = src-validators/ints.c \
 				 src-validators/floats.c \
 				 src-validators/strings.c \
+				 src-validators/chars.c \
 				 src-validators/interactive.c
 OBJ_DEV_LIB = $(SRC_LIB:%.c=build/%.o)
 OBJ_DEV_SERVER = $(SRC_SERVER:%.c=build/%.o)

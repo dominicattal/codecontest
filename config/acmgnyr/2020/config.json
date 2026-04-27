@@ -1,0 +1,211 @@
+{
+    "ip": "0.0.0.0",
+    "cli_port": "27120",
+    "web_port": "27106",
+    "database": "data/runs.db",
+    "num_threads": 1,
+    "contest": {
+        "active": true,
+        "duration": "5:00:00",
+        "freeze": "1:00:00",
+        "start_time": "2026-04-01 12:12Z"
+    },
+    "teams": [
+        {
+            "username": "team1",
+            "password": "team1"
+        },
+        {
+            "username": "team2",
+            "password": "team2"
+        },
+        {
+            "username": "team3",
+            "password": "team3"
+        },
+        {
+            "username": "team4",
+            "password": "team4"
+        },
+        {
+            "username": "team5",
+            "password": "team5"
+        },
+        {
+            "username": "team6",
+            "password": "team6"
+        },
+        {
+            "username": "team7",
+            "password": "team7"
+        },
+        {
+            "username": "team8",
+            "password": "team8"
+        },
+        {
+            "username": "team9",
+            "password": "team9"
+        },
+        {
+            "username": "team10",
+            "password": "team10"
+        }
+    ],
+    "languages": [
+        {
+            "language": "python3",
+            "extension": "py",
+            "compile": "python3 compilepython.py [CODE_PATH] [BIN_DIR]/[BASENAME].pyc",
+            "execute": "python3 [BIN_DIR]/[BASENAME].pyc"
+        },
+        {
+            "language": "cpp",
+            "extension": "cpp",
+            "compile": "g++ [CODE_PATH] -o [BIN_DIR]/[BASENAME]",
+            "execute": "[BIN_DIR]/[BASENAME]"
+        },
+        {
+            "CODE_DIR": "[RUN_DIR]/[BASENAME]",
+            "CODE_PATH": "[RUN_DIR]/[BASENAME]/[CODE_FILENAME].java",
+            "language": "java",
+            "extension": "java",
+            "compile": "javac [CODE_PATH]",
+            "execute": "java -cp [CODE_DIR] [CODE_FILENAME]"
+        }
+    ],
+    "problems": [
+        {
+            "letter": "A",
+            "name": "Bottle Return",
+            "dir": "acmgnyr/2020/A-BottleReturn",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/A-BottleReturn/judge",
+            "pdf": "acmgnyr/2020/A-BottleReturn/A-BottleReturn.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "B",
+            "name": "Comfy Deviations",
+            "dir": "acmgnyr/2020/B-ComfyDeviations",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/B-ComfyDeviations/judge",
+            "pdf": "acmgnyr/2020/B-ComfyDeviations/B-ComfyDeviations.pdf",
+            "pipe": false,
+            "time_limit": 3000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "C",
+            "name": "Arthurs Table",
+            "dir": "acmgnyr/2020/C-ArthursTable",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/C-ArthursTable/judge",
+            "pdf": "acmgnyr/2020/C-ArthursTable/C-ArthursTable.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "D",
+            "name": "Magic Drone",
+            "dir": "acmgnyr/2020/D-MagicDrone/D-MagicDrone.pdf",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/D-MagicDrone/judge",
+            "pdf": "acmgnyr/2020/D-MagicDrone/D-MagicDrone.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "E",
+            "name": "Marbles",
+            "dir": "acmgnyr/2020/E-Marbles",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/E-Marbles/sample",
+            "pdf": "acmgnyr/2020/E-Marbles/E-Marbles.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "F",
+            "name": "Chocolate Bar Game",
+            "dir": "acmgnyr/2020/F-ChocolateBarGame",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/F-ChocolateBarGame/judge",
+            "pdf": "acmgnyr/2020/F-ChocolateBarGame/F-ChocolateBarGame.pdf",
+            "pipe": false,
+            "time_limit": 8000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "G",
+            "name": "Three Triangles",
+            "dir": "acmgnyr/2020/G-ThreeTriangles",
+            "validate": "bin/validators/floats [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/G-ThreeTriangles/judge",
+            "pdf": "acmgnyr/2020/G-ThreeTriangles/G-ThreeTriangles.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "H",
+            "name": "ICPC Standings",
+            "dir": "acmgnyr/2020/H-ICPCStandings",
+            "validate": "bin/validators/chars [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/H-ICPCStandings/judge",
+            "pdf": "acmgnyr/2020/H-ICPCStandings/H-ICPCStandings.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "I",
+            "name": "Ternary Machine",
+            "dir": "acmgnyr/2020/I-TernaryMachine",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/I-TernaryMachine/judge",
+            "pdf": "acmgnyr/2020/I-TernaryMachine/I-TernaryMachine.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "J",
+            "name": "Cardinal Adjacencies",
+            "dir": "acmgnyr/2020/J-CardinalAdjacencies",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/J-CardinalAdjacencies/judge",
+            "pdf": "acmgnyr/2020/J-CardinalAdjacencies/J-CardinalAdjacencies.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "K",
+            "name": "Sterns Sequence",
+            "dir": "acmgnyr/2020/K-SternSeq",
+            "validate": "bin/validators/ints [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/K-SternSeq/judge",
+            "pdf": "acmgnyr/2020/K-SternSeq/K-SternSeq.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        },
+        {
+            "letter": "L",
+            "name": "Evenly Separated Strings",
+            "dir": "acmgnyr/2020/L-EvenlySeparatedStrings",
+            "validate": "bin/validators/strings [ANSWER_PATH] [OUTPUT_PATH]",
+            "testcases": "acmgnyr/2020/L-EvenlySeparatedStrings/judge",
+            "pdf": "acmgnyr/2020/L-EvenlySeparatedStrings/L-EvenlySeparatedStrings.pdf",
+            "pipe": false,
+            "time_limit": 2000,
+            "mem_limit": 2000000
+        }
+    ]
+}
