@@ -7,6 +7,7 @@ since the teams and passwords are assigned at the start of a practice session. T
 - offers real-time feedback with websockets so users can iterate on their ideas faster
 - cli for accessing the server so users can stay locked into their text editor
 - transparent run history on the backend for later review
+
 The contest statements are sourced from previous ICPC contests that are available for free online. This was another challenge
 I aimed to solve; websites were missing many of these contests, so by creating a structure for accessing these contests,
 teams can have more relevant and tailored practice sessions.
